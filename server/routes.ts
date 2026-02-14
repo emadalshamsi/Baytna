@@ -454,17 +454,138 @@ export async function registerRoutes(
     }
   });
 
+  // Stores CRUD
+  app.get("/api/stores", isAuthenticated, async (_req, res) => {
+    try {
+      const allStores = await storage.getStores();
+      res.json(allStores);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stores" });
+    }
+  });
+
+  app.post("/api/stores", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const store = await storage.createStore(req.body);
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create store" });
+    }
+  });
+
+  app.patch("/api/stores/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const store = await storage.updateStore(parseInt(req.params.id as string), req.body);
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update store" });
+    }
+  });
+
+  app.delete("/api/stores/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteStore(parseInt(req.params.id as string));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete store" });
+    }
+  });
+
+  // Helper: get current week Saturday to Friday
+  function getCurrentWeekRange(): { start: Date; end: Date } {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 6=Sat
+    const diffToSat = day === 6 ? 0 : -(day + 1);
+    const start = new Date(now);
+    start.setDate(now.getDate() + diffToSat);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  // Helper: get current month range
+  function getCurrentMonthRange(): { start: Date; end: Date } {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
   app.get("/api/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allOrders = await storage.getOrders();
       const pending = allOrders.filter(o => o.status === "pending").length;
       const approved = allOrders.filter(o => o.status === "approved").length;
       const inProgress = allOrders.filter(o => o.status === "in_progress").length;
-      const completed = allOrders.filter(o => o.status === "completed").length;
-      const totalSpent = allOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || 0), 0);
-      res.json({ pending, approved, inProgress, completed, total: allOrders.length, totalSpent });
+
+      // Completed orders = current week (Saturday to Friday)
+      const weekRange = getCurrentWeekRange();
+      const weekOrders = await storage.getOrdersInDateRange(weekRange.start, weekRange.end);
+      const completedThisWeek = weekOrders.filter(o => o.status === "completed").length;
+
+      // Total spent = current month
+      const monthRange = getCurrentMonthRange();
+      const monthOrders = await storage.getOrdersInDateRange(monthRange.start, monthRange.end);
+      const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || 0), 0);
+
+      res.json({
+        pending,
+        approved,
+        inProgress,
+        completed: completedThisWeek,
+        total: allOrders.length,
+        totalSpent: totalSpentThisMonth,
+        weekStart: weekRange.start.toISOString(),
+        weekEnd: weekRange.end.toISOString(),
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Allow maid to add items to in_progress orders
+  app.post("/api/orders/:id/items/maid", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const orderId = parseInt(req.params.id as string);
+      const order = await storage.getOrder(orderId);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      if (order.status !== "in_progress" && order.status !== "approved") {
+        return res.status(400).json({ message: "Cannot add items to this order" });
+      }
+
+      if (currentUser.role !== "maid" && currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const item = await storage.createOrderItem({ ...req.body, orderId });
+      // Update estimated total
+      const items = await storage.getOrderItems(orderId);
+      const newTotal = items.reduce((sum, i) => sum + (i.estimatedPrice || 0), 0);
+      await storage.updateOrderActualTotal(orderId, order.totalActual || 0);
+
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add item" });
     }
   });
 

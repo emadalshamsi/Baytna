@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
   Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
-  Send, Package, Plus, Minus, X, Image as ImageIcon
+  Send, Package, Plus, Minus, X, Image as ImageIcon, RefreshCw
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order } from "@shared/schema";
@@ -43,6 +44,9 @@ export default function MaidDashboard() {
   const [showCart, setShowCart] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [showUpdateOrder, setShowUpdateOrder] = useState(false);
+  const [selectedOrderForUpdate, setSelectedOrderForUpdate] = useState<string>("");
+  const [updateCart, setUpdateCart] = useState<{ productId: number; quantity: number; product: Product }[]>([]);
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
@@ -67,12 +71,30 @@ export default function MaidDashboard() {
     },
   });
 
+  const addToActiveOrderMutation = useMutation({
+    mutationFn: async () => {
+      const orderId = parseInt(selectedOrderForUpdate);
+      for (const item of updateCart) {
+        await apiRequest("POST", `/api/orders/${orderId}/items/maid`, {
+          productId: item.productId,
+          quantity: item.quantity,
+          estimatedPrice: (item.product.estimatedPrice || 0) * item.quantity,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      setUpdateCart([]);
+      setShowUpdateOrder(false);
+      setSelectedOrderForUpdate("");
+      toast({ title: t("messages.itemAdded") });
+    },
+  });
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(i => i.productId === product.id);
-      if (existing) {
-        return prev;
-      }
+      if (existing) return prev;
       return [...prev, { productId: product.id, quantity: 1, product }];
     });
   };
@@ -91,24 +113,44 @@ export default function MaidDashboard() {
     setCart(prev => prev.filter(i => i.productId !== productId));
   };
 
+  const addToUpdateCart = (product: Product) => {
+    setUpdateCart(prev => {
+      const existing = prev.find(i => i.productId === product.id);
+      if (existing) return prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      return [...prev, { productId: product.id, quantity: 1, product }];
+    });
+  };
+
+  const removeFromUpdateCart = (productId: number) => {
+    setUpdateCart(prev => prev.filter(i => i.productId !== productId));
+  };
+
   const filteredProducts = selectedCategory !== null
     ? products?.filter(p => p.categoryId === selectedCategory)
     : products;
 
   const pendingOrders = orders?.filter(o => o.status === "pending" || o.status === "approved") || [];
+  const activeOrders = orders?.filter(o => o.status === "in_progress") || [];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-lg font-bold">{t("nav.addItems")}</h2>
-        <Button className="gap-2 relative" onClick={() => setShowCart(true)} data-testid="button-view-cart">
-          <ShoppingCart className="w-5 h-5" />
-          {cart.length > 0 && (
-            <span className="absolute -top-2 -left-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
-            </span>
+        <div className="flex items-center gap-2">
+          {activeOrders.length > 0 && (
+            <Button variant="outline" className="gap-2" onClick={() => setShowUpdateOrder(true)} data-testid="button-update-active-order">
+              <RefreshCw className="w-4 h-4" /> {t("maid.updateOrder")}
+            </Button>
           )}
-        </Button>
+          <Button className="gap-2 relative" onClick={() => setShowCart(true)} data-testid="button-view-cart">
+            <ShoppingCart className="w-5 h-5" />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -left-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                {cart.reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
 
       {pendingOrders.length > 0 && (
@@ -120,6 +162,24 @@ export default function MaidDashboard() {
                 <span>#{o.id}</span>
                 <Badge className={`no-default-hover-elevate no-default-active-elevate ${o.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"}`}>
                   {t(`status.${o.status}`)}
+                </Badge>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {activeOrders.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> {t("status.in_progress")}
+          </h3>
+          {activeOrders.map(o => (
+            <Card key={o.id} data-testid={`card-maid-active-order-${o.id}`}>
+              <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
+                <span>#{o.id}</span>
+                <Badge className="no-default-hover-elevate no-default-active-elevate bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                  {t("status.in_progress")}
                 </Badge>
               </CardContent>
             </Card>
@@ -239,6 +299,70 @@ export default function MaidDashboard() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showUpdateOrder} onOpenChange={(open) => { setShowUpdateOrder(open); if (!open) { setUpdateCart([]); setSelectedOrderForUpdate(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t("maid.updateOrder")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {activeOrders.length > 0 && (
+              <Select value={selectedOrderForUpdate} onValueChange={setSelectedOrderForUpdate}>
+                <SelectTrigger data-testid="select-active-order"><SelectValue placeholder={t("maid.selectOrder")} /></SelectTrigger>
+                <SelectContent>
+                  {activeOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>#{o.id} - {formatPrice(o.totalEstimated || 0)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+
+            {selectedOrderForUpdate && (
+              <>
+                <h4 className="text-sm font-medium">{t("maid.addToOrder")}</h4>
+                <div className="grid grid-cols-3 gap-2 max-h-[30vh] overflow-y-auto">
+                  {products?.map(product => {
+                    const inUpdateCart = updateCart.find(i => i.productId === product.id);
+                    const catData = categories?.find(c => c.id === product.categoryId);
+                    const Icon = getIcon(catData?.icon || product.icon);
+                    return (
+                      <button key={product.id} onClick={() => addToUpdateCart(product)}
+                        className={`relative flex flex-col items-center justify-center p-2 rounded-md border text-center transition-colors min-h-[70px] hover-elevate active-elevate-2 ${inUpdateCart ? "border-primary bg-primary/5" : "bg-card"}`}
+                        data-testid={`button-update-add-${product.id}`}>
+                        {product.imageUrl ? (
+                          <div className="w-8 h-8 rounded-md overflow-hidden mb-1">
+                            <img src={product.imageUrl} alt={product.nameAr} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <Icon className="w-6 h-6 mb-1 text-muted-foreground" />
+                        )}
+                        <span className="text-[10px] font-medium leading-tight">{product.nameAr}</span>
+                        {inUpdateCart && (
+                          <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
+                            {inUpdateCart.quantity}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {updateCart.length > 0 && (
+                  <div className="space-y-2 border-t pt-2">
+                    {updateCart.map(item => (
+                      <div key={item.productId} className="flex items-center justify-between gap-2">
+                        <span className="text-sm">{item.product.nameAr} x{item.quantity}</span>
+                        <Button size="icon" variant="ghost" onClick={() => removeFromUpdateCart(item.productId)} data-testid={`button-update-remove-${item.productId}`}>
+                          <X className="w-3 h-3 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button className="w-full gap-2" onClick={() => addToActiveOrderMutation.mutate()} disabled={addToActiveOrderMutation.isPending} data-testid="button-submit-update">
+                      <Plus className="w-4 h-4" /> {t("maid.addToOrder")}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

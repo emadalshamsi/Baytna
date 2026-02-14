@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon } from "lucide-react";
+import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink } from "lucide-react";
 import { useState, useRef } from "react";
-import type { Order, Product, Category } from "@shared/schema";
+import type { Order, Product, Category, Store } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
@@ -113,6 +113,13 @@ function OrdersTab({ statusFilter }: { statusFilter: string | null }) {
               <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
               {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
             </div>
+            {order.receiptImageUrl && (
+              <div className="mt-2">
+                <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1">
+                  {t("fields.receipt")} <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
             {order.notes && <p className="text-sm text-muted-foreground mt-1">{order.notes}</p>}
             <div className="text-xs text-muted-foreground mt-1">
               {new Date(order.createdAt!).toLocaleDateString("ar-SA")}
@@ -139,6 +146,7 @@ function ProductsTab() {
   const { toast } = useToast();
   const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
+  const { data: allStores } = useQuery<Store[]>({ queryKey: ["/api/stores"] });
   const [showAdd, setShowAdd] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [nameAr, setNameAr] = useState("");
@@ -146,13 +154,14 @@ function ProductsTab() {
   const [estimatedPrice, setEstimatedPrice] = useState("");
   const [preferredStore, setPreferredStore] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [storeId, setStoreId] = useState("");
   const [unit, setUnit] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
-    setNameAr(""); setNameEn(""); setEstimatedPrice(""); setPreferredStore(""); setCategoryId(""); setUnit(""); setImageUrl("");
+    setNameAr(""); setNameEn(""); setEstimatedPrice(""); setPreferredStore(""); setCategoryId(""); setStoreId(""); setUnit(""); setImageUrl("");
     setEditingProduct(null);
   };
 
@@ -163,6 +172,7 @@ function ProductsTab() {
     setEstimatedPrice(String(p.estimatedPrice || ""));
     setPreferredStore(p.preferredStore || "");
     setCategoryId(p.categoryId ? String(p.categoryId) : "");
+    setStoreId(p.storeId ? String(p.storeId) : "");
     setUnit(p.unit || "");
     setImageUrl(p.imageUrl || "");
     setShowAdd(true);
@@ -177,44 +187,32 @@ function ProductsTab() {
       formData.append("image", file);
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
-      if (res.ok) {
-        setImageUrl(data.imageUrl);
-      }
+      if (res.ok) setImageUrl(data.imageUrl);
     } catch {}
     setUploading(false);
   };
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/products", data);
-    },
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/products", data); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      setShowAdd(false);
-      resetForm();
+      setShowAdd(false); resetForm();
       toast({ title: t("messages.productAdded") });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      await apiRequest("PATCH", `/api/products/${id}`, data);
-    },
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/products/${id}`, data); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      setShowAdd(false);
-      resetForm();
+      setShowAdd(false); resetForm();
       toast({ title: t("messages.productUpdated") });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/products/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-    },
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/products/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/products"] }); },
   });
 
   const handleSave = () => {
@@ -223,14 +221,18 @@ function ProductsTab() {
       estimatedPrice: estimatedPrice ? parseInt(estimatedPrice) : 0,
       preferredStore: preferredStore || null,
       categoryId: categoryId ? parseInt(categoryId) : null,
+      storeId: storeId ? parseInt(storeId) : null,
       unit: unit || null,
       imageUrl: imageUrl || null,
     };
-    if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+    if (editingProduct) updateMutation.mutate({ id: editingProduct.id, data });
+    else createMutation.mutate(data);
+  };
+
+  const getStoreName = (sid: number | null) => {
+    if (!sid) return "";
+    const s = allStores?.find(st => st.id === sid);
+    return s?.nameAr || "";
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -239,9 +241,7 @@ function ProductsTab() {
     <div className="space-y-3">
       <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
         <DialogTrigger asChild>
-          <Button className="gap-2" data-testid="button-add-product">
-            <Plus className="w-4 h-4" /> {t("admin.addProduct")}
-          </Button>
+          <Button className="gap-2" data-testid="button-add-product"><Plus className="w-4 h-4" /> {t("admin.addProduct")}</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingProduct ? t("admin.editProduct") : t("admin.addProduct")}</DialogTitle></DialogHeader>
@@ -249,13 +249,20 @@ function ProductsTab() {
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
             <Input type="number" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
-            <Input placeholder={t("fields.store")} value={preferredStore} onChange={e => setPreferredStore(e.target.value)} data-testid="input-product-store" />
             <Input placeholder={t("fields.unit")} value={unit} onChange={e => setUnit(e.target.value)} data-testid="input-product-unit" />
             {categories && categories.length > 0 && (
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger data-testid="select-product-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
                 <SelectContent>
                   {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.nameAr}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {allStores && allStores.length > 0 && (
+              <Select value={storeId} onValueChange={setStoreId}>
+                <SelectTrigger data-testid="select-product-store"><SelectValue placeholder={t("fields.preferredStore")} /></SelectTrigger>
+                <SelectContent>
+                  {allStores.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.nameAr}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
@@ -300,7 +307,8 @@ function ProductsTab() {
                   <span className="font-medium">{p.nameAr}</span>
                   {p.nameEn && <span className="text-sm text-muted-foreground mr-2"> ({p.nameEn})</span>}
                   <div className="text-sm text-muted-foreground">
-                    {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""} {p.preferredStore ? `- ${p.preferredStore}` : ""}
+                    {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}
+                    {p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}
                   </div>
                 </div>
               </div>
@@ -330,59 +338,31 @@ function CategoriesTab() {
   const [nameEn, setNameEn] = useState("");
   const [icon, setIcon] = useState("");
 
-  const resetForm = () => {
-    setNameAr(""); setNameEn(""); setIcon("");
-    setEditingCategory(null);
-  };
+  const resetForm = () => { setNameAr(""); setNameEn(""); setIcon(""); setEditingCategory(null); };
 
   const openEdit = (c: Category) => {
-    setEditingCategory(c);
-    setNameAr(c.nameAr);
-    setNameEn(c.nameEn || "");
-    setIcon(c.icon || "");
-    setShowAdd(true);
+    setEditingCategory(c); setNameAr(c.nameAr); setNameEn(c.nameEn || ""); setIcon(c.icon || ""); setShowAdd(true);
   };
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/categories", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      setShowAdd(false);
-      resetForm();
-      toast({ title: t("admin.categoryAdded") });
-    },
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/categories", data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/categories"] }); setShowAdd(false); resetForm(); toast({ title: t("admin.categoryAdded") }); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      await apiRequest("PATCH", `/api/categories/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      setShowAdd(false);
-      resetForm();
-      toast({ title: t("messages.categoryUpdated") });
-    },
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/categories/${id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/categories"] }); setShowAdd(false); resetForm(); toast({ title: t("messages.categoryUpdated") }); },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/categories/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-    },
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/categories/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/categories"] }); },
   });
 
   const handleSave = () => {
     const data = { nameAr, nameEn: nameEn || null, icon: icon || null };
-    if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+    if (editingCategory) updateMutation.mutate({ id: editingCategory.id, data });
+    else createMutation.mutate(data);
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -391,9 +371,7 @@ function CategoriesTab() {
     <div className="space-y-3">
       <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
         <DialogTrigger asChild>
-          <Button className="gap-2" data-testid="button-add-category">
-            <Plus className="w-4 h-4" /> {t("admin.addCategory")}
-          </Button>
+          <Button className="gap-2" data-testid="button-add-category"><Plus className="w-4 h-4" /> {t("admin.addCategory")}</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingCategory ? t("admin.editCategory") : t("admin.addCategory")}</DialogTitle></DialogHeader>
@@ -431,6 +409,98 @@ function CategoriesTab() {
   );
 }
 
+function StoresTab() {
+  useLang();
+  const { toast } = useToast();
+  const { data: allStores, isLoading } = useQuery<Store[]>({ queryKey: ["/api/stores"] });
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingStore, setEditingStore] = useState<Store | null>(null);
+  const [nameAr, setNameAr] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+
+  const resetForm = () => { setNameAr(""); setNameEn(""); setWebsiteUrl(""); setEditingStore(null); };
+
+  const openEdit = (s: Store) => {
+    setEditingStore(s); setNameAr(s.nameAr); setNameEn(s.nameEn || ""); setWebsiteUrl(s.websiteUrl || ""); setShowAdd(true);
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/stores", data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/stores"] }); setShowAdd(false); resetForm(); toast({ title: t("admin.storeAdded") }); },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/stores/${id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/stores"] }); setShowAdd(false); resetForm(); toast({ title: t("admin.storeUpdated") }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/stores/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/stores"] }); },
+  });
+
+  const handleSave = () => {
+    const data = { nameAr, nameEn: nameEn || null, websiteUrl: websiteUrl || null };
+    if (editingStore) updateMutation.mutate({ id: editingStore.id, data });
+    else createMutation.mutate(data);
+  };
+
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
+
+  return (
+    <div className="space-y-3">
+      <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
+        <DialogTrigger asChild>
+          <Button className="gap-2" data-testid="button-add-store"><Plus className="w-4 h-4" /> {t("admin.addStore")}</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingStore ? t("admin.editStore") : t("admin.addStore")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-store-name-ar" />
+            <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-store-name-en" dir="ltr" />
+            <Input placeholder={t("fields.websiteUrl")} value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} data-testid="input-store-url" dir="ltr" />
+            <Button className="w-full" disabled={!nameAr || createMutation.isPending || updateMutation.isPending} data-testid="button-save-store" onClick={handleSave}>
+              {t("actions.save")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {!allStores?.length ? (
+        <p className="text-center text-muted-foreground py-8">{t("messages.noStores")}</p>
+      ) : (
+        allStores.map(s => (
+          <Card key={s.id} data-testid={`card-store-${s.id}`}>
+            <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2">
+                  <StoreIcon className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">{s.nameAr}</span>
+                  {s.nameEn && <span className="text-sm text-muted-foreground">({s.nameEn})</span>}
+                </div>
+                {s.websiteUrl && (
+                  <a href={s.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1 mt-1" data-testid={`link-store-url-${s.id}`}>
+                    {s.websiteUrl} <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => openEdit(s)} data-testid={`button-edit-store-${s.id}`}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-store-${s.id}`}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
 function UsersTab() {
   useLang();
   const { toast } = useToast();
@@ -440,10 +510,7 @@ function UsersTab() {
     mutationFn: async ({ id, role, canApprove }: { id: string; role: string; canApprove: boolean }) => {
       await apiRequest("PATCH", `/api/users/${id}/role`, { role, canApprove });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: t("admin.userRoleUpdated") });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/users"] }); toast({ title: t("admin.userRoleUpdated") }); },
   });
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -466,27 +533,18 @@ function UsersTab() {
             </div>
             <div className="flex gap-1.5 flex-wrap mb-2">
               {roles.map(role => (
-                <Button
-                  key={role}
-                  size="sm"
-                  variant="outline"
+                <Button key={role} size="sm" variant="outline"
                   className={u.role === role ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
                   onClick={() => updateRoleMutation.mutate({ id: u.id, role, canApprove: role === "admin" ? true : u.canApprove })}
-                  disabled={updateRoleMutation.isPending}
-                  data-testid={`button-role-${role}-${u.id}`}
-                >
+                  disabled={updateRoleMutation.isPending} data-testid={`button-role-${role}-${u.id}`}>
                   {t(`roles.${role}`)}
                 </Button>
               ))}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
+            <Button size="sm" variant="outline"
               className={u.canApprove ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
               onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
-              disabled={updateRoleMutation.isPending}
-              data-testid={`button-toggle-approve-${u.id}`}
-            >
+              disabled={updateRoleMutation.isPending} data-testid={`button-toggle-approve-${u.id}`}>
               {t("admin.approvePermission")}
             </Button>
           </CardContent>
@@ -520,6 +578,9 @@ export default function AdminDashboard() {
           <TabsTrigger value="categories" className="gap-1" data-testid="tab-categories">
             {t("nav.categories")}
           </TabsTrigger>
+          <TabsTrigger value="stores" className="gap-1" data-testid="tab-stores">
+            <StoreIcon className="w-4 h-4" /> {t("nav.stores")}
+          </TabsTrigger>
           <TabsTrigger value="users" className="gap-1" data-testid="tab-users">
             <Users className="w-4 h-4" /> {t("nav.users")}
           </TabsTrigger>
@@ -527,6 +588,7 @@ export default function AdminDashboard() {
         <TabsContent value="orders"><OrdersTab statusFilter={statusFilter} /></TabsContent>
         <TabsContent value="products"><ProductsTab /></TabsContent>
         <TabsContent value="categories"><CategoriesTab /></TabsContent>
+        <TabsContent value="stores"><StoresTab /></TabsContent>
         <TabsContent value="users"><UsersTab /></TabsContent>
       </Tabs>
     </div>
