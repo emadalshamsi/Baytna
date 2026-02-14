@@ -654,9 +654,23 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const trip = await storage.createTrip({ ...req.body, createdBy: currentUser.id, status: "pending" });
+      const tripData = {
+        ...req.body,
+        createdBy: currentUser.id,
+        status: "pending",
+        departureTime: req.body.departureTime ? new Date(req.body.departureTime) : new Date(),
+        vehicleId: req.body.vehicleId ? parseInt(req.body.vehicleId) : null,
+        assignedDriver: req.body.assignedDriver || null,
+        approvedBy: null,
+        startedAt: null,
+        waitingStartedAt: null,
+        waitingDuration: 0,
+        completedAt: null,
+      };
+      const trip = await storage.createTrip(tripData);
       res.json(trip);
     } catch (error) {
+      console.error("Failed to create trip:", error);
       res.status(500).json({ message: "Failed to create trip" });
     }
   });
