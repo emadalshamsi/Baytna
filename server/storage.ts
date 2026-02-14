@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
@@ -75,6 +75,9 @@ export interface IStorage {
   createTripLocation(loc: InsertTripLocation): Promise<TripLocation>;
   updateTripLocation(id: number, loc: Partial<InsertTripLocation>): Promise<TripLocation | undefined>;
   deleteTripLocation(id: number): Promise<void>;
+
+  getDriverActiveTrips(driverId: string): Promise<Trip[]>;
+  getDriverActiveOrders(driverId: string): Promise<Order[]>;
 
   getTechnicians(): Promise<Technician[]>;
   getTechnician(id: number): Promise<Technician | undefined>;
@@ -352,6 +355,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTripLocation(id: number): Promise<void> {
     await db.update(tripLocations).set({ isActive: false }).where(eq(tripLocations.id, id));
+  }
+
+  async getDriverActiveTrips(driverId: string): Promise<Trip[]> {
+    return db.select().from(trips).where(
+      and(
+        eq(trips.assignedDriver, driverId),
+        inArray(trips.status, ["started", "waiting"])
+      )
+    );
+  }
+
+  async getDriverActiveOrders(driverId: string): Promise<Order[]> {
+    return db.select().from(orders).where(
+      and(
+        eq(orders.assignedDriver, driverId),
+        eq(orders.status, "in_progress")
+      )
+    );
   }
 
   async getTechnicians(): Promise<Technician[]> {

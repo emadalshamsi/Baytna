@@ -631,6 +631,21 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/drivers/:id/availability", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const driverId = req.params.id;
+      const activeTrips = await storage.getDriverActiveTrips(driverId);
+      const activeOrders = await storage.getDriverActiveOrders(driverId);
+      res.json({
+        busy: activeTrips.length > 0 || activeOrders.length > 0,
+        activeTrips: activeTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status })),
+        activeOrders: activeOrders.map(o => ({ id: o.id, status: o.status })),
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to check driver availability" });
+    }
+  });
+
   // Trip Locations CRUD
   app.get("/api/trip-locations", isAuthenticated, async (_req: Request, res: Response) => {
     try {

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation } from "lucide-react";
+import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
 import { t, getLang } from "@/lib/i18n";
@@ -238,6 +238,12 @@ function TripsSection() {
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
+  type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
+  const { data: driverAvailability } = useQuery<DriverAvailability>({
+    queryKey: ["/api/drivers", assignedDriver, "availability"],
+    enabled: !!assignedDriver,
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/trips", data); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trips"] }); setShowAdd(false); resetForm(); toast({ title: t("trips.tripAdded") }); },
@@ -356,6 +362,30 @@ function TripsSection() {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+
+            {assignedDriver && driverAvailability?.busy && (
+              <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" data-testid="alert-driver-conflict">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{t("conflict.driverBusy")}</span>
+                </div>
+                <div className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 mr-6">
+                  {driverAvailability.activeTrips.map(tr => (
+                    <div key={tr.id}>{t("conflict.tripTo")} {tr.location} ({t(`status.${tr.status}`)})</div>
+                  ))}
+                  {driverAvailability.activeOrders.map(o => (
+                    <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {assignedDriver && driverAvailability && !driverAvailability.busy && (
+              <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400" data-testid="text-driver-available">
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>{t("conflict.driverAvailable")}</span>
+              </div>
             )}
 
             {allVehicles && allVehicles.length > 0 && (

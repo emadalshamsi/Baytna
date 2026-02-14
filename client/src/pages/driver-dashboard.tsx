@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car } from "lucide-react";
+import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
@@ -29,12 +29,19 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
+
 function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) {
   useLang();
   const { toast } = useToast();
+  const { data: currentUser } = useQuery<{ id: string }>({ queryKey: ["/api/auth/user"] });
   const { data: items, isLoading: loadingItems } = useQuery<OrderItem[]>({ queryKey: ["/api/orders", order.id, "items"] });
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: allStores } = useQuery<Store[]>({ queryKey: ["/api/stores"] });
+  const { data: driverAvailability } = useQuery<DriverAvailability>({
+    queryKey: ["/api/drivers", currentUser?.id, "availability"],
+    enabled: !!currentUser?.id && order.status === "approved",
+  });
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [receiptUrl, setReceiptUrl] = useState(order.receiptImageUrl || "");
@@ -53,6 +60,9 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     onSuccess: (status: string) => {
       setCurrentStatus(status);
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      if (currentUser?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/drivers", currentUser.id, "availability"] });
+      }
       toast({ title: t("admin.orderStatusUpdated") });
     },
   });
@@ -167,9 +177,27 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
       )}
 
       {currentStatus === "approved" && (
-        <Button className="w-full gap-2" onClick={() => statusMutation.mutate("in_progress")} disabled={statusMutation.isPending} data-testid="button-start-shopping">
-          <Truck className="w-4 h-4" /> {t("driver.startShopping")}
-        </Button>
+        <div className="space-y-2">
+          {driverAvailability?.busy && (
+            <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" data-testid="alert-driver-conflict-order">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{t("conflict.driverBusy")}</span>
+              </div>
+              <div className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 mr-6">
+                {driverAvailability.activeTrips.map(tr => (
+                  <div key={tr.id}>{t("conflict.tripTo")} {tr.location} ({t(`status.${tr.status}`)})</div>
+                ))}
+                {driverAvailability.activeOrders.map(o => (
+                  <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button className="w-full gap-2" onClick={() => statusMutation.mutate("in_progress")} disabled={statusMutation.isPending} data-testid="button-start-shopping">
+            <Truck className="w-4 h-4" /> {t("driver.startShopping")}
+          </Button>
+        </div>
       )}
 
       {loadingItems ? (
@@ -301,8 +329,13 @@ function WaitingTimer({ startedAt }: { startedAt: string }) {
 function TripsSection() {
   useLang();
   const { toast } = useToast();
+  const { data: currentUser } = useQuery<{ id: string }>({ queryKey: ["/api/auth/user"] });
   const { data: trips, isLoading } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
   const { data: allVehicles } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
+  const { data: driverAvailability } = useQuery<DriverAvailability>({
+    queryKey: ["/api/drivers", currentUser?.id, "availability"],
+    enabled: !!currentUser?.id,
+  });
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
@@ -310,6 +343,9 @@ function TripsSection() {
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      if (currentUser?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/drivers", currentUser.id, "availability"] });
+      }
       const msgKey = vars.status === "started" ? "driver.tripStarted" : vars.status === "waiting" ? "driver.tripWaiting" : "driver.tripCompleted";
       toast({ title: t(msgKey) });
     },
@@ -391,7 +427,7 @@ function TripsSection() {
                 <div className="flex gap-2 flex-wrap">
                   {trip.status === "started" && (
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "waiting" })} disabled={statusMutation.isPending} data-testid={`button-wait-trip-${trip.id}`}>
-                      <Pause className="w-4 h-4" /> {t("driver.waitTrip")}
+                      <MapPin className="w-4 h-4" /> {t("driver.arrivedAtLocation")}
                     </Button>
                   )}
                   <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "completed" })} disabled={statusMutation.isPending} data-testid={`button-complete-trip-${trip.id}`}>
@@ -432,6 +468,22 @@ function TripsSection() {
                   )}
                 </div>
                 {trip.notes && <p className="text-sm text-muted-foreground">{trip.notes}</p>}
+                {driverAvailability?.busy && (
+                  <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" data-testid={`alert-trip-conflict-${trip.id}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <span className="text-xs font-medium text-amber-800 dark:text-amber-300">{t("conflict.driverBusy")}</span>
+                    </div>
+                    <div className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 mr-5">
+                      {driverAvailability.activeTrips.map(tr => (
+                        <div key={tr.id}>{t("conflict.tripTo")} {tr.location} ({t(`status.${tr.status}`)})</div>
+                      ))}
+                      {driverAvailability.activeOrders.map(o => (
+                        <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "started" })} disabled={statusMutation.isPending} data-testid={`button-start-trip-${trip.id}`}>
                   <Play className="w-4 h-4" /> {t("driver.startTrip")}
                 </Button>
