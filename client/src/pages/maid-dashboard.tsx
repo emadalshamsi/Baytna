@@ -11,7 +11,7 @@ import {
   ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
   Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
-  Send, Package
+  Send, Package, Plus, Minus, X, Image as ImageIcon
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order } from "@shared/schema";
@@ -71,18 +71,27 @@ export default function MaidDashboard() {
     setCart(prev => {
       const existing = prev.find(i => i.productId === product.id);
       if (existing) {
-        return prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev;
       }
       return [...prev, { productId: product.id, quantity: 1, product }];
     });
-    toast({ title: `${product.nameAr} +1` });
+  };
+
+  const updateQuantity = (productId: number, delta: number) => {
+    setCart(prev => prev.map(i => {
+      if (i.productId === productId) {
+        const newQty = i.quantity + delta;
+        return newQty > 0 ? { ...i, quantity: newQty } : i;
+      }
+      return i;
+    }));
   };
 
   const removeFromCart = (productId: number) => {
     setCart(prev => prev.filter(i => i.productId !== productId));
   };
 
-  const filteredProducts = selectedCategory
+  const filteredProducts = selectedCategory !== null
     ? products?.filter(p => p.categoryId === selectedCategory)
     : products;
 
@@ -148,23 +157,44 @@ export default function MaidDashboard() {
             const catData = categories?.find(c => c.id === product.categoryId);
             const Icon = getIcon(catData?.icon || product.icon);
             return (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className={`relative flex flex-col items-center justify-center p-3 rounded-md border text-center transition-colors min-h-[100px] hover-elevate active-elevate-2 ${inCart ? "border-primary bg-primary/5" : "bg-card"}`}
-                data-testid={`button-add-product-${product.id}`}
-              >
-                <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
-                <span className="text-xs font-medium leading-tight">{product.nameAr}</span>
-                {product.estimatedPrice ? (
-                  <span className="text-[10px] text-muted-foreground mt-1">{formatPrice(product.estimatedPrice)}</span>
-                ) : null}
+              <div key={product.id} className="flex flex-col">
+                <button
+                  onClick={() => addToCart(product)}
+                  className={`relative flex flex-col items-center justify-center p-3 rounded-md border text-center transition-colors min-h-[100px] hover-elevate active-elevate-2 ${inCart ? "border-primary bg-primary/5" : "bg-card"}`}
+                  data-testid={`button-add-product-${product.id}`}
+                >
+                  {product.imageUrl ? (
+                    <div className="w-10 h-10 rounded-md overflow-hidden mb-2">
+                      <img src={product.imageUrl} alt={product.nameAr} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
+                  )}
+                  <span className="text-xs font-medium leading-tight">{product.nameAr}</span>
+                  {product.estimatedPrice ? (
+                    <span className="text-[10px] text-muted-foreground mt-1">{formatPrice(product.estimatedPrice)}</span>
+                  ) : null}
+                  {inCart && (
+                    <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                      {inCart.quantity}
+                    </span>
+                  )}
+                </button>
                 {inCart && (
-                  <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                    {inCart.quantity}
-                  </span>
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <Button size="icon" variant="outline" className="w-7 h-7" onClick={() => {
+                      if (inCart.quantity <= 1) removeFromCart(product.id);
+                      else updateQuantity(product.id, -1);
+                    }} data-testid={`button-decrease-grid-${product.id}`}>
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-sm font-bold min-w-[20px] text-center">{inCart.quantity}</span>
+                    <Button size="icon" variant="outline" className="w-7 h-7" onClick={() => updateQuantity(product.id, 1)} data-testid={`button-increase-grid-${product.id}`}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -185,11 +215,16 @@ export default function MaidDashboard() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Button size="icon" variant="ghost" onClick={() => {
-                      setCart(prev => prev.map(i => i.productId === item.productId && i.quantity > 1 ? { ...i, quantity: i.quantity - 1 } : i));
-                    }} data-testid={`button-decrease-${item.productId}`}>-</Button>
-                    <Button size="icon" variant="ghost" onClick={() => addToCart(item.product)} data-testid={`button-increase-${item.productId}`}>+</Button>
+                      if (item.quantity <= 1) removeFromCart(item.productId);
+                      else updateQuantity(item.productId, -1);
+                    }} data-testid={`button-decrease-${item.productId}`}>
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => updateQuantity(item.productId, 1)} data-testid={`button-increase-${item.productId}`}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => removeFromCart(item.productId)} data-testid={`button-remove-${item.productId}`}>
-                      <span className="text-destructive text-lg">&times;</span>
+                      <X className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
