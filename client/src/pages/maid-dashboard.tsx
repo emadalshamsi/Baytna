@@ -5,11 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  ShoppingCart, Plus, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
+  ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
   Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
   Send, Package
@@ -17,6 +16,7 @@ import {
 import { useState } from "react";
 import type { Product, Category, Order } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
+import { useLang } from "@/App";
 
 const categoryIcons: Record<string, any> = {
   milk: Milk, dairy: Milk, apple: Apple, fruit: Apple, fruits: Apple,
@@ -34,6 +34,7 @@ function getIcon(iconName?: string | null) {
 }
 
 export default function MaidDashboard() {
+  useLang();
   const { toast } = useToast();
   const { data: products, isLoading: loadingProducts } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -103,7 +104,7 @@ export default function MaidDashboard() {
 
       {pendingOrders.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">طلباتك الحالية</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{t("driver.yourOrders")}</h3>
           {pendingOrders.map(o => (
             <Card key={o.id} data-testid={`card-maid-order-${o.id}`}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
@@ -120,7 +121,7 @@ export default function MaidDashboard() {
       {categories && categories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2">
           <Button size="sm" variant={selectedCategory === null ? "default" : "outline"} onClick={() => setSelectedCategory(null)} data-testid="button-category-all">
-            الكل
+            {t("maid.all")}
           </Button>
           {categories.map(c => {
             const Icon = getIcon(c.icon);
@@ -171,9 +172,9 @@ export default function MaidDashboard() {
 
       <Dialog open={showCart} onOpenChange={setShowCart}>
         <DialogContent>
-          <DialogHeader><DialogTitle>سلة المشتريات ({cart.reduce((s, i) => s + i.quantity, 0)})</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("maid.cart")} ({cart.reduce((s, i) => s + i.quantity, 0)})</DialogTitle></DialogHeader>
           {cart.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">السلة فارغة</p>
+            <p className="text-center text-muted-foreground py-4">{t("maid.emptyCart")}</p>
           ) : (
             <div className="space-y-3 max-h-[50vh] overflow-y-auto">
               {cart.map(item => (
@@ -199,7 +200,7 @@ export default function MaidDashboard() {
               </div>
               <Textarea placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} className="text-sm" data-testid="input-order-notes" />
               <Button className="w-full gap-2" onClick={() => createOrderMutation.mutate()} disabled={createOrderMutation.isPending} data-testid="button-submit-order">
-                <Send className="w-4 h-4" /> إرسال الطلب
+                <Send className="w-4 h-4" /> {t("maid.sendOrder")}
               </Button>
             </div>
           )}

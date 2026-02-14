@@ -11,10 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3 } from "lucide-react";
 import { useState } from "react";
-import type { Order, Product, Category, User } from "@shared/schema";
+import type { Order, Product, Category } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
+import { useLang } from "@/App";
+import type { AuthUser } from "@/hooks/use-auth";
 
 function StatusBadge({ status }: { status: string }) {
+  useLang();
   const variants: Record<string, string> = {
     pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -30,6 +33,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function StatsCards() {
+  useLang();
   const { data: stats, isLoading } = useQuery<{ pending: number; approved: number; inProgress: number; completed: number; total: number; totalSpent: number }>({
     queryKey: ["/api/stats"],
   });
@@ -65,6 +69,7 @@ function StatsCards() {
 }
 
 function OrdersTab() {
+  useLang();
   const { toast } = useToast();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
 
@@ -75,7 +80,7 @@ function OrdersTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "تم تحديث حالة الطلب" });
+      toast({ title: t("admin.orderStatusUpdated") });
     },
   });
 
@@ -118,6 +123,7 @@ function OrdersTab() {
 }
 
 function ProductsTab() {
+  useLang();
   const { toast } = useToast();
   const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -157,11 +163,11 @@ function ProductsTab() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogTrigger asChild>
           <Button className="gap-2" data-testid="button-add-product">
-            <Plus className="w-4 h-4" /> {t("actions.add")} {t("nav.products")}
+            <Plus className="w-4 h-4" /> {t("admin.addProduct")}
           </Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("actions.add")} منتج</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("admin.addProduct")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
@@ -215,6 +221,7 @@ function ProductsTab() {
 }
 
 function CategoriesTab() {
+  useLang();
   const { toast } = useToast();
   const { data: categories, isLoading } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
   const [showAdd, setShowAdd] = useState(false);
@@ -230,7 +237,7 @@ function CategoriesTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
       setShowAdd(false);
       setNameAr(""); setNameEn(""); setIcon("");
-      toast({ title: "تمت إضافة الفئة" });
+      toast({ title: t("admin.categoryAdded") });
     },
   });
 
@@ -250,15 +257,15 @@ function CategoriesTab() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogTrigger asChild>
           <Button className="gap-2" data-testid="button-add-category">
-            <Plus className="w-4 h-4" /> {t("actions.add")} {t("nav.categories")}
+            <Plus className="w-4 h-4" /> {t("admin.addCategory")}
           </Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("actions.add")} فئة</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("admin.addCategory")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-category-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-category-name-en" dir="ltr" />
-            <Input placeholder="رمز الأيقونة (مثال: milk)" value={icon} onChange={e => setIcon(e.target.value)} data-testid="input-category-icon" />
+            <Input placeholder={t("admin.iconCode")} value={icon} onChange={e => setIcon(e.target.value)} data-testid="input-category-icon" />
             <Button className="w-full" disabled={!nameAr || createMutation.isPending} data-testid="button-save-category"
               onClick={() => createMutation.mutate({ nameAr, nameEn: nameEn || null, icon: icon || null })}>
               {t("actions.save")}
@@ -286,8 +293,9 @@ function CategoriesTab() {
 }
 
 function UsersTab() {
+  useLang();
   const { toast } = useToast();
-  const { data: allUsers, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: allUsers, isLoading } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, role, canApprove }: { id: string; role: string; canApprove: boolean }) => {
@@ -295,7 +303,7 @@ function UsersTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "تم تحديث صلاحيات المستخدم" });
+      toast({ title: t("admin.userRoleUpdated") });
     },
   });
 
@@ -308,8 +316,8 @@ function UsersTab() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
               <div>
-                <span className="font-medium">{u.firstName || u.email || "مستخدم"} {u.lastName || ""}</span>
-                {u.email && <span className="text-xs text-muted-foreground block">{u.email}</span>}
+                <span className="font-medium">{u.firstName || u.username || t("roles.household")}</span>
+                {u.username && <span className="text-xs text-muted-foreground block">@{u.username}</span>}
               </div>
               <Badge className="no-default-hover-elevate no-default-active-elevate">{t(`roles.${u.role}`)}</Badge>
             </div>
@@ -326,7 +334,7 @@ function UsersTab() {
               <Button size="sm" variant={u.canApprove ? "default" : "outline"}
                 onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
                 data-testid={`button-toggle-approve-${u.id}`}>
-                {u.canApprove ? "صلاحية الاعتماد" : "بدون اعتماد"}
+                {u.canApprove ? t("admin.approvePermission") : t("admin.noApproval")}
               </Button>
             </div>
           </CardContent>
@@ -337,6 +345,7 @@ function UsersTab() {
 }
 
 export default function AdminDashboard() {
+  useLang();
   return (
     <div className="space-y-4">
       <StatsCards />

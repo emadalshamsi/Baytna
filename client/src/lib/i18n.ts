@@ -7,6 +7,11 @@ const ar = {
   fields: { name: "الاسم", nameAr: "الاسم بالعربية", nameEn: "الاسم بالإنجليزية", price: "السعر", estimatedPrice: "السعر التقديري", actualPrice: "السعر الفعلي", quantity: "الكمية", category: "الفئة", store: "المتجر المفضل", notes: "ملاحظات", unit: "الوحدة", role: "الصلاحية", email: "البريد الإلكتروني", total: "المجموع", receipt: "الفاتورة" },
   messages: { noOrders: "لا توجد طلبات", noProducts: "لا توجد منتجات", noCategories: "لا توجد فئات", orderCreated: "تم إنشاء الطلب", orderApproved: "تم اعتماد الطلب", orderRejected: "تم رفض الطلب", productAdded: "تمت إضافة المنتج", welcome: "مرحباً بك", loginRequired: "يجب تسجيل الدخول أولاً", confirmDelete: "هل أنت متأكد من الحذف؟" },
   stats: { totalOrders: "إجمالي الطلبات", pendingOrders: "طلبات معلقة", completedOrders: "طلبات مكتملة", totalSpent: "إجمالي الإنفاق" },
+  auth: { username: "اسم المستخدم", password: "كلمة المرور", firstName: "الاسم الأول", lastName: "الاسم الأخير", register: "إنشاء حساب", login: "تسجيل الدخول", noAccount: "ليس لديك حساب؟ إنشاء حساب جديد", hasAccount: "لديك حساب؟ تسجيل الدخول", firstUserAdmin: "أول مستخدم يسجل سيحصل على صلاحيات المدير", loading: "جارٍ...", fillFields: "يرجى إدخال اسم المستخدم وكلمة المرور" },
+  driver: { startShopping: "بدء التسوق", completePurchase: "إتمام الشراء", shoppingList: "قائمة المشتريات", yourOrders: "طلباتك الحالية" },
+  maid: { cart: "سلة المشتريات", emptyCart: "السلة فارغة", sendOrder: "إرسال الطلب", all: "الكل" },
+  household: { needsApproval: "طلبات بحاجة لاعتماد", pendingLabel: "معلق", activeLabel: "نشط", completedLabel: "مكتمل", activeOrders: "طلبات نشطة", completedOrders: "طلبات مكتملة", pendingOrders: "طلبات معلقة" },
+  admin: { approvePermission: "صلاحية الاعتماد", noApproval: "بدون اعتماد", orderStatusUpdated: "تم تحديث حالة الطلب", userRoleUpdated: "تم تحديث صلاحيات المستخدم", categoryAdded: "تمت إضافة الفئة", iconCode: "رمز الأيقونة (مثال: milk)", addProduct: "إضافة منتج", addCategory: "إضافة فئة" },
 };
 
 const en: typeof ar = {
@@ -18,17 +23,37 @@ const en: typeof ar = {
   fields: { name: "Name", nameAr: "Arabic Name", nameEn: "English Name", price: "Price", estimatedPrice: "Estimated Price", actualPrice: "Actual Price", quantity: "Quantity", category: "Category", store: "Preferred Store", notes: "Notes", unit: "Unit", role: "Role", email: "Email", total: "Total", receipt: "Receipt" },
   messages: { noOrders: "No orders", noProducts: "No products", noCategories: "No categories", orderCreated: "Order created", orderApproved: "Order approved", orderRejected: "Order rejected", productAdded: "Product added", welcome: "Welcome", loginRequired: "Login required", confirmDelete: "Are you sure you want to delete?" },
   stats: { totalOrders: "Total Orders", pendingOrders: "Pending Orders", completedOrders: "Completed Orders", totalSpent: "Total Spent" },
+  auth: { username: "Username", password: "Password", firstName: "First Name", lastName: "Last Name", register: "Create Account", login: "Login", noAccount: "Don't have an account? Create one", hasAccount: "Already have an account? Login", firstUserAdmin: "First user will get admin privileges", loading: "Loading...", fillFields: "Please enter username and password" },
+  driver: { startShopping: "Start Shopping", completePurchase: "Complete Purchase", shoppingList: "Shopping List", yourOrders: "Your Current Orders" },
+  maid: { cart: "Shopping Cart", emptyCart: "Cart is empty", sendOrder: "Send Order", all: "All" },
+  household: { needsApproval: "Orders needing approval", pendingLabel: "Pending", activeLabel: "Active", completedLabel: "Completed", activeOrders: "Active Orders", completedOrders: "Completed Orders", pendingOrders: "Pending Orders" },
+  admin: { approvePermission: "Approval Permission", noApproval: "No Approval", orderStatusUpdated: "Order status updated", userRoleUpdated: "User role updated", categoryAdded: "Category added", iconCode: "Icon code (e.g. milk)", addProduct: "Add Product", addCategory: "Add Category" },
 };
 
 export type Lang = "ar" | "en";
 const translations = { ar, en };
 
-let currentLang: Lang = "ar";
+function getStoredLang(): Lang {
+  try {
+    const stored = localStorage.getItem("baytkom-lang");
+    if (stored === "en" || stored === "ar") return stored;
+  } catch {}
+  return "ar";
+}
+
+let currentLang: Lang = getStoredLang();
+
+function applyLangToDocument(lang: Lang) {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+}
+
+applyLangToDocument(currentLang);
 
 export function setLang(lang: Lang) {
   currentLang = lang;
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  localStorage.setItem("baytkom-lang", lang);
+  applyLangToDocument(lang);
 }
 
 export function getLang(): Lang { return currentLang; }

@@ -15,7 +15,9 @@ export const sessions = pgTable(
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  username: varchar("username", { length: 100 }).unique().notNull(),
+  password: varchar("password", { length: 200 }).notNull(),
+  email: varchar("email"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -77,6 +79,18 @@ export const orderItems = pgTable("order_items", {
   isPurchased: boolean("is_purchased").notNull().default(false),
   substituteProductId: integer("substitute_product_id").references(() => products.id),
   notes: text("notes"),
+});
+
+export const registerSchema = z.object({
+  username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
+  password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+});
+
+export const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });

@@ -1,44 +1,155 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
-import { registerAuthRoutes } from "./replit_integrations/auth";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import bcrypt from "bcryptjs";
+import { registerSchema, loginSchema } from "@shared/schema";
+
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if ((req.session as any).userId) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized" });
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+    tableName: "sessions",
+  });
 
-  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  app.set("trust proxy", 1);
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "baytkom-dev-secret-key",
+      store: sessionStore,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: isProduction,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      },
+    })
+  );
+
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "بيانات غير صحيحة" });
+      }
+
+      const { username, password, firstName, lastName } = parsed.data;
+
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "اسم المستخدم مستخدم بالفعل" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const userCount = await storage.getUserCount();
+      const isFirstUser = userCount === 0;
+
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        role: isFirstUser ? "admin" : "household",
+        canApprove: isFirstUser,
+      });
+
+      (req.session as any).userId = user.id;
+
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({ message: "فشل في إنشاء الحساب" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "يرجى إدخال اسم المستخدم وكلمة المرور" });
+      }
+
+      const { username, password } = parsed.data;
+
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
+      }
+
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
+        return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
+      }
+
+      (req.session as any).userId = user.id;
+
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "فشل في تسجيل الدخول" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ message: "فشل في تسجيل الخروج" });
+      res.clearCookie("connect.sid");
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/user", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
       const user = await storage.getUser(userId);
-      res.json(user);
+      if (!user) return res.status(404).json({ message: "المستخدم غير موجود" });
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
-  app.get("/api/users", isAuthenticated, async (req: any, res) => {
+  app.get("/api/users", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allUsers = await storage.getAllUsers();
-      res.json(allUsers);
+      const safeUsers = allUsers.map(({ password: _, ...u }) => u);
+      res.json(safeUsers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
-  app.patch("/api/users/:id/role", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/users/:id/role", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
       const { role, canApprove } = req.body;
       const user = await storage.updateUserRole(req.params.id, role, canApprove ?? false);
-      res.json(user);
+      if (user) {
+        const { password: _, ...safeUser } = user;
+        res.json(safeUser);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to update user role" });
     }
@@ -53,9 +164,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/categories", isAuthenticated, async (req: any, res) => {
+  app.post("/api/categories", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -66,9 +177,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/categories/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/categories/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -79,9 +190,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/categories/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/categories/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -110,9 +221,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products", isAuthenticated, async (req: any, res) => {
+  app.post("/api/products", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -123,9 +234,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/products/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -136,9 +247,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -158,9 +269,9 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/products/:id/alternatives", isAuthenticated, async (req: any, res) => {
+  app.put("/api/products/:id/alternatives", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -171,11 +282,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/orders", isAuthenticated, async (req: any, res) => {
+  app.get("/api/orders", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
-      
+
       if (currentUser.role === "admin" || currentUser.canApprove) {
         const allOrders = await storage.getOrders();
         res.json(allOrders);
@@ -203,9 +314,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/orders", isAuthenticated, async (req: any, res) => {
+  app.post("/api/orders", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.session as any).userId;
       const order = await storage.createOrder({ ...req.body, createdBy: userId, status: "pending" });
       res.json(order);
     } catch (error) {
@@ -213,14 +324,14 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/orders/:id/status", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/orders/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
       const { status } = req.body;
       const orderId = parseInt(req.params.id);
-      
+
       if (status === "approved" || status === "rejected") {
         if (!currentUser.canApprove && currentUser.role !== "admin") {
           return res.status(403).json({ message: "No approval permission" });
@@ -228,13 +339,13 @@ export async function registerRoutes(
         const order = await storage.updateOrderStatus(orderId, status, currentUser.id);
         return res.json(order);
       }
-      
+
       if (status === "in_progress" || status === "completed") {
         if (currentUser.role !== "driver" && currentUser.role !== "admin") {
           return res.status(403).json({ message: "Forbidden" });
         }
       }
-      
+
       const order = await storage.updateOrderStatus(orderId, status);
       res.json(order);
     } catch (error) {
@@ -242,9 +353,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/orders/:id/driver", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/orders/:id/driver", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "driver")) {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -256,7 +367,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/orders/:id/actual", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/orders/:id/actual", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { totalActual, receiptImageUrl } = req.body;
       const order = await storage.updateOrderActualTotal(parseInt(req.params.id), totalActual, receiptImageUrl);
@@ -275,7 +386,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/orders/:id/items", isAuthenticated, async (req: any, res) => {
+  app.post("/api/orders/:id/items", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const item = await storage.createOrderItem({ ...req.body, orderId: parseInt(req.params.id) });
       res.json(item);
@@ -284,7 +395,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/order-items/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/order-items/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const item = await storage.updateOrderItem(parseInt(req.params.id), req.body);
       res.json(item);
@@ -293,7 +404,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/order-items/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/order-items/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       await storage.deleteOrderItem(parseInt(req.params.id));
       res.json({ success: true });
@@ -302,7 +413,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allOrders = await storage.getOrders();
       const pending = allOrders.filter(o => o.status === "pending").length;

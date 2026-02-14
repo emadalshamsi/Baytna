@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Check, Package, Clock, ListChecks, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import type { Order, OrderItem, Product } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
+import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
+  useLang();
   const variants: Record<string, string> = {
     pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -29,23 +30,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) {
+  useLang();
   const { toast } = useToast();
   const { data: items, isLoading: loadingItems } = useQuery<OrderItem[]>({ queryKey: ["/api/orders", order.id, "items"] });
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [checked, setChecked] = useState<Record<number, boolean>>({});
-
-  const updateItemMutation = useMutation({
-    mutationFn: async ({ itemId, actualPrice, isPurchased }: { itemId: number; actualPrice?: number; isPurchased?: boolean }) => {
-      const data: any = {};
-      if (actualPrice !== undefined) data.actualPrice = actualPrice;
-      if (isPurchased !== undefined) data.isPurchased = isPurchased;
-      await apiRequest("PATCH", `/api/order-items/${itemId}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders", order.id, "items"] });
-    },
-  });
 
   const statusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -56,7 +46,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      toast({ title: "تم تحديث حالة الطلب" });
+      toast({ title: t("admin.orderStatusUpdated") });
     },
   });
 
@@ -82,14 +72,14 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders", order.id, "items"] });
-      toast({ title: "تم إكمال الطلب" });
+      toast({ title: t("status.completed") });
       onClose();
     },
   });
 
   const getProductName = (productId: number) => {
     const p = products?.find(pr => pr.id === productId);
-    return p?.nameAr || `منتج #${productId}`;
+    return p?.nameAr || `#${productId}`;
   };
 
   return (
@@ -99,7 +89,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
           <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-back-orders">
             <ChevronLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-lg font-bold">طلب #{order.id}</h2>
+          <h2 className="text-lg font-bold">#{order.id}</h2>
         </div>
         <StatusBadge status={order.status} />
       </div>
@@ -115,7 +105,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
 
       {order.status === "approved" && (
         <Button className="w-full gap-2" onClick={() => statusMutation.mutate("in_progress")} disabled={statusMutation.isPending} data-testid="button-start-shopping">
-          <Truck className="w-4 h-4" /> بدء التسوق
+          <Truck className="w-4 h-4" /> {t("driver.startShopping")}
         </Button>
       )}
 
@@ -123,7 +113,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
         <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>
       ) : (
         <div className="space-y-2">
-          <h3 className="font-medium text-sm text-muted-foreground">قائمة المشتريات ({items?.length || 0})</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">{t("driver.shoppingList")} ({items?.length || 0})</h3>
           {items?.map(item => (
             <Card key={item.id} data-testid={`card-order-item-${item.id}`}>
               <CardContent className="p-3 space-y-2">
@@ -164,7 +154,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
 
       {order.status === "in_progress" && (
         <Button className="w-full gap-2" onClick={() => completeMutation.mutate()} disabled={completeMutation.isPending} data-testid="button-complete-order">
-          <Check className="w-4 h-4" /> إتمام الشراء
+          <Check className="w-4 h-4" /> {t("driver.completePurchase")}
         </Button>
       )}
     </div>
@@ -172,6 +162,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
 }
 
 export default function DriverDashboard() {
+  useLang();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 

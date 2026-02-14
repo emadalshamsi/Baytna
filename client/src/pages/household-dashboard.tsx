@@ -9,8 +9,10 @@ import { Check, X, ClipboardList, ShoppingCart, Package } from "lucide-react";
 import type { Order } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
+import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
+  useLang();
   const variants: Record<string, string> = {
     pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -26,6 +28,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function HouseholdDashboard() {
+  useLang();
   const { toast } = useToast();
   const { user } = useAuth();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
@@ -36,7 +39,7 @@ export default function HouseholdDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      toast({ title: "تم تحديث حالة الطلب" });
+      toast({ title: t("admin.orderStatusUpdated") });
     },
   });
 
@@ -57,28 +60,28 @@ export default function HouseholdDashboard() {
           <CardContent className="p-3 text-center">
             <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-amber-600 dark:text-amber-400" />
             <span className="text-xl font-bold block">{pendingOrders.length}</span>
-            <span className="text-xs text-muted-foreground">معلق</span>
+            <span className="text-xs text-muted-foreground">{t("household.pendingLabel")}</span>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
             <ClipboardList className="w-5 h-5 mx-auto mb-1 text-blue-600 dark:text-blue-400" />
             <span className="text-xl font-bold block">{activeOrders.length}</span>
-            <span className="text-xs text-muted-foreground">نشط</span>
+            <span className="text-xs text-muted-foreground">{t("household.activeLabel")}</span>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
             <Check className="w-5 h-5 mx-auto mb-1 text-green-600 dark:text-green-400" />
             <span className="text-xl font-bold block">{completedOrders.length}</span>
-            <span className="text-xs text-muted-foreground">مكتمل</span>
+            <span className="text-xs text-muted-foreground">{t("household.completedLabel")}</span>
           </CardContent>
         </Card>
       </div>
 
       {pendingOrders.length > 0 && user?.canApprove && (
         <div className="space-y-2">
-          <h3 className="font-medium text-sm text-muted-foreground">طلبات بحاجة لاعتماد</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">{t("household.needsApproval")}</h3>
           {pendingOrders.map(order => (
             <Card key={order.id} data-testid={`card-household-order-${order.id}`}>
               <CardContent className="p-4">
@@ -106,7 +109,7 @@ export default function HouseholdDashboard() {
 
       {pendingOrders.length > 0 && !user?.canApprove && (
         <div className="space-y-2">
-          <h3 className="font-medium text-sm text-muted-foreground">طلبات معلقة</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">{t("household.pendingOrders")}</h3>
           {pendingOrders.map(order => (
             <Card key={order.id} data-testid={`card-household-order-${order.id}`}>
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
@@ -123,7 +126,7 @@ export default function HouseholdDashboard() {
 
       {activeOrders.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-sm text-muted-foreground">طلبات نشطة</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">{t("household.activeOrders")}</h3>
           {activeOrders.map(order => (
             <Card key={order.id} data-testid={`card-household-active-${order.id}`}>
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
@@ -140,7 +143,7 @@ export default function HouseholdDashboard() {
 
       {completedOrders.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-sm text-muted-foreground">طلبات مكتملة</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">{t("household.completedOrders")}</h3>
           {completedOrders.slice(0, 5).map(order => (
             <Card key={order.id} data-testid={`card-household-completed-${order.id}`}>
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">

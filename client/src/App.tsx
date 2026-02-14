@@ -6,18 +6,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Home, LogOut, Moon, Sun, Shield, User as UserIcon, Truck, HandPlatter } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
-import { t, getLang, setLang } from "@/lib/i18n";
+import { t, getLang, setLang, type Lang } from "@/lib/i18n";
 import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import MaidDashboard from "@/pages/maid-dashboard";
 import DriverDashboard from "@/pages/driver-dashboard";
 import HouseholdDashboard from "@/pages/household-dashboard";
 import NotFound from "@/pages/not-found";
+
+const LangContext = createContext<{ lang: Lang; toggleLang: () => void }>({ lang: "ar", toggleLang: () => {} });
+export function useLang() { return useContext(LangContext); }
 
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
@@ -49,15 +52,9 @@ function ThemeToggle() {
 }
 
 function LangToggle() {
-  const [lang, setLangState] = useState(getLang());
-  const toggle = () => {
-    const newLang = lang === "ar" ? "en" : "ar";
-    setLang(newLang);
-    setLangState(newLang);
-    window.location.reload();
-  };
+  const { lang, toggleLang } = useLang();
   return (
-    <Button size="sm" variant="ghost" onClick={toggle} data-testid="button-lang-toggle" className="text-xs">
+    <Button size="sm" variant="ghost" onClick={toggleLang} data-testid="button-lang-toggle" className="text-xs">
       {lang === "ar" ? "EN" : "عربي"}
     </Button>
   );
@@ -109,7 +106,7 @@ function AppLayout() {
               <Home className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-bold leading-tight" data-testid="text-header-title">بيتكم</h1>
+              <h1 className="text-sm font-bold leading-tight" data-testid="text-header-title">{t("app.name")}</h1>
               <div className="flex items-center gap-1">
                 <RoleIcon className="w-3 h-3 text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground">{t(`roles.${user.role}`)}</span>
@@ -124,17 +121,16 @@ function AppLayout() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 p-1" data-testid="button-user-menu">
                   <Avatar className="w-7 h-7">
-                    <AvatarImage src={user.profileImageUrl || undefined} />
-                    <AvatarFallback className="text-xs">{(user.firstName?.[0] || user.email?.[0] || "U").toUpperCase()}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{(user.firstName?.[0] || user.username?.[0] || "U").toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem className="flex flex-col items-start gap-0.5">
-                  <span className="font-medium text-sm">{user.firstName || user.email}</span>
+                  <span className="font-medium text-sm">{user.firstName || user.username}</span>
                   <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">{t(`roles.${user.role}`)}</Badge>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => logout()} className="gap-2 text-destructive" data-testid="button-logout">
+                <DropdownMenuItem onClick={logout} className="gap-2 text-destructive" data-testid="button-logout">
                   <LogOut className="w-4 h-4" /> {t("actions.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -154,13 +150,23 @@ function AppLayout() {
 }
 
 function App() {
+  const [lang, setLangState] = useState<Lang>(getLang());
+
+  const toggleLang = useCallback(() => {
+    const newLang = lang === "ar" ? "en" : "ar";
+    setLang(newLang);
+    setLangState(newLang);
+  }, [lang]);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <AppLayout />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <LangContext.Provider value={{ lang, toggleLang }}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <AppLayout />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </LangContext.Provider>
   );
 }
 
