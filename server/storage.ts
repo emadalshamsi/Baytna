@@ -2,10 +2,14 @@ import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
+  vehicles, trips, technicians,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
   type InsertOrderItem, type OrderItem,
+  type Vehicle, type InsertVehicle,
+  type Trip, type InsertTrip,
+  type Technician, type InsertTechnician,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -53,6 +57,23 @@ export interface IStorage {
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   updateOrderItem(id: number, item: Partial<InsertOrderItem>): Promise<OrderItem | undefined>;
   deleteOrderItem(id: number): Promise<void>;
+
+  getVehicles(): Promise<Vehicle[]>;
+  getVehicle(id: number): Promise<Vehicle | undefined>;
+  createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
+  updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | undefined>;
+  deleteVehicle(id: number): Promise<void>;
+
+  getTrips(): Promise<Trip[]>;
+  getTrip(id: number): Promise<Trip | undefined>;
+  createTrip(trip: InsertTrip): Promise<Trip>;
+  updateTripStatus(id: number, status: string, updates?: Partial<Trip>): Promise<Trip | undefined>;
+
+  getTechnicians(): Promise<Technician[]>;
+  getTechnician(id: number): Promise<Technician | undefined>;
+  createTechnician(tech: InsertTechnician): Promise<Technician>;
+  updateTechnician(id: number, tech: Partial<InsertTechnician>): Promise<Technician | undefined>;
+  deleteTechnician(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +279,72 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOrderItem(id: number): Promise<void> {
     await db.delete(orderItems).where(eq(orderItems.id, id));
+  }
+
+  async getVehicles(): Promise<Vehicle[]> {
+    return db.select().from(vehicles).where(eq(vehicles.isActive, true));
+  }
+
+  async getVehicle(id: number): Promise<Vehicle | undefined> {
+    const [v] = await db.select().from(vehicles).where(eq(vehicles.id, id));
+    return v;
+  }
+
+  async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
+    const [result] = await db.insert(vehicles).values(vehicle).returning();
+    return result;
+  }
+
+  async updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
+    const [result] = await db.update(vehicles).set(vehicle).where(eq(vehicles.id, id)).returning();
+    return result;
+  }
+
+  async deleteVehicle(id: number): Promise<void> {
+    await db.update(vehicles).set({ isActive: false }).where(eq(vehicles.id, id));
+  }
+
+  async getTrips(): Promise<Trip[]> {
+    return db.select().from(trips).orderBy(desc(trips.createdAt));
+  }
+
+  async getTrip(id: number): Promise<Trip | undefined> {
+    const [trip] = await db.select().from(trips).where(eq(trips.id, id));
+    return trip;
+  }
+
+  async createTrip(trip: InsertTrip): Promise<Trip> {
+    const [result] = await db.insert(trips).values(trip).returning();
+    return result;
+  }
+
+  async updateTripStatus(id: number, status: string, updates?: Partial<Trip>): Promise<Trip | undefined> {
+    const setData: any = { status, ...updates };
+    const [result] = await db.update(trips).set(setData).where(eq(trips.id, id)).returning();
+    return result;
+  }
+
+  async getTechnicians(): Promise<Technician[]> {
+    return db.select().from(technicians).where(eq(technicians.isActive, true));
+  }
+
+  async getTechnician(id: number): Promise<Technician | undefined> {
+    const [tech] = await db.select().from(technicians).where(eq(technicians.id, id));
+    return tech;
+  }
+
+  async createTechnician(tech: InsertTechnician): Promise<Technician> {
+    const [result] = await db.insert(technicians).values(tech).returning();
+    return result;
+  }
+
+  async updateTechnician(id: number, tech: Partial<InsertTechnician>): Promise<Technician | undefined> {
+    const [result] = await db.update(technicians).set(tech).where(eq(technicians.id, id)).returning();
+    return result;
+  }
+
+  async deleteTechnician(id: number): Promise<void> {
+    await db.update(technicians).set({ isActive: false }).where(eq(technicians.id, id));
   }
 }
 
