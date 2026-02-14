@@ -1,8 +1,9 @@
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import {
-  users, categories, products, productAlternatives, orders, orderItems,
+  users, categories, stores, products, productAlternatives, orders, orderItems,
   type User, type UpsertUser, type InsertCategory, type Category,
+  type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
   type InsertOrderItem, type OrderItem,
 } from "@shared/schema";
@@ -20,6 +21,12 @@ export interface IStorage {
   createCategory(cat: InsertCategory): Promise<Category>;
   updateCategory(id: number, cat: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<void>;
+
+  getStores(): Promise<Store[]>;
+  getStore(id: number): Promise<Store | undefined>;
+  createStore(store: InsertStore): Promise<Store>;
+  updateStore(id: number, store: Partial<InsertStore>): Promise<Store | undefined>;
+  deleteStore(id: number): Promise<void>;
 
   getProducts(): Promise<Product[]>;
   getProductsByCategory(categoryId: number): Promise<Product[]>;
@@ -39,6 +46,7 @@ export interface IStorage {
   updateOrderStatus(id: number, status: string, approvedBy?: string): Promise<Order | undefined>;
   updateOrderActualTotal(id: number, total: number, receiptUrl?: string): Promise<Order | undefined>;
   assignDriver(orderId: number, driverId: string): Promise<Order | undefined>;
+  getOrdersInDateRange(start: Date, end: Date): Promise<Order[]>;
 
   getOrderItems(orderId: number): Promise<OrderItem[]>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
@@ -110,6 +118,29 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCategory(id: number): Promise<void> {
     await db.delete(categories).where(eq(categories.id, id));
+  }
+
+  async getStores(): Promise<Store[]> {
+    return db.select().from(stores).where(eq(stores.isActive, true));
+  }
+
+  async getStore(id: number): Promise<Store | undefined> {
+    const [store] = await db.select().from(stores).where(eq(stores.id, id));
+    return store;
+  }
+
+  async createStore(store: InsertStore): Promise<Store> {
+    const [result] = await db.insert(stores).values(store).returning();
+    return result;
+  }
+
+  async updateStore(id: number, store: Partial<InsertStore>): Promise<Store | undefined> {
+    const [result] = await db.update(stores).set(store).where(eq(stores.id, id)).returning();
+    return result;
+  }
+
+  async deleteStore(id: number): Promise<void> {
+    await db.update(stores).set({ isActive: false }).where(eq(stores.id, id));
   }
 
   async getProducts(): Promise<Product[]> {
@@ -197,6 +228,12 @@ export class DatabaseStorage implements IStorage {
   async assignDriver(orderId: number, driverId: string): Promise<Order | undefined> {
     const [result] = await db.update(orders).set({ assignedDriver: driverId, updatedAt: new Date() }).where(eq(orders.id, orderId)).returning();
     return result;
+  }
+
+  async getOrdersInDateRange(start: Date, end: Date): Promise<Order[]> {
+    return db.select().from(orders)
+      .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)))
+      .orderBy(desc(orders.createdAt));
   }
 
   async getOrderItems(orderId: number): Promise<OrderItem[]> {
