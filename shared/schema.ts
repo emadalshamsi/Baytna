@@ -91,6 +91,43 @@ export const orderItems = pgTable("order_items", {
   notes: text("notes"),
 });
 
+export const vehicles = pgTable("vehicles", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  odometerReading: integer("odometer_reading").default(0),
+  lastMaintenanceDate: timestamp("last_maintenance_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const trips = pgTable("trips", {
+  id: serial("id").primaryKey(),
+  personName: varchar("person_name", { length: 200 }).notNull(),
+  location: varchar("location", { length: 500 }).notNull(),
+  departureTime: timestamp("departure_time").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  assignedDriver: varchar("assigned_driver").references(() => users.id),
+  vehicleId: integer("vehicle_id").references(() => vehicles.id),
+  startedAt: timestamp("started_at"),
+  waitingStartedAt: timestamp("waiting_started_at"),
+  waitingDuration: integer("waiting_duration").default(0),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const technicians = pgTable("technicians", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  specialty: varchar("specialty", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  notes: text("notes"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
@@ -109,6 +146,9 @@ export const insertStoreSchema = createInsertSchema(stores).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
+export const insertVehicleSchema = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
+export const insertTripSchema = createInsertSchema(trips).omit({ id: true, createdAt: true });
+export const insertTechnicianSchema = createInsertSchema(technicians).omit({ id: true, createdAt: true });
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -123,3 +163,9 @@ export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
+export type Vehicle = typeof vehicles.$inferSelect;
+export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type Trip = typeof trips.$inferSelect;
+export type InsertTrip = z.infer<typeof insertTripSchema>;
+export type Technician = typeof technicians.$inferSelect;
+export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
