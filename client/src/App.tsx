@@ -1,4 +1,4 @@
-import { Switch, Route, Link } from "wouter";
+import { Switch, Route, Link, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,12 +8,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Home, LogOut, Moon, Sun, Shield, User as UserIcon, Truck, HandPlatter, Wrench } from "lucide-react";
+import { Home, LogOut, Moon, Sun, Shield, User as UserIcon, Truck, HandPlatter, Wrench, ShoppingCart, Car, Users, BarChart3 } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { t, getLang, setLang, type Lang } from "@/lib/i18n";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
 import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminShopping from "@/pages/admin-shopping";
+import AdminLogistics from "@/pages/admin-logistics";
+import AdminUsers from "@/pages/admin-users";
 import MaidDashboard from "@/pages/maid-dashboard";
 import DriverDashboard from "@/pages/driver-dashboard";
 import HouseholdDashboard from "@/pages/household-dashboard";
@@ -70,28 +87,152 @@ function getRoleIcon(role: string) {
   }
 }
 
-function AppLayout() {
-  const { user, isLoading, logout } = useAuth();
+function AdminSidebar() {
+  useLang();
+  const [location] = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="space-y-4 w-full max-w-sm p-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-8 w-3/4" />
-          <Skeleton className="h-8 w-1/2" />
+  const menuGroups = [
+    {
+      label: t("nav.dashboard"),
+      items: [
+        { title: t("nav.dashboard"), url: "/", icon: BarChart3 },
+      ],
+    },
+    {
+      label: t("nav.shoppingSection"),
+      items: [
+        { title: t("nav.shoppingSection"), url: "/admin/shopping", icon: ShoppingCart },
+      ],
+    },
+    {
+      label: t("nav.logisticsSection"),
+      items: [
+        { title: t("nav.logisticsSection"), url: "/admin/logistics", icon: Car },
+      ],
+    },
+    {
+      label: t("nav.users"),
+      items: [
+        { title: t("nav.users"), url: "/admin/users", icon: Users },
+      ],
+    },
+    {
+      label: t("nav.technicians"),
+      items: [
+        { title: t("nav.technicians"), url: "/technicians", icon: Wrench },
+      ],
+    },
+  ];
+
+  return (
+    <Sidebar side="right" collapsible="icon">
+      <SidebarHeader className="p-3">
+        <Link href="/">
+          <div className="flex items-center gap-2 cursor-pointer">
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
+              <Home className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-sm group-data-[collapsible=icon]:hidden">{t("app.name")}</span>
+          </div>
+        </Link>
+      </SidebarHeader>
+      <SidebarContent>
+        {menuGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild isActive={isActive} data-testid={`sidebar-link-${item.url.replace(/\//g, "-").replace(/^-/, "")}`}>
+                        <Link href={item.url}>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+
+function AdminLayout() {
+  useLang();
+  const { user, logout } = useAuth();
+  if (!user) return null;
+
+  const style = {
+    "--sidebar-width": "14rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex min-h-screen w-full">
+        <AdminSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-2 p-3">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+              </div>
+              <div className="flex items-center gap-1">
+                <LangToggle />
+                <ThemeToggle />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="gap-2 p-1" data-testid="button-user-menu">
+                      <Avatar className="w-7 h-7">
+                        <AvatarFallback className="text-xs">{(user.firstName?.[0] || user.username?.[0] || "U").toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem className="flex flex-col items-start gap-0.5">
+                      <span className="font-medium text-sm">{user.firstName || user.username}</span>
+                      <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">{t(`roles.${user.role}`)}</Badge>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={logout} className="gap-2 text-destructive" data-testid="button-logout">
+                      <LogOut className="w-4 h-4" /> {t("actions.logout")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 p-4 w-full">
+            <Switch>
+              <Route path="/" component={AdminDashboard} />
+              <Route path="/admin/shopping" component={AdminShopping} />
+              <Route path="/admin/logistics" component={AdminLogistics} />
+              <Route path="/admin/users" component={AdminUsers} />
+              <Route path="/technicians" component={TechniciansPage} />
+              <Route component={NotFound} />
+            </Switch>
+          </main>
         </div>
       </div>
-    );
-  }
+    </SidebarProvider>
+  );
+}
 
-  if (!user) return <LoginPage />;
+function SimpleLayout() {
+  useLang();
+  const { user, logout } = useAuth();
+  if (!user) return null;
 
   const RoleIcon = getRoleIcon(user.role);
 
   const renderDashboard = () => {
     switch (user.role) {
-      case "admin": return <AdminDashboard />;
       case "maid": return <MaidDashboard />;
       case "driver": return <DriverDashboard />;
       default: return <HouseholdDashboard />;
@@ -156,6 +297,28 @@ function AppLayout() {
       </main>
     </div>
   );
+}
+
+function AppLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="space-y-4 w-full max-w-sm p-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-8 w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage />;
+
+  if (user.role === "admin") return <AdminLayout />;
+
+  return <SimpleLayout />;
 }
 
 function App() {

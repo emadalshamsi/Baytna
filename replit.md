@@ -4,16 +4,14 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 14, 2026)
-- Added vehicles management (name, odometer reading, maintenance tracking) with full CRUD in admin
-- Added trips system with pending/approved/started/waiting/completed workflow
-- Trip approval requires canApprove permission (same as shopping orders)
-- Waiting time tracking with live timer and cumulative duration calculation
-- Technicians directory with specialty categorization (plumber, farmer, AC tech, electrician, carpenter, painter, other)
-- Driver coordination: create pending trips from technicians page for technician visits
-- Admin dashboard expanded with vehicles and trips tabs
-- Driver dashboard enhanced with trips section showing start/wait/complete actions
-- Technicians page accessible to all users via header wrench icon button
-- Full i18n translations for vehicles, trips, technicians in AR/EN
+- Restructured admin dashboard from single tabbed page to sidebar-based navigation
+- Admin uses Shadcn Sidebar (right-side for RTL) with separate routes per section
+- Dashboard (/) = stats overview + quick links to sections
+- Shopping section (/admin/shopping) = Orders, Products, Categories, Stores tabs
+- Logistics section (/admin/logistics) = Trips, Vehicles, Technicians tabs
+- Users section (/admin/users) = User management standalone page
+- Non-admin roles (maid, driver, household) keep simple header-based layout
+- Technicians page (/technicians) accessible to all roles
 
 ## Architecture
 - **Frontend**: React + Vite + TanStack Query + Wouter + Tailwind CSS + shadcn/ui
@@ -25,18 +23,22 @@ Arabic RTL web application for household shopping and task management. Features 
 - `shared/schema.ts` - Database schema (users, stores, categories, products, orders, orderItems, vehicles, trips, technicians)
 - `server/routes.ts` - All API routes with session-based auth
 - `server/storage.ts` - Database CRUD operations interface
-- `client/src/App.tsx` - Main app with routing, theme toggle, language toggle, technicians nav
+- `client/src/App.tsx` - Main app with dual layouts: AdminLayout (sidebar) + SimpleLayout (header)
 - `client/src/pages/login.tsx` - Login/Register page
-- `client/src/pages/admin-dashboard.tsx` - Admin: orders, products, categories, stores, users, vehicles, trips
+- `client/src/pages/admin-dashboard.tsx` - Admin: stats overview + quick links
+- `client/src/pages/admin-shopping.tsx` - Admin: orders, products, categories, stores management
+- `client/src/pages/admin-logistics.tsx` - Admin: vehicles, trips, technicians management
+- `client/src/pages/admin-users.tsx` - Admin: user role and permission management
 - `client/src/pages/maid-dashboard.tsx` - Maid: product grid, shopping cart, order creation, order updates
 - `client/src/pages/driver-dashboard.tsx` - Driver: order fulfillment, actual prices, receipt upload, store grouping, trips
 - `client/src/pages/household-dashboard.tsx` - Household: order viewing, approval (if canApprove)
-- `client/src/pages/technicians.tsx` - Technicians directory with call and coordination
+- `client/src/pages/technicians.tsx` - Technicians directory with call and coordination (all roles)
 - `client/src/lib/i18n.ts` - Arabic/English translation system
 - `client/src/hooks/use-auth.ts` - Auth hook for session management
 
 ## Key Features
 - **Roles**: admin, household, maid, driver
+- **Admin Navigation**: Sidebar with Dashboard, Shopping, Logistics, Users, Technicians sections
 - **Stores**: Name (AR/EN), website URL, linked to products
 - **Approval**: Only users with `canApprove=true` can approve/reject orders and trips
 - **Stats**: Completed orders = current week (Sat-Fri), spending = current month
@@ -47,6 +49,13 @@ Arabic RTL web application for household shopping and task management. Features 
 - **Technicians**: Directory with specialties, phone contacts, driver coordination
 - **Language**: Arabic (primary, RTL) / English toggle with localStorage persistence
 - **Theme**: Dark/Light mode toggle with localStorage persistence
+
+## Admin Routes
+- `/` - Stats dashboard with quick links
+- `/admin/shopping` - Shopping section (Orders/Products/Categories/Stores tabs)
+- `/admin/logistics` - Logistics section (Trips/Vehicles/Technicians tabs)
+- `/admin/users` - User management
+- `/technicians` - Technicians directory (shared with all roles)
 
 ## API Routes
 - POST `/api/auth/register` - Register new user
