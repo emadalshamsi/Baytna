@@ -4,14 +4,15 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 14, 2026)
-- Replaced sidebar + header navigation with Bottom Navigation Bar (5 icons at bottom of screen)
-- All roles now use the same unified layout with bottom nav
-- Navigation: Home (الرئيسية), Groceries (المشتريات), Logistics (الخدمات), Housekeeping (المنزل), Settings (الإعدادات)
-- Settings page includes profile, theme/language toggles, logout, and user management (admin only)
-- Housekeeping section is a placeholder (coming soon)
-- Content in each tab adapts to user role (admin sees admin views, driver sees driver views, etc.)
-- Added driver availability conflict detection system
-- Trip waiting functionality with "arrived at location" button
+- Built complete Housekeeping module with 3 subsystems: Tasks, Laundry, Kitchen
+- Added 6 new database tables: rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals
+- Room management in Settings page (admin can add, exclude, delete rooms)
+- Tasks tab: recurring task checklist (daily/weekly/monthly) linked to rooms, completion tracking
+- Laundry tab: household sends laundry requests per room, maid marks as done, admin manages weekly schedule
+- Kitchen tab: weekly meal planning with meal type, people count, notes, image URLs
+- All housekeeping features have full Arabic/English i18n support
+- Role-based access: admin manages all, maid completes tasks/laundry, household requests laundry, all can view meals
+- Real-time sync via TanStack Query with 10-second refetch intervals
 
 ## Architecture
 - **Frontend**: React + Vite + TanStack Query + Wouter + Tailwind CSS + shadcn/ui
@@ -20,7 +21,7 @@ Arabic RTL web application for household shopping and task management. Features 
 - **Auth**: Custom username/password with bcryptjs hashing, express-session
 
 ## Project Structure
-- `shared/schema.ts` - Database schema (users, stores, categories, products, orders, orderItems, vehicles, trips, technicians)
+- `shared/schema.ts` - Database schema (users, stores, categories, products, orders, orderItems, vehicles, trips, technicians, rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals)
 - `server/routes.ts` - All API routes with session-based auth
 - `server/storage.ts` - Database CRUD operations interface
 - `client/src/App.tsx` - Main app with bottom navigation bar layout for all roles
@@ -32,8 +33,8 @@ Arabic RTL web application for household shopping and task management. Features 
 - `client/src/pages/maid-dashboard.tsx` - Maid: product grid, shopping cart, order creation, order updates
 - `client/src/pages/driver-dashboard.tsx` - Driver: order fulfillment, actual prices, receipt upload, store grouping, trips
 - `client/src/pages/household-dashboard.tsx` - Household: order viewing, approval (if canApprove)
-- `client/src/pages/housekeeping.tsx` - Placeholder page (coming soon)
-- `client/src/pages/settings.tsx` - Profile, theme/language, logout, user management (admin)
+- `client/src/pages/housekeeping.tsx` - Housekeeping: 3 tabs (Tasks, Laundry, Kitchen) with role-based access
+- `client/src/pages/settings.tsx` - Profile, theme/language, logout, room management (admin), user management (admin)
 - `client/src/lib/i18n.ts` - Arabic/English translation system
 - `client/src/hooks/use-auth.ts` - Auth hook for session management
 
@@ -42,7 +43,7 @@ All roles use the same 5-tab bottom navigation:
 - `/` - Home: Dashboard stats (role-specific content)
 - `/groceries` - Groceries: Shopping & orders (role-specific content)
 - `/logistics` - Logistics: Vehicles, trips, technicians (role-specific content)
-- `/housekeeping` - Housekeeping: Coming soon placeholder
+- `/housekeeping` - Housekeeping: Tasks, Laundry, Kitchen (role-specific content)
 - `/settings` - Settings: Profile, theme, language, logout, user management (admin)
 
 ### Content per role per tab:
@@ -92,6 +93,20 @@ All roles use the same 5-tab bottom navigation:
 - POST `/api/technicians/:id/coordinate` - Create coordination trip for technician
 - POST `/api/upload` - File upload (images, receipts)
 - GET `/api/stats` - Dashboard statistics (week/month scoped)
+- GET/POST `/api/rooms` - Rooms CRUD (admin only for POST)
+- PATCH/DELETE `/api/rooms/:id` - Update/delete room (admin only)
+- GET/POST `/api/housekeeping-tasks` - Tasks CRUD (admin only for POST)
+- PATCH/DELETE `/api/housekeeping-tasks/:id` - Update/delete task (admin only)
+- GET `/api/task-completions/:date` - Get completions by date key
+- POST `/api/task-completions` - Create task completion
+- DELETE `/api/task-completions/:taskId/:date` - Remove completion
+- GET `/api/laundry-requests` - List laundry requests
+- POST `/api/laundry-requests` - Create laundry request
+- PATCH `/api/laundry-requests/:id/complete` - Mark laundry as done
+- GET `/api/laundry-schedule` - Get laundry schedule
+- PUT `/api/laundry-schedule` - Set laundry schedule days (admin only)
+- GET/POST `/api/meals` - Meals CRUD (admin only for POST)
+- PATCH/DELETE `/api/meals/:id` - Update/delete meal (admin only)
 
 ## User Preferences
 - Arabic as primary language with RTL layout
