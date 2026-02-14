@@ -16,6 +16,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
   updateUserRole(id: string, role: string, canApprove: boolean): Promise<User | undefined>;
+  suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
 
   getCategories(): Promise<Category[]>;
   createCategory(cat: InsertCategory): Promise<Category>;
@@ -99,6 +100,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserRole(id: string, role: string, canApprove: boolean): Promise<User | undefined> {
     const [user] = await db.update(users).set({ role, canApprove, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async suspendUser(id: string, isSuspended: boolean): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ isSuspended, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return user;
   }
 

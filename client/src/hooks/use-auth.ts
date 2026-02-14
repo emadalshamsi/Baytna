@@ -11,6 +11,7 @@ export type AuthUser = {
   role: string;
   displayName: string | null;
   canApprove: boolean;
+  isSuspended: boolean;
   createdAt: string | null;
   updatedAt: string | null;
 };

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink } from "lucide-react";
+import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, Ban, UserCheck } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
@@ -45,20 +45,23 @@ function StatsCards({ onStatClick }: { onStatClick: (filter: string | null) => v
   );
 
   const cards = [
-    { label: t("stats.totalOrders"), value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", filter: null },
-    { label: t("stats.pendingOrders"), value: stats?.pending || 0, icon: ShoppingCart, color: "text-amber-600 dark:text-amber-400", filter: "pending" },
-    { label: t("stats.completedOrders"), value: stats?.completed || 0, icon: Check, color: "text-green-600 dark:text-green-400", filter: "completed" },
-    { label: t("stats.totalSpent"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", filter: "spent" },
+    { label: t("stats.totalOrders"), sub: null, value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", filter: null },
+    { label: t("stats.pendingOrders"), sub: null, value: stats?.pending || 0, icon: ShoppingCart, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", filter: "pending" },
+    { label: t("stats.completedOrders"), sub: t("stats.completedSub"), value: stats?.completed || 0, icon: Check, color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30", filter: "completed" },
+    { label: t("stats.totalSpent"), sub: t("stats.spentSub"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", filter: "spent" },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {cards.map((c, i) => (
         <Card key={i} className="cursor-pointer hover-elevate active-elevate-2" onClick={() => onStatClick(c.filter)} data-testid={`card-stat-${i}`}>
-          <CardContent className="p-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground">{c.label}</span>
-              <c.icon className={`w-4 h-4 ${c.color}`} />
+          <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+            <div className={`w-10 h-10 rounded-full ${c.bg} flex items-center justify-center`}>
+              <c.icon className={`w-5 h-5 ${c.color}`} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground leading-tight">{c.label}</span>
+              {c.sub && <span className="text-[10px] text-muted-foreground leading-tight">{c.sub}</span>}
             </div>
             <span className="text-xl font-bold" data-testid={`text-stat-${i}`}>{c.value}</span>
           </CardContent>
@@ -513,6 +516,16 @@ function UsersTab() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/users"] }); toast({ title: t("admin.userRoleUpdated") }); },
   });
 
+  const suspendMutation = useMutation({
+    mutationFn: async ({ id, isSuspended }: { id: string; isSuspended: boolean }) => {
+      await apiRequest("PATCH", `/api/users/${id}/suspend`, { isSuspended });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: variables.isSuspended ? t("admin.userSuspended") : t("admin.userActivated") });
+    },
+  });
+
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
   const roles = ["admin", "household", "maid", "driver"] as const;
@@ -520,33 +533,51 @@ function UsersTab() {
   return (
     <div className="space-y-3">
       {allUsers?.map(u => (
-        <Card key={u.id} data-testid={`card-user-${u.id}`}>
+        <Card key={u.id} className={u.isSuspended ? "opacity-60" : ""} data-testid={`card-user-${u.id}`}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-bold text-primary">{(u.firstName || u.username || "?")[0]}</span>
               </div>
-              <div className="min-w-0">
-                <span className="font-medium block">{u.firstName || u.username || t("roles.household")}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium">{u.firstName || u.username || t("roles.household")}</span>
+                  {u.isSuspended && (
+                    <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                      {t("admin.suspended")}
+                    </Badge>
+                  )}
+                </div>
                 {u.username && <span className="text-xs text-muted-foreground block">@{u.username}</span>}
               </div>
             </div>
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {roles.map(role => (
-                <Button key={role} size="sm" variant="outline"
-                  className={u.role === role ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
-                  onClick={() => updateRoleMutation.mutate({ id: u.id, role, canApprove: role === "admin" ? true : u.canApprove })}
-                  disabled={updateRoleMutation.isPending} data-testid={`button-role-${role}-${u.id}`}>
-                  {t(`roles.${role}`)}
-                </Button>
-              ))}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
+                {roles.map(role => (
+                  <Button key={role} size="sm" variant="outline"
+                    className={u.role === role ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
+                    onClick={() => updateRoleMutation.mutate({ id: u.id, role, canApprove: role === "admin" ? true : u.canApprove })}
+                    disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-role-${role}-${u.id}`}>
+                    {t(`roles.${role}`)}
+                  </Button>
+                ))}
+              </div>
+              <Button size="sm" variant="outline"
+                className={u.canApprove ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
+                onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
+                disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-${u.id}`}>
+                {t("admin.approvePermission")}
+              </Button>
             </div>
-            <Button size="sm" variant="outline"
-              className={u.canApprove ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
-              onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
-              disabled={updateRoleMutation.isPending} data-testid={`button-toggle-approve-${u.id}`}>
-              {t("admin.approvePermission")}
-            </Button>
+            <div className="mt-3 pt-3 border-t">
+              <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
+                className="gap-1.5"
+                onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
+                disabled={suspendMutation.isPending} data-testid={`button-suspend-${u.id}`}>
+                {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ))}

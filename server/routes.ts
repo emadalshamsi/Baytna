@@ -123,6 +123,10 @@ export async function registerRoutes(
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
       }
 
+      if (user.isSuspended) {
+        return res.status(403).json({ message: "تم تعليق حسابك. تواصل مع المدير" });
+      }
+
       (req.session as any).userId = user.id;
 
       const { password: _, ...safeUser } = user;
@@ -179,6 +183,25 @@ export async function registerRoutes(
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/users/:id/suspend", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { isSuspended } = req.body;
+      const user = await storage.suspendUser(req.params.id, isSuspended ?? true);
+      if (user) {
+        const { password: _, ...safeUser } = user;
+        res.json(safeUser);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user status" });
     }
   });
 

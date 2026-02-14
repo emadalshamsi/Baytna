@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 20 }).notNull().default("household"),
   displayName: varchar("display_name"),
   canApprove: boolean("can_approve").notNull().default(false),
+  isSuspended: boolean("is_suspended").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
