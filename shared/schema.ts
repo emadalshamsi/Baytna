@@ -137,6 +137,62 @@ export const technicians = pgTable("technicians", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const rooms = pgTable("rooms", {
+  id: serial("id").primaryKey(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  icon: varchar("icon", { length: 50 }),
+  isActive: boolean("is_active").notNull().default(true),
+  isExcluded: boolean("is_excluded").notNull().default(false),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const housekeepingTasks = pgTable("housekeeping_tasks", {
+  id: serial("id").primaryKey(),
+  titleAr: varchar("title_ar", { length: 200 }).notNull(),
+  titleEn: varchar("title_en", { length: 200 }),
+  frequency: varchar("frequency", { length: 20 }).notNull().default("daily"),
+  roomId: integer("room_id").references(() => rooms.id),
+  icon: varchar("icon", { length: 50 }),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const taskCompletions = pgTable("task_completions", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => housekeepingTasks.id),
+  completedBy: varchar("completed_by").notNull().references(() => users.id),
+  completionDate: varchar("completion_date", { length: 10 }).notNull(),
+  completedAt: timestamp("completed_at").defaultNow(),
+});
+
+export const laundryRequests = pgTable("laundry_requests", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => rooms.id),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  completedBy: varchar("completed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const laundrySchedule = pgTable("laundry_schedule", {
+  id: serial("id").primaryKey(),
+  dayOfWeek: integer("day_of_week").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const meals = pgTable("meals", {
+  id: serial("id").primaryKey(),
+  dayOfWeek: integer("day_of_week").notNull(),
+  mealType: varchar("meal_type", { length: 20 }).notNull(),
+  titleAr: varchar("title_ar", { length: 200 }).notNull(),
+  titleEn: varchar("title_en", { length: 200 }),
+  imageUrl: varchar("image_url", { length: 500 }),
+  peopleCount: integer("people_count").notNull().default(4),
+  notes: text("notes"),
+});
+
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
@@ -159,6 +215,12 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({ id: true,
 export const insertTripSchema = createInsertSchema(trips).omit({ id: true, createdAt: true });
 export const insertTripLocationSchema = createInsertSchema(tripLocations).omit({ id: true, createdAt: true });
 export const insertTechnicianSchema = createInsertSchema(technicians).omit({ id: true, createdAt: true });
+export const insertRoomSchema = createInsertSchema(rooms).omit({ id: true });
+export const insertHousekeepingTaskSchema = createInsertSchema(housekeepingTasks).omit({ id: true });
+export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).omit({ id: true, completedAt: true });
+export const insertLaundryRequestSchema = createInsertSchema(laundryRequests).omit({ id: true, createdAt: true, completedAt: true });
+export const insertLaundryScheduleSchema = createInsertSchema(laundrySchedule).omit({ id: true });
+export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -181,3 +243,15 @@ export type TripLocation = typeof tripLocations.$inferSelect;
 export type InsertTripLocation = z.infer<typeof insertTripLocationSchema>;
 export type Technician = typeof technicians.$inferSelect;
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
+export type Room = typeof rooms.$inferSelect;
+export type InsertRoom = z.infer<typeof insertRoomSchema>;
+export type HousekeepingTask = typeof housekeepingTasks.$inferSelect;
+export type InsertHousekeepingTask = z.infer<typeof insertHousekeepingTaskSchema>;
+export type TaskCompletion = typeof taskCompletions.$inferSelect;
+export type InsertTaskCompletion = z.infer<typeof insertTaskCompletionSchema>;
+export type LaundryRequest = typeof laundryRequests.$inferSelect;
+export type InsertLaundryRequest = z.infer<typeof insertLaundryRequestSchema>;
+export type LaundryScheduleEntry = typeof laundrySchedule.$inferSelect;
+export type InsertLaundrySchedule = z.infer<typeof insertLaundryScheduleSchema>;
+export type Meal = typeof meals.$inferSelect;
+export type InsertMeal = z.infer<typeof insertMealSchema>;

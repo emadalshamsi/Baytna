@@ -3,6 +3,7 @@ import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
+  rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
@@ -11,6 +12,12 @@ import {
   type Trip, type InsertTrip,
   type TripLocation, type InsertTripLocation,
   type Technician, type InsertTechnician,
+  type Room, type InsertRoom,
+  type HousekeepingTask, type InsertHousekeepingTask,
+  type TaskCompletion, type InsertTaskCompletion,
+  type LaundryRequest, type InsertLaundryRequest,
+  type LaundryScheduleEntry, type InsertLaundrySchedule,
+  type Meal, type InsertMeal,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -84,6 +91,36 @@ export interface IStorage {
   createTechnician(tech: InsertTechnician): Promise<Technician>;
   updateTechnician(id: number, tech: Partial<InsertTechnician>): Promise<Technician | undefined>;
   deleteTechnician(id: number): Promise<void>;
+
+  getRooms(): Promise<Room[]>;
+  getRoom(id: number): Promise<Room | undefined>;
+  createRoom(room: InsertRoom): Promise<Room>;
+  updateRoom(id: number, room: Partial<InsertRoom>): Promise<Room | undefined>;
+  deleteRoom(id: number): Promise<void>;
+
+  getHousekeepingTasks(): Promise<HousekeepingTask[]>;
+  getHousekeepingTask(id: number): Promise<HousekeepingTask | undefined>;
+  createHousekeepingTask(task: InsertHousekeepingTask): Promise<HousekeepingTask>;
+  updateHousekeepingTask(id: number, task: Partial<InsertHousekeepingTask>): Promise<HousekeepingTask | undefined>;
+  deleteHousekeepingTask(id: number): Promise<void>;
+
+  getTaskCompletions(date: string): Promise<TaskCompletion[]>;
+  createTaskCompletion(completion: InsertTaskCompletion): Promise<TaskCompletion>;
+  deleteTaskCompletion(taskId: number, date: string): Promise<void>;
+
+  getLaundryRequests(): Promise<LaundryRequest[]>;
+  getPendingLaundryRequests(): Promise<LaundryRequest[]>;
+  createLaundryRequest(req: InsertLaundryRequest): Promise<LaundryRequest>;
+  completeLaundryRequest(id: number, completedBy: string): Promise<LaundryRequest | undefined>;
+
+  getLaundrySchedule(): Promise<LaundryScheduleEntry[]>;
+  setLaundrySchedule(days: number[]): Promise<void>;
+
+  getMeals(): Promise<Meal[]>;
+  getMeal(id: number): Promise<Meal | undefined>;
+  createMeal(meal: InsertMeal): Promise<Meal>;
+  updateMeal(id: number, meal: Partial<InsertMeal>): Promise<Meal | undefined>;
+  deleteMeal(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -396,6 +433,123 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTechnician(id: number): Promise<void> {
     await db.update(technicians).set({ isActive: false }).where(eq(technicians.id, id));
+  }
+
+  async getRooms(): Promise<Room[]> {
+    return db.select().from(rooms).where(eq(rooms.isActive, true)).orderBy(rooms.sortOrder);
+  }
+
+  async getRoom(id: number): Promise<Room | undefined> {
+    const [room] = await db.select().from(rooms).where(eq(rooms.id, id));
+    return room;
+  }
+
+  async createRoom(room: InsertRoom): Promise<Room> {
+    const [result] = await db.insert(rooms).values(room).returning();
+    return result;
+  }
+
+  async updateRoom(id: number, room: Partial<InsertRoom>): Promise<Room | undefined> {
+    const [result] = await db.update(rooms).set(room).where(eq(rooms.id, id)).returning();
+    return result;
+  }
+
+  async deleteRoom(id: number): Promise<void> {
+    await db.update(rooms).set({ isActive: false }).where(eq(rooms.id, id));
+  }
+
+  async getHousekeepingTasks(): Promise<HousekeepingTask[]> {
+    return db.select().from(housekeepingTasks).where(eq(housekeepingTasks.isActive, true)).orderBy(housekeepingTasks.sortOrder);
+  }
+
+  async getHousekeepingTask(id: number): Promise<HousekeepingTask | undefined> {
+    const [task] = await db.select().from(housekeepingTasks).where(eq(housekeepingTasks.id, id));
+    return task;
+  }
+
+  async createHousekeepingTask(task: InsertHousekeepingTask): Promise<HousekeepingTask> {
+    const [result] = await db.insert(housekeepingTasks).values(task).returning();
+    return result;
+  }
+
+  async updateHousekeepingTask(id: number, task: Partial<InsertHousekeepingTask>): Promise<HousekeepingTask | undefined> {
+    const [result] = await db.update(housekeepingTasks).set(task).where(eq(housekeepingTasks.id, id)).returning();
+    return result;
+  }
+
+  async deleteHousekeepingTask(id: number): Promise<void> {
+    await db.update(housekeepingTasks).set({ isActive: false }).where(eq(housekeepingTasks.id, id));
+  }
+
+  async getTaskCompletions(date: string): Promise<TaskCompletion[]> {
+    return db.select().from(taskCompletions).where(eq(taskCompletions.completionDate, date));
+  }
+
+  async createTaskCompletion(completion: InsertTaskCompletion): Promise<TaskCompletion> {
+    const [result] = await db.insert(taskCompletions).values(completion).returning();
+    return result;
+  }
+
+  async deleteTaskCompletion(taskId: number, date: string): Promise<void> {
+    await db.delete(taskCompletions).where(
+      and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.completionDate, date))
+    );
+  }
+
+  async getLaundryRequests(): Promise<LaundryRequest[]> {
+    return db.select().from(laundryRequests).orderBy(desc(laundryRequests.createdAt));
+  }
+
+  async getPendingLaundryRequests(): Promise<LaundryRequest[]> {
+    return db.select().from(laundryRequests).where(eq(laundryRequests.status, "pending")).orderBy(desc(laundryRequests.createdAt));
+  }
+
+  async createLaundryRequest(req: InsertLaundryRequest): Promise<LaundryRequest> {
+    const [result] = await db.insert(laundryRequests).values(req).returning();
+    return result;
+  }
+
+  async completeLaundryRequest(id: number, completedBy: string): Promise<LaundryRequest | undefined> {
+    const [result] = await db.update(laundryRequests).set({
+      status: "done",
+      completedBy,
+      completedAt: new Date(),
+    }).where(eq(laundryRequests.id, id)).returning();
+    return result;
+  }
+
+  async getLaundrySchedule(): Promise<LaundryScheduleEntry[]> {
+    return db.select().from(laundrySchedule).where(eq(laundrySchedule.isActive, true));
+  }
+
+  async setLaundrySchedule(days: number[]): Promise<void> {
+    await db.delete(laundrySchedule);
+    for (const day of days) {
+      await db.insert(laundrySchedule).values({ dayOfWeek: day, isActive: true });
+    }
+  }
+
+  async getMeals(): Promise<Meal[]> {
+    return db.select().from(meals).orderBy(meals.dayOfWeek);
+  }
+
+  async getMeal(id: number): Promise<Meal | undefined> {
+    const [meal] = await db.select().from(meals).where(eq(meals.id, id));
+    return meal;
+  }
+
+  async createMeal(meal: InsertMeal): Promise<Meal> {
+    const [result] = await db.insert(meals).values(meal).returning();
+    return result;
+  }
+
+  async updateMeal(id: number, meal: Partial<InsertMeal>): Promise<Meal | undefined> {
+    const [result] = await db.update(meals).set(meal).where(eq(meals.id, id)).returning();
+    return result;
+  }
+
+  async deleteMeal(id: number): Promise<void> {
+    await db.delete(meals).where(eq(meals.id, id));
   }
 }
 

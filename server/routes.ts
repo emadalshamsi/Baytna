@@ -881,6 +881,258 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== HOUSEKEEPING ROUTES ====================
+
+  // Rooms CRUD
+  app.get("/api/rooms", isAuthenticated, async (_req, res) => {
+    try {
+      const allRooms = await storage.getRooms();
+      res.json(allRooms);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch rooms" });
+    }
+  });
+
+  app.post("/api/rooms", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const room = await storage.createRoom(req.body);
+      res.json(room);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create room" });
+    }
+  });
+
+  app.patch("/api/rooms/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const room = await storage.updateRoom(parseInt(req.params.id), req.body);
+      if (!room) return res.status(404).json({ message: "Room not found" });
+      res.json(room);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update room" });
+    }
+  });
+
+  app.delete("/api/rooms/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteRoom(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete room" });
+    }
+  });
+
+  // Housekeeping Tasks CRUD
+  app.get("/api/housekeeping-tasks", isAuthenticated, async (_req, res) => {
+    try {
+      const tasks = await storage.getHousekeepingTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  app.post("/api/housekeeping-tasks", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const task = await storage.createHousekeepingTask(req.body);
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create task" });
+    }
+  });
+
+  app.patch("/api/housekeeping-tasks/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const task = await storage.updateHousekeepingTask(parseInt(req.params.id), req.body);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update task" });
+    }
+  });
+
+  app.delete("/api/housekeeping-tasks/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteHousekeepingTask(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task" });
+    }
+  });
+
+  // Task Completions
+  app.get("/api/task-completions/:date", isAuthenticated, async (req, res) => {
+    try {
+      const completions = await storage.getTaskCompletions(req.params.date);
+      res.json(completions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch completions" });
+    }
+  });
+
+  app.post("/api/task-completions", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const completion = await storage.createTaskCompletion({
+        ...req.body,
+        completedBy: userId,
+      });
+      res.json(completion);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create completion" });
+    }
+  });
+
+  app.delete("/api/task-completions/:taskId/:date", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.deleteTaskCompletion(parseInt(req.params.taskId), req.params.date);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete completion" });
+    }
+  });
+
+  // Laundry Requests
+  app.get("/api/laundry-requests", isAuthenticated, async (_req, res) => {
+    try {
+      const requests = await storage.getLaundryRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch laundry requests" });
+    }
+  });
+
+  app.get("/api/laundry-requests/pending", isAuthenticated, async (_req, res) => {
+    try {
+      const requests = await storage.getPendingLaundryRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending laundry requests" });
+    }
+  });
+
+  app.post("/api/laundry-requests", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const request = await storage.createLaundryRequest({
+        ...req.body,
+        requestedBy: userId,
+        status: "pending",
+      });
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create laundry request" });
+    }
+  });
+
+  app.patch("/api/laundry-requests/:id/complete", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const result = await storage.completeLaundryRequest(parseInt(req.params.id), userId);
+      if (!result) return res.status(404).json({ message: "Request not found" });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to complete laundry request" });
+    }
+  });
+
+  // Laundry Schedule
+  app.get("/api/laundry-schedule", isAuthenticated, async (_req, res) => {
+    try {
+      const schedule = await storage.getLaundrySchedule();
+      res.json(schedule);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch laundry schedule" });
+    }
+  });
+
+  app.put("/api/laundry-schedule", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.setLaundrySchedule(req.body.days || []);
+      const schedule = await storage.getLaundrySchedule();
+      res.json(schedule);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update laundry schedule" });
+    }
+  });
+
+  // Meals CRUD
+  app.get("/api/meals", isAuthenticated, async (_req, res) => {
+    try {
+      const allMeals = await storage.getMeals();
+      res.json(allMeals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meals" });
+    }
+  });
+
+  app.post("/api/meals", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const meal = await storage.createMeal(req.body);
+      res.json(meal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create meal" });
+    }
+  });
+
+  app.patch("/api/meals/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const meal = await storage.updateMeal(parseInt(req.params.id), req.body);
+      if (!meal) return res.status(404).json({ message: "Meal not found" });
+      res.json(meal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update meal" });
+    }
+  });
+
+  app.delete("/api/meals/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteMeal(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete meal" });
+    }
+  });
+
   // Allow maid to add items to in_progress orders
   app.post("/api/orders/:id/items/maid", isAuthenticated, async (req: Request, res: Response) => {
     try {

@@ -2,12 +2,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Moon, Sun } from "lucide-react";
+import { LogOut, Moon, Sun, Plus, DoorOpen, X, EyeOff, Eye } from "lucide-react";
 import { useState } from "react";
-import { t } from "@/lib/i18n";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
 import AdminUsers from "@/pages/admin-users";
+import type { Room } from "@shared/schema";
 
 function ThemeToggleCard() {
   const { lang } = useLang();
@@ -62,6 +67,134 @@ function LangToggleCard() {
   );
 }
 
+function RoomManagement() {
+  const { lang } = useLang();
+  const { toast } = useToast();
+  const [showAdd, setShowAdd] = useState(false);
+  const [nameAr, setNameAr] = useState("");
+  const [nameEn, setNameEn] = useState("");
+
+  const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
+
+  const createRoom = useMutation({
+    mutationFn: (data: { nameAr: string; nameEn: string }) =>
+      apiRequest("POST", "/api/rooms", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+      toast({ title: t("rooms.roomAdded") });
+      setShowAdd(false);
+      setNameAr("");
+      setNameEn("");
+    },
+  });
+
+  const toggleExclude = useMutation({
+    mutationFn: ({ id, isExcluded }: { id: number; isExcluded: boolean }) =>
+      apiRequest("PATCH", `/api/rooms/${id}`, { isExcluded }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+      toast({ title: t("rooms.roomUpdated") });
+    },
+  });
+
+  const deleteRoom = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/rooms/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+      toast({ title: t("rooms.roomDeleted") });
+    },
+  });
+
+  return (
+    <div className="space-y-3" data-testid="section-rooms">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <DoorOpen className="w-4 h-4" />
+          {t("rooms.title")}
+        </h3>
+        <Button size="sm" onClick={() => setShowAdd(!showAdd)} data-testid="button-add-room">
+          <Plus className="w-4 h-4" />
+          {t("rooms.addRoom")}
+        </Button>
+      </div>
+
+      {showAdd && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <Input
+              placeholder={t("rooms.nameAr")}
+              value={nameAr}
+              onChange={(e) => setNameAr(e.target.value)}
+              data-testid="input-room-name-ar"
+            />
+            <Input
+              placeholder={t("rooms.nameEn")}
+              value={nameEn}
+              onChange={(e) => setNameEn(e.target.value)}
+              data-testid="input-room-name-en"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => createRoom.mutate({ nameAr, nameEn })}
+                disabled={!nameAr || createRoom.isPending}
+                data-testid="button-save-room"
+              >
+                {t("actions.save")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>
+                {t("actions.cancel")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {rooms.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">{t("rooms.noRooms")}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rooms.map((room) => (
+            <Card key={room.id} data-testid={`card-room-${room.id}`}>
+              <CardContent className="p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <DoorOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm font-medium truncate">
+                    {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+                  </span>
+                  {room.isExcluded && (
+                    <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate text-xs">
+                      {t("rooms.excluded")}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => toggleExclude.mutate({ id: room.id, isExcluded: !room.isExcluded })}
+                    data-testid={`button-toggle-room-${room.id}`}
+                  >
+                    {room.isExcluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteRoom.mutate(room.id)}
+                    data-testid={`button-delete-room-${room.id}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   useLang();
   const { user, logout } = useAuth();
@@ -105,9 +238,14 @@ export default function SettingsPage() {
       </Button>
 
       {user.role === "admin" && (
-        <div className="mt-6">
-          <AdminUsers />
-        </div>
+        <>
+          <div className="mt-6">
+            <RoomManagement />
+          </div>
+          <div className="mt-6">
+            <AdminUsers />
+          </div>
+        </>
       )}
     </div>
   );
