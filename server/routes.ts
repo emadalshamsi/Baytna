@@ -582,6 +582,226 @@ export async function registerRoutes(
     }
   });
 
+  // Vehicles CRUD
+  app.get("/api/vehicles", isAuthenticated, async (_req, res) => {
+    try {
+      const allVehicles = await storage.getVehicles();
+      res.json(allVehicles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  app.post("/api/vehicles", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const vehicle = await storage.createVehicle(req.body);
+      res.json(vehicle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  app.patch("/api/vehicles/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const vehicle = await storage.updateVehicle(parseInt(req.params.id), req.body);
+      res.json(vehicle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  app.delete("/api/vehicles/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteVehicle(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  // Trips CRUD
+  app.get("/api/trips", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const allTrips = await storage.getTrips();
+      if (currentUser.role === "driver") {
+        const driverTrips = allTrips.filter(t => t.status === "approved" || t.status === "started" || t.status === "waiting" || t.status === "completed" || t.assignedDriver === currentUser.id);
+        return res.json(driverTrips);
+      }
+      res.json(allTrips);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch trips" });
+    }
+  });
+
+  app.post("/api/trips", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const trip = await storage.createTrip({ ...req.body, createdBy: currentUser.id, status: "pending" });
+      res.json(trip);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create trip" });
+    }
+  });
+
+  app.patch("/api/trips/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const { status } = req.body;
+      const tripId = parseInt(req.params.id);
+      const trip = await storage.getTrip(tripId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      if (status === "approved" || status === "rejected") {
+        if (!currentUser.canApprove && currentUser.role !== "admin") {
+          return res.status(403).json({ message: "No approval permission" });
+        }
+        const updated = await storage.updateTripStatus(tripId, status, { approvedBy: currentUser.id });
+        return res.json(updated);
+      }
+
+      if (status === "started") {
+        if (currentUser.role !== "driver" && currentUser.role !== "admin") {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        const updated = await storage.updateTripStatus(tripId, status, {
+          startedAt: new Date(),
+          assignedDriver: currentUser.id,
+        });
+        return res.json(updated);
+      }
+
+      if (status === "waiting") {
+        if (currentUser.role !== "driver" && currentUser.role !== "admin") {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        const updated = await storage.updateTripStatus(tripId, status, {
+          waitingStartedAt: new Date(),
+        });
+        return res.json(updated);
+      }
+
+      if (status === "completed") {
+        if (currentUser.role !== "driver" && currentUser.role !== "admin") {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        let waitingDuration = trip.waitingDuration || 0;
+        if (trip.waitingStartedAt) {
+          waitingDuration += Math.floor((Date.now() - new Date(trip.waitingStartedAt).getTime()) / 1000);
+        }
+        const updated = await storage.updateTripStatus(tripId, status, {
+          completedAt: new Date(),
+          waitingDuration,
+          waitingStartedAt: null,
+        });
+        return res.json(updated);
+      }
+
+      const updated = await storage.updateTripStatus(tripId, status);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update trip status" });
+    }
+  });
+
+  // Technicians CRUD
+  app.get("/api/technicians", isAuthenticated, async (_req, res) => {
+    try {
+      const allTechnicians = await storage.getTechnicians();
+      res.json(allTechnicians);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch technicians" });
+    }
+  });
+
+  app.post("/api/technicians", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const tech = await storage.createTechnician(req.body);
+      res.json(tech);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create technician" });
+    }
+  });
+
+  app.patch("/api/technicians/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const tech = await storage.updateTechnician(parseInt(req.params.id), req.body);
+      res.json(tech);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update technician" });
+    }
+  });
+
+  app.delete("/api/technicians/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteTechnician(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete technician" });
+    }
+  });
+
+  // Create a coordination trip for technician
+  app.post("/api/technicians/:id/coordinate", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const tech = await storage.getTechnician(parseInt(req.params.id));
+      if (!tech) return res.status(404).json({ message: "Technician not found" });
+
+      const trip = await storage.createTrip({
+        personName: tech.name,
+        location: req.body.location || tech.specialty,
+        departureTime: req.body.departureTime ? new Date(req.body.departureTime) : new Date(),
+        status: "pending",
+        notes: `تنسيق مع فني: ${tech.name} - ${tech.specialty} - ${tech.phone}`,
+        createdBy: currentUser.id,
+        assignedDriver: null,
+        approvedBy: null,
+        vehicleId: null,
+        startedAt: null,
+        waitingStartedAt: null,
+        waitingDuration: 0,
+        completedAt: null,
+      });
+      res.json(trip);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create coordination trip" });
+    }
+  });
+
   // Allow maid to add items to in_progress orders
   app.post("/api/orders/:id/items/maid", isAuthenticated, async (req: Request, res: Response) => {
     try {
