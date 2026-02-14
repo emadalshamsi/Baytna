@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, Car, MapPin, Users, Wrench, ArrowLeft } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, Car, Users, ArrowLeft } from "lucide-react";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { Link } from "wouter";

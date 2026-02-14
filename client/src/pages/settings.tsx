@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Moon, Sun } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";

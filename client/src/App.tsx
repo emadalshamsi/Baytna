@@ -92,11 +92,8 @@ function GroceriesContent() {
 function LogisticsContent() {
   const { user } = useAuth();
   if (!user) return null;
-  switch (user.role) {
-    case "admin": return <AdminLogistics />;
-    case "driver": return <DriverDashboard />;
-    default: return <AdminLogistics />;
-  }
+  if (user.role === "driver") return <DriverDashboard />;
+  return <AdminLogistics />;
 }
 
 function AppHeader() {
