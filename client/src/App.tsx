@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Home, LogOut, Moon, Sun, Shield, User as UserIcon, Truck, HandPlatter } from "lucide-react";
+import { Home, LogOut, Moon, Sun, Shield, User as UserIcon, Truck, HandPlatter, Wrench } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { t, getLang, setLang, type Lang } from "@/lib/i18n";
@@ -17,6 +17,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import MaidDashboard from "@/pages/maid-dashboard";
 import DriverDashboard from "@/pages/driver-dashboard";
 import HouseholdDashboard from "@/pages/household-dashboard";
+import TechniciansPage from "@/pages/technicians";
 import NotFound from "@/pages/not-found";
 
 const LangContext = createContext<{ lang: Lang; toggleLang: () => void }>({ lang: "ar", toggleLang: () => {} });
@@ -102,9 +103,11 @@ function AppLayout() {
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2 p-3 max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <Home className="w-4 h-4 text-primary-foreground" />
-            </div>
+            <Link href="/">
+              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center cursor-pointer">
+                <Home className="w-4 h-4 text-primary-foreground" />
+              </div>
+            </Link>
             <div>
               <h1 className="text-sm font-bold leading-tight" data-testid="text-header-title">{t("app.name")}</h1>
               <div className="flex items-center gap-1">
@@ -115,6 +118,11 @@ function AppLayout() {
           </div>
 
           <div className="flex items-center gap-1">
+            <Link href="/technicians">
+              <Button size="icon" variant="ghost" data-testid="button-nav-technicians">
+                <Wrench className="w-4 h-4" />
+              </Button>
+            </Link>
             <LangToggle />
             <ThemeToggle />
             <DropdownMenu>
@@ -142,6 +150,7 @@ function AppLayout() {
       <main className="max-w-2xl mx-auto p-3">
         <Switch>
           <Route path="/" component={() => renderDashboard()} />
+          <Route path="/technicians" component={TechniciansPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
