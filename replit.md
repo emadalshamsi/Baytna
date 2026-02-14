@@ -4,18 +4,14 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 14, 2026)
-- Added trip locations (destinations) management with CRUD operations
-- Trip creation now includes driver selection dropdown and location picker from saved locations
-- Departure date/time is now mandatory for trip creation
-- Logistics section has 4 tabs: Trips, Locations, Vehicles, Technicians
-- Restructured admin dashboard from single tabbed page to sidebar-based navigation
-- Admin uses Shadcn Sidebar (right-side for RTL) with separate routes per section
-- Dashboard (/) = stats overview + quick links to sections
-- Shopping section (/admin/shopping) = Orders, Products, Categories, Stores tabs
-- Logistics section (/admin/logistics) = Trips, Locations, Vehicles, Technicians tabs
-- Users section (/admin/users) = User management standalone page
-- Non-admin roles (maid, driver, household) keep simple header-based layout
-- Technicians page (/technicians) accessible to all roles
+- Replaced sidebar + header navigation with Bottom Navigation Bar (5 icons at bottom of screen)
+- All roles now use the same unified layout with bottom nav
+- Navigation: Home (الرئيسية), Groceries (المشتريات), Logistics (الخدمات), Housekeeping (المنزل), Settings (الإعدادات)
+- Settings page includes profile, theme/language toggles, logout, and user management (admin only)
+- Housekeeping section is a placeholder (coming soon)
+- Content in each tab adapts to user role (admin sees admin views, driver sees driver views, etc.)
+- Added driver availability conflict detection system
+- Trip waiting functionality with "arrived at location" button
 
 ## Architecture
 - **Frontend**: React + Vite + TanStack Query + Wouter + Tailwind CSS + shadcn/ui
@@ -27,7 +23,7 @@ Arabic RTL web application for household shopping and task management. Features 
 - `shared/schema.ts` - Database schema (users, stores, categories, products, orders, orderItems, vehicles, trips, technicians)
 - `server/routes.ts` - All API routes with session-based auth
 - `server/storage.ts` - Database CRUD operations interface
-- `client/src/App.tsx` - Main app with dual layouts: AdminLayout (sidebar) + SimpleLayout (header)
+- `client/src/App.tsx` - Main app with bottom navigation bar layout for all roles
 - `client/src/pages/login.tsx` - Login/Register page
 - `client/src/pages/admin-dashboard.tsx` - Admin: stats overview + quick links
 - `client/src/pages/admin-shopping.tsx` - Admin: orders, products, categories, stores management
@@ -36,30 +32,38 @@ Arabic RTL web application for household shopping and task management. Features 
 - `client/src/pages/maid-dashboard.tsx` - Maid: product grid, shopping cart, order creation, order updates
 - `client/src/pages/driver-dashboard.tsx` - Driver: order fulfillment, actual prices, receipt upload, store grouping, trips
 - `client/src/pages/household-dashboard.tsx` - Household: order viewing, approval (if canApprove)
-- `client/src/pages/technicians.tsx` - Technicians directory with call and coordination (all roles)
+- `client/src/pages/housekeeping.tsx` - Placeholder page (coming soon)
+- `client/src/pages/settings.tsx` - Profile, theme/language, logout, user management (admin)
 - `client/src/lib/i18n.ts` - Arabic/English translation system
 - `client/src/hooks/use-auth.ts` - Auth hook for session management
 
+## Navigation (Bottom Nav Bar)
+All roles use the same 5-tab bottom navigation:
+- `/` - Home: Dashboard stats (role-specific content)
+- `/groceries` - Groceries: Shopping & orders (role-specific content)
+- `/logistics` - Logistics: Vehicles, trips, technicians (role-specific content)
+- `/housekeeping` - Housekeeping: Coming soon placeholder
+- `/settings` - Settings: Profile, theme, language, logout, user management (admin)
+
+### Content per role per tab:
+- **Admin**: Home=stats+quick links, Groceries=admin shopping, Logistics=admin logistics, Settings=profile+users
+- **Maid**: Home=maid dashboard, Groceries=maid dashboard, Logistics=admin logistics view
+- **Driver**: Home=driver dashboard, Groceries=driver dashboard, Logistics=driver dashboard
+- **Household**: Home=household dashboard, Groceries=household dashboard, Logistics=admin logistics view
+
 ## Key Features
 - **Roles**: admin, household, maid, driver
-- **Admin Navigation**: Sidebar with Dashboard, Shopping, Logistics, Users, Technicians sections
+- **Navigation**: Bottom nav bar with 5 tabs (Home, Groceries, Logistics, Housekeeping, Settings)
 - **Stores**: Name (AR/EN), website URL, linked to products
 - **Approval**: Only users with `canApprove=true` can approve/reject orders and trips
 - **Stats**: Completed orders = current week (Sat-Fri), spending = current month
-- **Driver**: Receipt upload, items grouped by store, trips with waiting timer
+- **Driver**: Receipt upload, items grouped by store, trips with waiting timer, availability conflict detection
 - **Maid**: Can add items to active (in_progress) orders
 - **Vehicles**: Name, odometer reading, last maintenance date tracking
 - **Trips**: Full lifecycle (pending → approved → started → waiting → completed) with waiting time
 - **Technicians**: Directory with specialties, phone contacts, driver coordination
-- **Language**: Arabic (primary, RTL) / English toggle with localStorage persistence
-- **Theme**: Dark/Light mode toggle with localStorage persistence
-
-## Admin Routes
-- `/` - Stats dashboard with quick links
-- `/admin/shopping` - Shopping section (Orders/Products/Categories/Stores tabs)
-- `/admin/logistics` - Logistics section (Trips/Vehicles/Technicians tabs)
-- `/admin/users` - User management
-- `/technicians` - Technicians directory (shared with all roles)
+- **Language**: Arabic (primary, RTL) / English toggle (in Settings page)
+- **Theme**: Dark/Light mode toggle (in Settings page)
 
 ## API Routes
 - POST `/api/auth/register` - Register new user
@@ -82,6 +86,7 @@ Arabic RTL web application for household shopping and task management. Features 
 - PATCH/DELETE `/api/vehicles/:id` - Update/delete vehicle
 - GET/POST `/api/trips` - Trips (filtered by role)
 - PATCH `/api/trips/:id/status` - Update trip status (approval/start/wait/complete)
+- GET `/api/drivers/:id/availability` - Check driver availability (conflict detection)
 - GET/POST `/api/technicians` - CRUD technicians (admin only for POST)
 - PATCH/DELETE `/api/technicians/:id` - Update/delete technician
 - POST `/api/technicians/:id/coordinate` - Create coordination trip for technician
@@ -90,6 +95,6 @@ Arabic RTL web application for household shopping and task management. Features 
 
 ## User Preferences
 - Arabic as primary language with RTL layout
-- Mobile-first design
+- Mobile-first design with bottom navigation bar
 - Large touch-friendly buttons for maid interface
 - Week runs Saturday to Friday

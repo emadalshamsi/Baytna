@@ -49,9 +49,9 @@ export default function AdminDashboard() {
   useLang();
 
   const quickLinks = [
-    { label: t("nav.shoppingSection"), icon: ShoppingCart, href: "/admin/shopping", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", desc: `${t("nav.orders")} - ${t("nav.products")} - ${t("nav.categories")} - ${t("nav.stores")}` },
-    { label: t("nav.logisticsSection"), icon: Car, href: "/admin/logistics", color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30", desc: `${t("nav.vehicles")} - ${t("nav.trips")} - ${t("nav.technicians")}` },
-    { label: t("nav.users"), icon: Users, href: "/admin/users", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", desc: t("admin.approvePermission") },
+    { label: t("nav.groceries"), icon: ShoppingCart, href: "/groceries", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", desc: `${t("nav.orders")} - ${t("nav.products")} - ${t("nav.categories")} - ${t("nav.stores")}` },
+    { label: t("nav.logistics"), icon: Car, href: "/logistics", color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30", desc: `${t("nav.vehicles")} - ${t("nav.trips")} - ${t("nav.technicians")}` },
+    { label: t("nav.users"), icon: Users, href: "/settings", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", desc: t("admin.approvePermission") },
   ];
 
   return (
