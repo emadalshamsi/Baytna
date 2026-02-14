@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, Ban, UserCheck } from "lucide-react";
+import { ClipboardList, Package, Users, Check, X, Plus, ShoppingCart, BarChart3, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, Ban, UserCheck, LayoutGrid } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
@@ -607,7 +607,7 @@ export default function AdminDashboard() {
             <Package className="w-4 h-4" /> {t("nav.products")}
           </TabsTrigger>
           <TabsTrigger value="categories" className="gap-1" data-testid="tab-categories">
-            {t("nav.categories")}
+            <LayoutGrid className="w-4 h-4" /> {t("nav.categories")}
           </TabsTrigger>
           <TabsTrigger value="stores" className="gap-1" data-testid="tab-stores">
             <StoreIcon className="w-4 h-4" /> {t("nav.stores")}
