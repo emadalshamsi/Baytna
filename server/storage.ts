@@ -2,13 +2,14 @@ import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
-  vehicles, trips, technicians,
+  vehicles, trips, tripLocations, technicians,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
   type InsertOrderItem, type OrderItem,
   type Vehicle, type InsertVehicle,
   type Trip, type InsertTrip,
+  type TripLocation, type InsertTripLocation,
   type Technician, type InsertTechnician,
 } from "@shared/schema";
 
@@ -68,6 +69,12 @@ export interface IStorage {
   getTrip(id: number): Promise<Trip | undefined>;
   createTrip(trip: InsertTrip): Promise<Trip>;
   updateTripStatus(id: number, status: string, updates?: Partial<Trip>): Promise<Trip | undefined>;
+
+  getTripLocations(): Promise<TripLocation[]>;
+  getTripLocation(id: number): Promise<TripLocation | undefined>;
+  createTripLocation(loc: InsertTripLocation): Promise<TripLocation>;
+  updateTripLocation(id: number, loc: Partial<InsertTripLocation>): Promise<TripLocation | undefined>;
+  deleteTripLocation(id: number): Promise<void>;
 
   getTechnicians(): Promise<Technician[]>;
   getTechnician(id: number): Promise<Technician | undefined>;
@@ -322,6 +329,29 @@ export class DatabaseStorage implements IStorage {
     const setData: any = { status, ...updates };
     const [result] = await db.update(trips).set(setData).where(eq(trips.id, id)).returning();
     return result;
+  }
+
+  async getTripLocations(): Promise<TripLocation[]> {
+    return db.select().from(tripLocations).where(eq(tripLocations.isActive, true));
+  }
+
+  async getTripLocation(id: number): Promise<TripLocation | undefined> {
+    const [loc] = await db.select().from(tripLocations).where(eq(tripLocations.id, id));
+    return loc;
+  }
+
+  async createTripLocation(loc: InsertTripLocation): Promise<TripLocation> {
+    const [result] = await db.insert(tripLocations).values(loc).returning();
+    return result;
+  }
+
+  async updateTripLocation(id: number, loc: Partial<InsertTripLocation>): Promise<TripLocation | undefined> {
+    const [result] = await db.update(tripLocations).set(loc).where(eq(tripLocations.id, id)).returning();
+    return result;
+  }
+
+  async deleteTripLocation(id: number): Promise<void> {
+    await db.update(tripLocations).set({ isActive: false }).where(eq(tripLocations.id, id));
   }
 
   async getTechnicians(): Promise<Technician[]> {

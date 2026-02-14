@@ -118,6 +118,15 @@ export const trips = pgTable("trips", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const tripLocations = pgTable("trip_locations", {
+  id: serial("id").primaryKey(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  address: varchar("address", { length: 500 }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const technicians = pgTable("technicians", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
@@ -148,6 +157,7 @@ export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, cre
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertVehicleSchema = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
 export const insertTripSchema = createInsertSchema(trips).omit({ id: true, createdAt: true });
+export const insertTripLocationSchema = createInsertSchema(tripLocations).omit({ id: true, createdAt: true });
 export const insertTechnicianSchema = createInsertSchema(technicians).omit({ id: true, createdAt: true });
 
 export type UpsertUser = typeof users.$inferInsert;
@@ -167,5 +177,7 @@ export type Vehicle = typeof vehicles.$inferSelect;
 export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
 export type Trip = typeof trips.$inferSelect;
 export type InsertTrip = z.infer<typeof insertTripSchema>;
+export type TripLocation = typeof tripLocations.$inferSelect;
+export type InsertTripLocation = z.infer<typeof insertTripLocationSchema>;
 export type Technician = typeof technicians.$inferSelect;
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;

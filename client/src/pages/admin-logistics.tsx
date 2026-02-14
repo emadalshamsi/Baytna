@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone } from "lucide-react";
+import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation } from "lucide-react";
 import { useState } from "react";
-import type { Vehicle, Trip, Technician } from "@shared/schema";
-import { t } from "@/lib/i18n";
+import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
+import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
 
@@ -66,7 +66,10 @@ function VehiclesSection() {
           <Button className="gap-2" data-testid="button-add-vehicle"><Plus className="w-4 h-4" /> {t("vehicles.addVehicle")}</Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editingVehicle ? t("vehicles.editVehicle") : t("vehicles.addVehicle")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingVehicle ? t("vehicles.editVehicle") : t("vehicles.addVehicle")}</DialogTitle>
+            <DialogDescription className="sr-only">{editingVehicle ? t("vehicles.editVehicle") : t("vehicles.addVehicle")}</DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("vehicles.name")} value={name} onChange={e => setName(e.target.value)} data-testid="input-vehicle-name" />
             <Input type="number" placeholder={t("vehicles.odometer")} value={odometer} onChange={e => setOdometer(e.target.value)} data-testid="input-vehicle-odometer" />
@@ -112,20 +115,128 @@ function VehiclesSection() {
   );
 }
 
+function LocationsSection() {
+  useLang();
+  const lang = getLang();
+  const { toast } = useToast();
+  const { data: locations, isLoading } = useQuery<TripLocation[]>({ queryKey: ["/api/trip-locations"] });
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingLoc, setEditingLoc] = useState<TripLocation | null>(null);
+  const [nameAr, setNameAr] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [address, setAddress] = useState("");
+
+  const resetForm = () => { setNameAr(""); setNameEn(""); setAddress(""); setEditingLoc(null); };
+
+  const openEdit = (loc: TripLocation) => {
+    setEditingLoc(loc);
+    setNameAr(loc.nameAr);
+    setNameEn(loc.nameEn || "");
+    setAddress(loc.address || "");
+    setShowAdd(true);
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/trip-locations", data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trip-locations"] }); setShowAdd(false); resetForm(); toast({ title: t("locations.locationAdded") }); },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/trip-locations/${id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trip-locations"] }); setShowAdd(false); resetForm(); toast({ title: t("locations.locationUpdated") }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/trip-locations/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trip-locations"] }); toast({ title: t("locations.locationDeleted") }); },
+  });
+
+  const handleSave = () => {
+    const data = { nameAr, nameEn: nameEn || null, address: address || null };
+    if (editingLoc) updateMutation.mutate({ id: editingLoc.id, data });
+    else createMutation.mutate(data);
+  };
+
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
+
+  return (
+    <div className="space-y-3">
+      <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
+        <DialogTrigger asChild>
+          <Button className="gap-2" data-testid="button-add-location"><Plus className="w-4 h-4" /> {t("locations.addLocation")}</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingLoc ? t("locations.editLocation") : t("locations.addLocation")}</DialogTitle>
+            <DialogDescription className="sr-only">{editingLoc ? t("locations.editLocation") : t("locations.addLocation")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder={t("locations.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-location-name-ar" />
+            <Input placeholder={t("locations.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-location-name-en" dir="ltr" />
+            <Input placeholder={t("locations.address")} value={address} onChange={e => setAddress(e.target.value)} data-testid="input-location-address" />
+            <Button className="w-full" disabled={!nameAr || createMutation.isPending || updateMutation.isPending} data-testid="button-save-location" onClick={handleSave}>
+              {t("actions.save")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {!locations?.length ? (
+        <div className="text-center py-8">
+          <Navigation className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">{t("locations.noLocations")}</p>
+        </div>
+      ) : (
+        locations.map(loc => (
+          <Card key={loc.id} data-testid={`card-location-${loc.id}`}>
+            <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">{lang === "ar" ? loc.nameAr : (loc.nameEn || loc.nameAr)}</span>
+                </div>
+                {loc.nameEn && lang === "ar" && (
+                  <p className="text-sm text-muted-foreground mt-0.5 mr-6">{loc.nameEn}</p>
+                )}
+                {loc.address && (
+                  <p className="text-sm text-muted-foreground mt-0.5 mr-6">{loc.address}</p>
+                )}
+              </div>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => openEdit(loc)} data-testid={`button-edit-location-${loc.id}`}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(loc.id)} data-testid={`button-delete-location-${loc.id}`}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
 function TripsSection() {
   useLang();
+  const lang = getLang();
   const { toast } = useToast();
   const { data: allTrips, isLoading } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
   const { data: allVehicles } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
   const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
+  const { data: allLocations } = useQuery<TripLocation[]>({ queryKey: ["/api/trip-locations"] });
   const [showAdd, setShowAdd] = useState(false);
   const [personName, setPersonName] = useState("");
   const [location, setLocation] = useState("");
   const [departureTime, setDepartureTime] = useState("");
   const [vehicleId, setVehicleId] = useState("");
+  const [assignedDriver, setAssignedDriver] = useState("");
   const [notes, setNotes] = useState("");
 
-  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureTime(""); setVehicleId(""); setNotes(""); };
+  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureTime(""); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+
+  const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/trips", data); },
@@ -140,12 +251,28 @@ function TripsSection() {
   });
 
   const handleSave = () => {
+    if (!departureTime) {
+      toast({ title: t("trips.departureRequired"), variant: "destructive" });
+      return;
+    }
     createMutation.mutate({
       personName, location,
-      departureTime: departureTime ? new Date(departureTime) : new Date(),
+      departureTime: new Date(departureTime),
       vehicleId: vehicleId ? parseInt(vehicleId) : null,
+      assignedDriver: assignedDriver || null,
       notes: notes || null,
     });
+  };
+
+  const handleLocationSelect = (val: string) => {
+    if (val === "__custom__") {
+      setLocation("");
+    } else {
+      const loc = allLocations?.find(l => String(l.id) === val);
+      if (loc) {
+        setLocation(lang === "ar" ? loc.nameAr : (loc.nameEn || loc.nameAr));
+      }
+    }
   };
 
   const getVehicleName = (vid: number | null) => {
@@ -183,19 +310,63 @@ function TripsSection() {
           <Button className="gap-2" data-testid="button-add-trip"><Plus className="w-4 h-4" /> {t("trips.addTrip")}</Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("trips.addTrip")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{t("trips.addTrip")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("trips.addTrip")}</DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("trips.personName")} value={personName} onChange={e => setPersonName(e.target.value)} data-testid="input-trip-person" />
-            <Input placeholder={t("trips.location")} value={location} onChange={e => setLocation(e.target.value)} data-testid="input-trip-location" />
-            <Input type="datetime-local" placeholder={t("trips.departureTime")} value={departureTime} onChange={e => setDepartureTime(e.target.value)} data-testid="input-trip-departure" />
+
+            {allLocations && allLocations.length > 0 ? (
+              <div className="space-y-2">
+                <Select onValueChange={handleLocationSelect}>
+                  <SelectTrigger data-testid="select-trip-location">
+                    <SelectValue placeholder={t("trips.selectLocation")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allLocations.map(loc => (
+                      <SelectItem key={loc.id} value={String(loc.id)}>
+                        {lang === "ar" ? loc.nameAr : (loc.nameEn || loc.nameAr)}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">{t("trips.location")} ...</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input placeholder={t("trips.location")} value={location} onChange={e => setLocation(e.target.value)} data-testid="input-trip-location" />
+              </div>
+            ) : (
+              <Input placeholder={t("trips.location")} value={location} onChange={e => setLocation(e.target.value)} data-testid="input-trip-location" />
+            )}
+
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">{t("trips.departureTime")} *</label>
+              <Input type="datetime-local" value={departureTime} onChange={e => setDepartureTime(e.target.value)} data-testid="input-trip-departure" />
+            </div>
+
+            {drivers.length > 0 && (
+              <Select value={assignedDriver} onValueChange={setAssignedDriver}>
+                <SelectTrigger data-testid="select-trip-driver">
+                  <SelectValue placeholder={t("trips.selectDriver")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {drivers.map(d => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.firstName || d.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             {allVehicles && allVehicles.length > 0 && (
               <Select value={vehicleId} onValueChange={setVehicleId}>
                 <SelectTrigger data-testid="select-trip-vehicle"><SelectValue placeholder={t("trips.selectVehicle")} /></SelectTrigger>
                 <SelectContent>{allVehicles.map(v => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
               </Select>
             )}
+
             <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-trip-notes" />
-            <Button className="w-full" disabled={!personName || !location || createMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
+            <Button className="w-full" disabled={!personName || !location || !departureTime || createMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
               {t("actions.save")}
             </Button>
           </div>
@@ -303,7 +474,10 @@ function TechniciansSection() {
           <Button className="gap-2" data-testid="button-add-technician"><Plus className="w-4 h-4" /> {t("technicians.addTechnician")}</Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editingTech ? t("technicians.editTechnician") : t("technicians.addTechnician")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingTech ? t("technicians.editTechnician") : t("technicians.addTechnician")}</DialogTitle>
+            <DialogDescription className="sr-only">{editingTech ? t("technicians.editTechnician") : t("technicians.addTechnician")}</DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("technicians.name")} value={name} onChange={e => setName(e.target.value)} data-testid="input-tech-name" />
             <Select value={specialty} onValueChange={setSpecialty}>
@@ -382,6 +556,9 @@ export default function AdminLogistics() {
           <TabsTrigger value="trips" className="gap-1" data-testid="tab-trips">
             <MapPin className="w-4 h-4" /> {t("nav.trips")}
           </TabsTrigger>
+          <TabsTrigger value="locations" className="gap-1" data-testid="tab-locations">
+            <Navigation className="w-4 h-4" /> {t("nav.locations")}
+          </TabsTrigger>
           <TabsTrigger value="vehicles" className="gap-1" data-testid="tab-vehicles">
             <Car className="w-4 h-4" /> {t("nav.vehicles")}
           </TabsTrigger>
@@ -390,6 +567,7 @@ export default function AdminLogistics() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="trips"><TripsSection /></TabsContent>
+        <TabsContent value="locations"><LocationsSection /></TabsContent>
         <TabsContent value="vehicles"><VehiclesSection /></TabsContent>
         <TabsContent value="technicians"><TechniciansSection /></TabsContent>
       </Tabs>

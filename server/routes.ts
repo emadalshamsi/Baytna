@@ -631,6 +631,56 @@ export async function registerRoutes(
     }
   });
 
+  // Trip Locations CRUD
+  app.get("/api/trip-locations", isAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      const locations = await storage.getTripLocations();
+      res.json(locations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch trip locations" });
+    }
+  });
+
+  app.post("/api/trip-locations", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const loc = await storage.createTripLocation(req.body);
+      res.json(loc);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create trip location" });
+    }
+  });
+
+  app.patch("/api/trip-locations/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const loc = await storage.updateTripLocation(parseInt(req.params.id), req.body);
+      if (!loc) return res.status(404).json({ message: "Location not found" });
+      res.json(loc);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update trip location" });
+    }
+  });
+
+  app.delete("/api/trip-locations/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteTripLocation(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete trip location" });
+    }
+  });
+
   // Trips CRUD
   app.get("/api/trips", isAuthenticated, async (req: Request, res: Response) => {
     try {
