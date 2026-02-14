@@ -4,11 +4,15 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 14, 2026)
+- Added trip locations (destinations) management with CRUD operations
+- Trip creation now includes driver selection dropdown and location picker from saved locations
+- Departure date/time is now mandatory for trip creation
+- Logistics section has 4 tabs: Trips, Locations, Vehicles, Technicians
 - Restructured admin dashboard from single tabbed page to sidebar-based navigation
 - Admin uses Shadcn Sidebar (right-side for RTL) with separate routes per section
 - Dashboard (/) = stats overview + quick links to sections
 - Shopping section (/admin/shopping) = Orders, Products, Categories, Stores tabs
-- Logistics section (/admin/logistics) = Trips, Vehicles, Technicians tabs
+- Logistics section (/admin/logistics) = Trips, Locations, Vehicles, Technicians tabs
 - Users section (/admin/users) = User management standalone page
 - Non-admin roles (maid, driver, household) keep simple header-based layout
 - Technicians page (/technicians) accessible to all roles
