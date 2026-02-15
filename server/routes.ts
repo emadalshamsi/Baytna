@@ -1002,11 +1002,17 @@ export async function registerRoutes(
       if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "household")) {
         return res.status(403).json({ message: "Forbidden" });
       }
+      const depTime = req.body.departureTime ? new Date(req.body.departureTime) : new Date();
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      if (depTime < now) {
+        return res.status(400).json({ message: "Cannot create a trip in the past" });
+      }
       const tripData = {
         ...req.body,
         createdBy: currentUser.id,
         status: "pending",
-        departureTime: req.body.departureTime ? new Date(req.body.departureTime) : new Date(),
+        departureTime: depTime,
         estimatedDuration: req.body.estimatedDuration ? parseInt(req.body.estimatedDuration) : 30,
         vehicleId: req.body.vehicleId ? parseInt(req.body.vehicleId) : null,
         assignedDriver: req.body.assignedDriver || null,

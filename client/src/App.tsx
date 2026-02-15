@@ -172,7 +172,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
                         </p>
                       )}
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date(notif.createdAt).toLocaleString(lang === "ar" ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
+                        {new Date(notif.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
                       </p>
                     </div>
                     {!notif.isRead && (
