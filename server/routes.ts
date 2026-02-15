@@ -277,7 +277,7 @@ export async function registerRoutes(
   app.post("/api/categories", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const cat = await storage.createCategory(req.body);
@@ -290,7 +290,7 @@ export async function registerRoutes(
   app.patch("/api/categories/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const cat = await storage.updateCategory(parseInt(req.params.id), req.body);
@@ -303,7 +303,7 @@ export async function registerRoutes(
   app.delete("/api/categories/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.deleteCategory(parseInt(req.params.id));
@@ -334,7 +334,7 @@ export async function registerRoutes(
   app.post("/api/products", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const product = await storage.createProduct(req.body);
@@ -347,7 +347,7 @@ export async function registerRoutes(
   app.patch("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const product = await storage.updateProduct(parseInt(req.params.id), req.body);
@@ -360,7 +360,7 @@ export async function registerRoutes(
   app.delete("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.deleteProduct(parseInt(req.params.id));
@@ -382,7 +382,7 @@ export async function registerRoutes(
   app.put("/api/products/:id/alternatives", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.setProductAlternatives(parseInt(req.params.id), req.body.alternativeIds);
@@ -596,7 +596,7 @@ export async function registerRoutes(
   app.post("/api/stores", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const store = await storage.createStore(req.body);
@@ -609,7 +609,7 @@ export async function registerRoutes(
   app.patch("/api/stores/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const store = await storage.updateStore(parseInt(req.params.id as string), req.body);
@@ -622,7 +622,7 @@ export async function registerRoutes(
   app.delete("/api/stores/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.deleteStore(parseInt(req.params.id as string));

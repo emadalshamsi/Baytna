@@ -75,7 +75,7 @@ export default function AdminUsers() {
                   {t("admin.approvePermission")}
                 </Button>
                 <Button size="sm" variant="outline"
-                  className={u.canAddShortages ? "bg-green-600 text-white border-green-600 dark:bg-green-500 dark:border-green-500" : ""}
+                  className={u.canAddShortages ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
                   onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canAddShortages: !u.canAddShortages })}
                   disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-shortages-${u.id}`}>
                   {t("shortages.permission")}
