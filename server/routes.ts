@@ -650,13 +650,17 @@ export async function registerRoutes(
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
-      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+      const existingItem = await storage.getOrderItem(parseInt(req.params.id));
+      if (!existingItem) return res.status(404).json({ message: "Item not found" });
+      const order = await storage.getOrder(existingItem.orderId);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      const isDriver = currentUser.role === "driver" && order.assignedDriver === currentUser.id && order.status === "in_progress";
+      const isAdminOrApprover = currentUser.role === "admin" || currentUser.canApprove;
+      if (!isDriver && !isAdminOrApprover) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const existingItem = await storage.getOrderItem(parseInt(req.params.id));
-      if (existingItem) {
-        const order = await storage.getOrder(existingItem.orderId);
-        if (order && order.status !== "pending" && order.status !== "approved") {
+      if (isAdminOrApprover && !isDriver) {
+        if (order.status !== "pending" && order.status !== "approved") {
           return res.status(400).json({ message: "Cannot edit this order" });
         }
       }
