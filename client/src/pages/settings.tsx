@@ -113,27 +113,53 @@ function RoomManagement() {
     },
   });
 
-  const dragItem = useRef<number | null>(null);
-  const dragOverItem = useRef<number | null>(null);
+  const [localRooms, setLocalRooms] = useState<Room[] | null>(null);
+  const dragIdx = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const handleDragStart = (index: number) => {
-    dragItem.current = index;
+  const displayRooms = localRooms || rooms;
+
+  const getTargetIndex = (clientY: number) => {
+    if (!listRef.current) return null;
+    const cards = Array.from(listRef.current.children) as HTMLElement[];
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY < mid) return i;
+    }
+    return cards.length - 1;
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const reorderLocal = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const base = localRooms || [...rooms];
+    const arr = [...base];
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    setLocalRooms(arr);
+    dragIdx.current = toIdx;
+  };
+
+  const handleTouchStart = (index: number) => {
+    dragIdx.current = index;
+    setLocalRooms([...rooms]);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (dragIdx.current === null) return;
     e.preventDefault();
-    dragOverItem.current = index;
+    const touch = e.touches[0];
+    const targetIdx = getTargetIndex(touch.clientY);
+    if (targetIdx !== null && targetIdx !== dragIdx.current) {
+      reorderLocal(dragIdx.current, targetIdx);
+    }
   };
 
-  const handleDrop = () => {
-    if (dragItem.current === null || dragOverItem.current === null) return;
-    if (dragItem.current === dragOverItem.current) return;
-    const newOrder = [...rooms];
-    const [moved] = newOrder.splice(dragItem.current, 1);
-    newOrder.splice(dragOverItem.current, 0, moved);
-    reorderRooms.mutate(newOrder.map(r => r.id));
-    dragItem.current = null;
-    dragOverItem.current = null;
+  const handleTouchEnd = () => {
+    if (dragIdx.current === null || !localRooms) return;
+    reorderRooms.mutate(localRooms.map(r => r.id));
+    dragIdx.current = null;
+    setLocalRooms(null);
   };
 
   return (
@@ -184,15 +210,10 @@ function RoomManagement() {
       {rooms.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">{t("rooms.noRooms")}</p>
       ) : (
-        <div className="space-y-1.5">
-          {rooms.map((room, index) => (
+        <div className="space-y-1.5" ref={listRef}>
+          {displayRooms.map((room, index) => (
             <Card
               key={room.id}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={handleDrop}
-              className="cursor-grab active:cursor-grabbing"
               data-testid={`card-room-${room.id}`}
             >
               <CardContent className="p-3 flex items-center justify-between gap-2">
@@ -216,7 +237,15 @@ function RoomManagement() {
                   >
                     <X className="w-4 h-4" />
                   </Button>
-                  <GripVertical className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+                  <div
+                    className="touch-none cursor-grab active:cursor-grabbing p-1"
+                    onTouchStart={() => handleTouchStart(index)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    data-testid={`drag-room-${room.id}`}
+                  >
+                    <GripVertical className="w-5 h-5 text-muted-foreground/50" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
