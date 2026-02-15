@@ -2,7 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Moon, Sun, Plus, DoorOpen, X, EyeOff, Eye } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { LogOut, Moon, Sun, Plus, DoorOpen, X } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
@@ -156,27 +157,19 @@ function RoomManagement() {
         <div className="space-y-1.5">
           {rooms.map((room) => (
             <Card key={room.id} data-testid={`card-room-${room.id}`}>
-              <CardContent className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+              <CardContent className="p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <DoorOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm font-medium truncate">
+                  <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground line-through" : ""}`}>
                     {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
                   </span>
-                  {room.isExcluded && (
-                    <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate text-xs">
-                      {t("rooms.excluded")}
-                    </Badge>
-                  )}
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => toggleExclude.mutate({ id: room.id, isExcluded: !room.isExcluded })}
-                    data-testid={`button-toggle-room-${room.id}`}
-                  >
-                    {room.isExcluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </Button>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <Switch
+                    checked={!room.isExcluded}
+                    onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
+                    data-testid={`switch-room-${room.id}`}
+                  />
                   <Button
                     size="icon"
                     variant="ghost"
