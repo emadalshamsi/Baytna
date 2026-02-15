@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   Brush, WashingMachine, ChefHat, Check, Plus, X,
-  Users, StickyNote, Clock, DoorOpen, CalendarDays,
+  Users, StickyNote, Clock, CalendarDays,
   Shirt, AlertCircle, ImageIcon,
 } from "lucide-react";
+import { getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang, formatTime } from "@/lib/i18n";
@@ -257,6 +258,7 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
           {selectedIds.map(id => {
             const room = rooms.find(r => r.id === id);
             if (!room) return null;
+            const ChipIcon = getRoomIcon(room.icon);
             return (
               <Badge
                 key={id}
@@ -265,7 +267,7 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
                 onClick={() => onChange(selectedIds.filter(rid => rid !== id))}
                 data-testid={`chip-room-${id}`}
               >
-                <DoorOpen className="w-3 h-3" />
+                <ChipIcon className="w-3 h-3" />
                 {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
                 <X className="w-3 h-3" />
               </Badge>
@@ -299,7 +301,7 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
                     }}
                     data-testid={`option-room-${room.id}`}
                   >
-                    <DoorOpen className="w-4 h-4 text-muted-foreground" />
+                    {(() => { const OptIcon = getRoomIcon(room.icon); return <OptIcon className="w-4 h-4 text-muted-foreground" />; })()}
                     <span className="text-sm">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>
                   </div>
                 ))}
@@ -529,12 +531,12 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                     <p className={`text-sm font-bold ${isDone ? "line-through" : ""}`}>
                       {lang === "ar" ? task.titleAr : (task.titleEn || task.titleAr)}
                     </p>
-                    {room && (
+                    {room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
                       <div className="flex items-center gap-1 mt-0.5">
-                        <DoorOpen className="w-3 h-3 text-muted-foreground" />
+                        <TaskRoomIcon className="w-3 h-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>
                       </div>
-                    )}
+                    ); })()}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {isDone ? (

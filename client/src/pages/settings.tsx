@@ -5,7 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { LogOut, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
+import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil } from "lucide-react";
+import { ROOM_ICON_OPTIONS, getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang, displayName } from "@/lib/i18n";
@@ -82,24 +83,61 @@ function CollapsibleSection({ title, icon, defaultOpen = false, children, testId
   );
 }
 
+function IconPicker({ selected, onSelect }: { selected: string; onSelect: (key: string) => void }) {
+  return (
+    <div className="grid grid-cols-5 gap-1.5" data-testid="icon-picker">
+      {ROOM_ICON_OPTIONS.map(({ key, Icon }) => (
+        <button
+          key={key}
+          type="button"
+          className={`flex flex-col items-center gap-1 p-2 rounded-md transition-colors ${
+            selected === key ? "bg-primary text-primary-foreground" : "hover-elevate text-muted-foreground"
+          }`}
+          onClick={() => onSelect(key)}
+          data-testid={`icon-option-${key}`}
+        >
+          <Icon className="w-5 h-5" />
+          <span className="text-[9px] leading-tight text-center">{t(`rooms.icon_${key}`)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function RoomManagement() {
   const { lang } = useLang();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState("door");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [localRooms, setLocalRooms] = useState<Room[]>([]);
 
   const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
 
+  useEffect(() => {
+    setLocalRooms(rooms);
+  }, [rooms]);
+
   const createRoom = useMutation({
-    mutationFn: (data: { nameAr: string; nameEn: string }) =>
+    mutationFn: (data: { nameAr: string; nameEn: string; icon: string }) =>
       apiRequest("POST", "/api/rooms", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
       toast({ title: t("rooms.roomAdded") });
-      setShowAdd(false);
-      setNameAr("");
-      setNameEn("");
+      resetForm();
+    },
+  });
+
+  const updateRoom = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) =>
+      apiRequest("PATCH", `/api/rooms/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+      toast({ title: t("rooms.roomUpdated") });
+      resetForm();
     },
   });
 
@@ -127,19 +165,99 @@ function RoomManagement() {
     },
   });
 
-  const moveRoom = (index: number, direction: "up" | "down") => {
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= rooms.length) return;
-    const newOrder = [...rooms];
-    const [moved] = newOrder.splice(index, 1);
-    newOrder.splice(newIndex, 0, moved);
-    reorderRooms.mutate(newOrder.map(r => r.id));
+  function resetForm() {
+    setShowAdd(false);
+    setEditingId(null);
+    setNameAr("");
+    setNameEn("");
+    setSelectedIcon("door");
+  }
+
+  function startEdit(room: Room) {
+    setEditingId(room.id);
+    setShowAdd(true);
+    setNameAr(room.nameAr);
+    setNameEn(room.nameEn || "");
+    setSelectedIcon(room.icon || "door");
+  }
+
+  function submitForm() {
+    const data = { nameAr, nameEn, icon: selectedIcon };
+    if (editingId) {
+      updateRoom.mutate({ id: editingId, data });
+    } else {
+      createRoom.mutate(data);
+    }
+  }
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.4";
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1";
+    }
+    setDraggedIndex(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedIndex === null || draggedIndex === index) return;
+    const newOrder = [...localRooms];
+    const [moved] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(index, 0, moved);
+    setLocalRooms(newOrder);
+    setDraggedIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    reorderRooms.mutate(localRooms.map(r => r.id));
+    setDraggedIndex(null);
+  };
+
+  const handleTouchStart = useRef<{ index: number; startY: number } | null>(null);
+
+  const onTouchStart = (index: number, e: React.TouchEvent) => {
+    handleTouchStart.current = { index, startY: e.touches[0].clientY };
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!handleTouchStart.current) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - handleTouchStart.current.startY;
+    const threshold = 50;
+    if (Math.abs(diff) > threshold) {
+      const { index } = handleTouchStart.current;
+      const direction = diff > 0 ? 1 : -1;
+      const newIndex = index + direction;
+      if (newIndex >= 0 && newIndex < localRooms.length) {
+        const newOrder = [...localRooms];
+        const [moved] = newOrder.splice(index, 1);
+        newOrder.splice(newIndex, 0, moved);
+        setLocalRooms(newOrder);
+        handleTouchStart.current = { index: newIndex, startY: currentY };
+      }
+    }
+  };
+
+  const onTouchEnd = () => {
+    if (handleTouchStart.current) {
+      reorderRooms.mutate(localRooms.map(r => r.id));
+      handleTouchStart.current = null;
+    }
   };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end">
-        <Button size="sm" onClick={() => setShowAdd(!showAdd)} data-testid="button-add-room">
+        <Button size="sm" onClick={() => { if (showAdd && !editingId) { resetForm(); } else { resetForm(); setShowAdd(true); } }} data-testid="button-add-room">
           <Plus className="w-4 h-4" />
           {t("rooms.addRoom")}
         </Button>
@@ -147,7 +265,7 @@ function RoomManagement() {
 
       {showAdd && (
         <Card>
-          <CardContent className="p-3 space-y-2">
+          <CardContent className="p-3 space-y-3">
             <Input
               placeholder={t("rooms.nameAr")}
               value={nameAr}
@@ -160,16 +278,20 @@ function RoomManagement() {
               onChange={(e) => setNameEn(e.target.value)}
               data-testid="input-room-name-en"
             />
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">{t("rooms.chooseIcon")}</p>
+              <IconPicker selected={selectedIcon} onSelect={setSelectedIcon} />
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={() => createRoom.mutate({ nameAr, nameEn })}
-                disabled={!nameAr || createRoom.isPending}
+                onClick={submitForm}
+                disabled={!nameAr || createRoom.isPending || updateRoom.isPending}
                 data-testid="button-save-room"
               >
-                {t("actions.save")}
+                {editingId ? t("actions.update") : t("actions.save")}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>
+              <Button size="sm" variant="outline" onClick={resetForm}>
                 {t("actions.cancel")}
               </Button>
             </div>
@@ -177,59 +299,63 @@ function RoomManagement() {
         </Card>
       )}
 
-      {rooms.length === 0 ? (
+      {localRooms.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">{t("rooms.noRooms")}</p>
       ) : (
         <div className="space-y-1.5">
-          {rooms.map((room, index) => (
-            <Card key={room.id} data-testid={`card-room-${room.id}`}>
-              <CardContent className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <DoorOpen className={`w-4 h-4 flex-shrink-0 ${room.isExcluded ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground/50" : ""}`}>
-                    {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Switch
-                    checked={!room.isExcluded}
-                    onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
-                    data-testid={`switch-room-${room.id}`}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => deleteRoom.mutate(room.id)}
-                    data-testid={`button-delete-room-${room.id}`}
+          {localRooms.map((room, index) => {
+            const RoomIconComp = getRoomIcon(room.icon);
+            return (
+              <Card
+                key={room.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={handleDrop}
+                className={`transition-all ${draggedIndex === index ? "ring-2 ring-primary" : ""}`}
+                data-testid={`card-room-${room.id}`}
+              >
+                <CardContent className="p-3 flex items-center justify-between gap-2">
+                  <div
+                    className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing"
+                    onTouchStart={(e) => onTouchStart(index, e)}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
                   >
-                    <X className="w-4 h-4" />
-                  </Button>
-                  <div className="flex flex-col -my-1">
+                    <GripVertical className="w-4 h-4 flex-shrink-0 text-muted-foreground/50" />
+                    <RoomIconComp className={`w-4 h-4 flex-shrink-0 ${room.isExcluded ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
+                    <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground/50" : ""}`}>
+                      {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Switch
+                      checked={!room.isExcluded}
+                      onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
+                      data-testid={`switch-room-${room.id}`}
+                    />
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6"
-                      disabled={index === 0 || reorderRooms.isPending}
-                      onClick={() => moveRoom(index, "up")}
-                      data-testid={`button-room-up-${room.id}`}
+                      onClick={() => startEdit(room)}
+                      data-testid={`button-edit-room-${room.id}`}
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6"
-                      disabled={index === rooms.length - 1 || reorderRooms.isPending}
-                      onClick={() => moveRoom(index, "down")}
-                      data-testid={`button-room-down-${room.id}`}
+                      onClick={() => deleteRoom.mutate(room.id)}
+                      data-testid={`button-delete-room-${room.id}`}
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

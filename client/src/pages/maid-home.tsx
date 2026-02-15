@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Brush, WashingMachine, ChefHat, Check, DoorOpen,
+  Brush, WashingMachine, ChefHat, Check,
   AlertCircle, Clock, Users,
 } from "lucide-react";
+import { getRoomIcon } from "@/lib/room-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -239,11 +240,12 @@ export default function MaidHomePage() {
           const roomId = parseInt(roomIdStr);
           const room = rooms.find(r => r.id === roomId);
           if (!room) return null;
+          const RoomHeaderIcon = getRoomIcon(room.icon);
           const roomDone = roomTasks.filter(t => completedTaskIds.has(t.id)).length;
           return (
             <div key={roomId} className="space-y-2">
               <div className="flex items-center gap-2">
-                <DoorOpen className="w-5 h-5 text-muted-foreground" />
+                <RoomHeaderIcon className="w-5 h-5 text-muted-foreground" />
                 <h3 className="text-base font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</h3>
                 <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
                   {roomDone}/{roomTasks.length}
