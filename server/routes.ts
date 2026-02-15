@@ -740,26 +740,37 @@ export async function registerRoutes(
   app.get("/api/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allOrders = await storage.getOrders();
-      const pending = allOrders.filter(o => o.status === "pending").length;
+      const allTrips = await storage.getTrips();
+
+      const pendingOrders = allOrders.filter(o => o.status === "pending").length;
+      const pendingTrips = allTrips.filter(t => t.status === "pending").length;
+      const pending = pendingOrders + pendingTrips;
+
       const approved = allOrders.filter(o => o.status === "approved").length;
       const inProgress = allOrders.filter(o => o.status === "in_progress").length;
 
-      // Completed orders = current week (Saturday to Friday)
       const weekRange = getCurrentWeekRange();
       const weekOrders = await storage.getOrdersInDateRange(weekRange.start, weekRange.end);
-      const completedThisWeek = weekOrders.filter(o => o.status === "completed").length;
+      const completedOrdersThisWeek = weekOrders.filter(o => o.status === "completed").length;
+      const completedTripsThisWeek = allTrips.filter(t => t.status === "completed" && t.completedAt && new Date(t.completedAt) >= weekRange.start && new Date(t.completedAt) <= weekRange.end).length;
+      const completedThisWeek = completedOrdersThisWeek + completedTripsThisWeek;
 
-      // Total spent = current month
+      const total = allOrders.length + allTrips.length;
+
       const monthRange = getCurrentMonthRange();
       const monthOrders = await storage.getOrdersInDateRange(monthRange.start, monthRange.end);
       const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0);
 
       res.json({
         pending,
+        pendingOrders,
+        pendingTrips,
         approved,
         inProgress,
         completed: completedThisWeek,
-        total: allOrders.length,
+        total,
+        totalOrders: allOrders.length,
+        totalTrips: allTrips.length,
         totalSpent: totalSpentThisMonth,
         weekStart: weekRange.start.toISOString(),
         weekEnd: weekRange.end.toISOString(),
