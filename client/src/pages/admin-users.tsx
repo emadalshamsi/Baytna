@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Ban, UserCheck } from "lucide-react";
+import { Ban, UserCheck } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
@@ -37,12 +37,7 @@ export default function AdminUsers() {
   const roles = ["admin", "household", "maid", "driver"] as const;
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-bold flex items-center gap-2" data-testid="text-users-title">
-        <Users className="w-5 h-5 text-primary" />
-        {t("nav.users")}
-      </h2>
-      <div className="space-y-3">
+    <div className="space-y-3">
         {allUsers?.map(u => (
           <Card key={u.id} className={u.isSuspended ? "opacity-60" : ""} data-testid={`card-user-${u.id}`}>
             <CardContent className="p-4">
@@ -92,7 +87,6 @@ export default function AdminUsers() {
             </CardContent>
           </Card>
         ))}
-      </div>
     </div>
   );
 }

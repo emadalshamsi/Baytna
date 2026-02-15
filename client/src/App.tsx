@@ -5,8 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Home, ShoppingCart, Truck, Sparkles, Settings } from "lucide-react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
+import { Switch as SwitchUI } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { t, getLang, setLang, type Lang } from "@/lib/i18n";
 import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -107,12 +109,40 @@ function LogisticsContent() {
 }
 
 function AppHeader() {
-  useLang();
+  const { lang, toggleLang } = useLang();
+  const [dark, setDark] = useState(document.documentElement.classList.contains("dark"));
+
+  const toggleTheme = () => {
+    setDark(prev => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+      return next;
+    });
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
-      <div className="flex items-center justify-center p-3">
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-1.5" data-testid="lang-toggle-header">
+          <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
+          <SwitchUI
+            checked={lang === "en"}
+            onCheckedChange={toggleLang}
+            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
+            data-testid="switch-lang-header"
+          />
+          <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+        </div>
         <h1 className="text-sm font-bold" data-testid="text-header-title">{t("app.name")}</h1>
+        <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-header">
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </Button>
       </div>
     </header>
   );

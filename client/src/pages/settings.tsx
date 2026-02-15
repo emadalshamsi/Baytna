@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Moon, Sun, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users } from "lucide-react";
-import { useState, useEffect } from "react";
+import { LogOut, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -34,9 +34,9 @@ function CollapsibleSection({ title, icon, defaultOpen = false, children, testId
         onClick={() => setOpen(!open)}
         data-testid={`button-toggle-${testId}`}
       >
-        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronClosed className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+        {open ? <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" /> : <ChevronClosed className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
         {icon}
-        <span className="text-sm font-bold flex-1">{title}</span>
+        <span className="text-base font-bold flex-1">{title}</span>
       </button>
       {open && (
         <div className="mt-1">
@@ -202,48 +202,12 @@ function RoomManagement() {
 }
 
 export default function SettingsPage() {
-  const { lang, toggleLang } = useLang();
+  useLang();
   const { user, logout } = useAuth();
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
-  const toggleTheme = () => {
-    setDark(prev => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add("dark");
-        localStorage.setItem("theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        localStorage.setItem("theme", "light");
-      }
-      return next;
-    });
-  };
-
   if (!user) return null;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-1.5" data-testid="lang-toggle-container">
-          <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
-          <Switch
-            checked={lang === "en"}
-            onCheckedChange={toggleLang}
-            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
-            data-testid="switch-lang-toggle"
-          />
-          <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
-        </div>
-        <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-toggle">
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
-      </div>
-
       <Card data-testid="card-profile">
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
@@ -278,15 +242,15 @@ export default function SettingsPage() {
         <div className="space-y-2">
           <CollapsibleSection
             title={t("rooms.title")}
-            icon={<DoorOpen className="w-4 h-4" />}
+            icon={<DoorOpen className="w-5 h-5" />}
             testId="section-rooms"
           >
             <RoomManagement />
           </CollapsibleSection>
 
           <CollapsibleSection
-            title={t("admin.users")}
-            icon={<Users className="w-4 h-4" />}
+            title={t("nav.users")}
+            icon={<Users className="w-5 h-5" />}
             testId="section-users"
           >
             <AdminUsers />
