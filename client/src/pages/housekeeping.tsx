@@ -41,7 +41,7 @@ function getDateRange(centerDate: Date, range: number): Date[] {
   return dates;
 }
 
-function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (d: Date) => void }) {
+function DateStrip({ selectedDate, onSelect, daysWithData }: { selectedDate: Date; onSelect: (d: Date) => void; daysWithData?: Set<number> }) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -111,6 +111,7 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
             <span className="text-[10px] font-medium leading-none mb-0.5">{dayAbbr}</span>
             <span className="text-base font-bold leading-none">{dateNum}</span>
             {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-primary mt-0.5" />}
+            {!isToday && !isSelected && daysWithData?.has(dayOfWeek) && <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-0.5" />}
           </button>
         );
       })}
@@ -763,9 +764,70 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
   );
 }
 
+function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
+  meals: Meal[];
+  lang: string;
+  isAdmin?: boolean;
+  onEdit?: (meal: Meal) => void;
+  onDelete?: (id: number) => void;
+}) {
+  if (meals.length === 0) {
+    return (
+      <div className="text-center py-6 text-muted-foreground">
+        <ChefHat className="w-12 h-12 mx-auto mb-2 opacity-30" />
+        <p className="text-sm">{t("housekeepingSection.noMeals")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2" data-testid="meal-cards-grid">
+      {meals.map(meal => (
+        <Card key={meal.id} className="overflow-hidden" data-testid={`card-meal-${meal.id}`}>
+          <CardContent className="p-0">
+            <div className="aspect-square relative bg-muted">
+              {meal.imageUrl ? (
+                <img src={meal.imageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ChefHat className="w-10 h-10 text-muted-foreground/40" />
+                </div>
+              )}
+              <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate absolute top-1.5 start-1.5 text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm">
+                {t(`housekeepingSection.${meal.mealType}`)}
+              </Badge>
+              {isAdmin && onEdit && onDelete && (
+                <div className="absolute top-1 end-1 flex gap-0.5">
+                  <Button size="icon" variant="ghost" onClick={() => onEdit(meal)} data-testid={`button-edit-meal-${meal.id}`}>
+                    <StickyNote className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => onDelete(meal.id)} data-testid={`button-delete-meal-${meal.id}`}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="p-2">
+              <p className="text-xs font-bold truncate">{lang === "ar" ? meal.titleAr : (meal.titleEn || meal.titleAr)}</p>
+              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
+                <Users className="w-2.5 h-2.5" />
+                <span>{meal.peopleCount} {t("housekeepingSection.persons")}</span>
+              </div>
+              {meal.notes && (
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{meal.notes}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   const { lang } = useLang();
   const { toast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ dayOfWeek: "0", mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
@@ -790,11 +852,11 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  const today = new Date().getDay();
-
+  const selectedDayOfWeek = selectedDate.getDay();
   const { data: allMeals = [], isLoading } = useQuery<Meal[]>({ queryKey: ["/api/meals"] });
+  const selectedMeals = allMeals.filter(m => m.dayOfWeek === selectedDayOfWeek);
 
-  const todayMeals = allMeals.filter(m => m.dayOfWeek === today);
+  const daysWithMeals = new Set(allMeals.map(m => m.dayOfWeek));
 
   const createMeal = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/meals", data),
@@ -823,11 +885,12 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   });
 
   function resetForm() {
-    setForm({ dayOfWeek: "0", mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+    setForm({ dayOfWeek: String(selectedDayOfWeek), mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
   }
 
   function startEdit(meal: Meal) {
     setEditingId(meal.id);
+    setShowAdd(true);
     setForm({
       dayOfWeek: String(meal.dayOfWeek),
       mealType: meal.mealType,
@@ -852,69 +915,19 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  const getMealIcon = (type: string) => {
-    return <ChefHat className="w-5 h-5" />;
-  };
-
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>;
 
   return (
     <div className="space-y-4">
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="p-3 flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 text-primary" />
-          <span className="text-sm font-bold">{t("housekeepingSection.today")} - {t(`housekeepingSection.${dayNames[today]}`)}</span>
-        </CardContent>
-      </Card>
+      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} />
 
-      {todayMeals.length > 0 ? (
-        <div className="space-y-2">
-          {todayMeals.map(meal => (
-            <Card key={meal.id} data-testid={`card-meal-${meal.id}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  {meal.imageUrl ? (
-                    <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                      <img src={meal.imageUrl} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                      <ChefHat className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-xs">
-                        {t(`housekeepingSection.${meal.mealType}`)}
-                      </Badge>
-                    </div>
-                    <p className="text-sm font-bold mt-1">{lang === "ar" ? meal.titleAr : (meal.titleEn || meal.titleAr)}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {meal.peopleCount} {t("housekeepingSection.persons")}</span>
-                      {meal.notes && <span className="flex items-center gap-1"><StickyNote className="w-3 h-3" /> {meal.notes}</span>}
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button size="icon" variant="ghost" onClick={() => startEdit(meal)} data-testid={`button-edit-meal-${meal.id}`}>
-                        <StickyNote className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteMeal.mutate(meal.id)} data-testid={`button-delete-meal-${meal.id}`}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-6 text-muted-foreground">
-          <ChefHat className="w-12 h-12 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">{t("housekeepingSection.noMeals")}</p>
-        </div>
-      )}
+      <MealCardsGrid
+        meals={selectedMeals}
+        lang={lang}
+        isAdmin={isAdmin}
+        onEdit={startEdit}
+        onDelete={(id) => deleteMeal.mutate(id)}
+      />
 
       {isAdmin && (
         <>
@@ -922,7 +935,13 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
             size="sm"
             variant="outline"
             className="w-full gap-2"
-            onClick={() => { setShowAdd(!showAdd); setEditingId(null); resetForm(); }}
+            onClick={() => {
+              if (!showAdd) {
+                setEditingId(null);
+                setForm({ dayOfWeek: String(selectedDayOfWeek), mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+              }
+              setShowAdd(!showAdd);
+            }}
             data-testid="button-add-meal"
           >
             <Plus className="w-4 h-4" />
@@ -973,28 +992,6 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {allMeals.length > 0 && (
-            <div className="space-y-1">
-              <h3 className="text-xs font-bold text-muted-foreground mt-4">{t("housekeepingSection.mealPlan")}</h3>
-              {dayNames.map((name, dayIdx) => {
-                const dayMeals = allMeals.filter(m => m.dayOfWeek === dayIdx);
-                if (dayMeals.length === 0) return null;
-                return (
-                  <div key={dayIdx}>
-                    <p className="text-xs font-medium text-muted-foreground mt-2 mb-1">{t(`housekeepingSection.${name}`)}</p>
-                    {dayMeals.map(m => (
-                      <div key={m.id} className="flex items-center gap-2 py-1 text-xs">
-                        <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-[10px]">{t(`housekeepingSection.${m.mealType}`)}</Badge>
-                        <span className="truncate">{lang === "ar" ? m.titleAr : (m.titleEn || m.titleAr)}</span>
-                        <span className="text-muted-foreground flex-shrink-0">{m.peopleCount}p</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
           )}
         </>
       )}

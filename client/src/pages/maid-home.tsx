@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Brush, WashingMachine, ChefHat, Check, DoorOpen,
-  AlertCircle, Clock, Users, StickyNote,
+  AlertCircle, Clock, Users,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, formatTime } from "@/lib/i18n";
@@ -138,6 +138,45 @@ export default function MaidHomePage() {
         </CardContent>
       </Card>
 
+      {todayMeals.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <ChefHat className="w-5 h-5 text-muted-foreground" />
+            <h3 className="text-base font-bold">{t("maidHome.todayMeals")}</h3>
+          </div>
+          <div className="grid grid-cols-3 gap-2" data-testid="meal-cards-grid-maid">
+            {todayMeals.map(meal => (
+              <Card key={meal.id} className="overflow-hidden" data-testid={`card-maid-meal-${meal.id}`}>
+                <CardContent className="p-0">
+                  <div className="aspect-square relative bg-muted">
+                    {meal.imageUrl ? (
+                      <img src={meal.imageUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ChefHat className="w-10 h-10 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate absolute top-1.5 start-1.5 text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm">
+                      {t(`housekeepingSection.${meal.mealType}`)}
+                    </Badge>
+                  </div>
+                  <div className="p-2">
+                    <p className="text-xs font-bold truncate">{lang === "ar" ? meal.titleAr : (meal.titleEn || meal.titleAr)}</p>
+                    <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
+                      <Users className="w-2.5 h-2.5" />
+                      <span>{meal.peopleCount} {t("housekeepingSection.persons")}</span>
+                    </div>
+                    {meal.notes && (
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{meal.notes}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pendingLaundry.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -256,39 +295,6 @@ export default function MaidHomePage() {
         </div>
       )}
 
-      {todayMeals.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <ChefHat className="w-5 h-5 text-muted-foreground" />
-            <h3 className="text-base font-bold">{t("maidHome.todayMeals")}</h3>
-          </div>
-          {todayMeals.map(meal => (
-            <Card key={meal.id} data-testid={`card-maid-meal-${meal.id}`}>
-              <CardContent className="p-4 flex items-center gap-4">
-                {meal.imageUrl ? (
-                  <div className="w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                    <img src={meal.imageUrl} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                    <ChefHat className="w-7 h-7 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-xs mb-1">
-                    {t(`housekeepingSection.${meal.mealType}`)}
-                  </Badge>
-                  <p className="text-base font-bold">{lang === "ar" ? meal.titleAr : (meal.titleEn || meal.titleAr)}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {meal.peopleCount} {t("housekeepingSection.persons")}</span>
-                    {meal.notes && <span className="flex items-center gap-1"><StickyNote className="w-3 h-3" /> {meal.notes}</span>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
