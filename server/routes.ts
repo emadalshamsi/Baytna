@@ -581,7 +581,8 @@ export async function registerRoutes(
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
       const order = await storage.getOrder(parseInt(req.params.id));
       if (!order) return res.status(404).json({ message: "Order not found" });
-      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+      const isCreator = order.createdBy === currentUser.id;
+      if (currentUser.role !== "admin" && !currentUser.canApprove && !isCreator) {
         return res.status(403).json({ message: "Forbidden" });
       }
       if (order.status !== "pending" && order.status !== "approved") {
