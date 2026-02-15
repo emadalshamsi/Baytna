@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Home, LogIn, UserPlus, Eye, EyeOff, Moon, Sun, Globe } from "lucide-react";
+import { Home, LogIn, UserPlus, Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -83,25 +83,24 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="fixed top-3 start-3 flex items-center gap-3">
-        <div className="flex items-center gap-1.5 bg-card/80 backdrop-blur-sm rounded-md px-2 py-1 border" data-testid="lang-toggle-container">
-          <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className={`text-[11px] ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>عربي</span>
-          <Switch
-            checked={lang === "en"}
-            onCheckedChange={toggleLang}
-            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
-            data-testid="switch-lang-toggle"
-          />
-          <span className={`text-[11px] ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
-        </div>
-        <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-toggle">
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
-      </div>
-
       <Card className="w-full max-w-sm">
-        <CardContent className="pt-8 pb-8 flex flex-col items-center gap-6">
+        <CardContent className="pt-6 pb-8 flex flex-col items-center gap-6">
+          <div className="flex items-center justify-between w-full gap-2">
+            <div className="flex items-center gap-1.5" data-testid="lang-toggle-container">
+              <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
+              <Switch
+                checked={lang === "en"}
+                onCheckedChange={toggleLang}
+                className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
+                data-testid="switch-lang-toggle"
+              />
+              <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+            </div>
+            <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-toggle">
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center">
               <Home className="w-6 h-6 text-primary-foreground" />
