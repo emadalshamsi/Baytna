@@ -577,7 +577,20 @@ export async function registerRoutes(
 
   app.post("/api/orders/:id/items", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      const order = await storage.getOrder(parseInt(req.params.id));
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (order.status !== "pending" && order.status !== "approved") {
+        return res.status(400).json({ message: "Cannot edit this order" });
+      }
       const item = await storage.createOrderItem({ ...req.body, orderId: parseInt(req.params.id) });
+      const items = await storage.getOrderItems(order.id);
+      const newTotal = items.reduce((sum, i) => sum + (i.estimatedPrice || 0) * i.quantity, 0);
+      await storage.updateOrderEstimatedTotal(order.id, newTotal);
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to create order item" });
@@ -586,7 +599,24 @@ export async function registerRoutes(
 
   app.patch("/api/order-items/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const existingItem = await storage.getOrderItem(parseInt(req.params.id));
+      if (existingItem) {
+        const order = await storage.getOrder(existingItem.orderId);
+        if (order && order.status !== "pending" && order.status !== "approved") {
+          return res.status(400).json({ message: "Cannot edit this order" });
+        }
+      }
       const item = await storage.updateOrderItem(parseInt(req.params.id), req.body);
+      if (item) {
+        const items = await storage.getOrderItems(item.orderId);
+        const newTotal = items.reduce((sum, i) => sum + (i.estimatedPrice || 0) * i.quantity, 0);
+        await storage.updateOrderEstimatedTotal(item.orderId, newTotal);
+      }
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order item" });
@@ -595,7 +625,24 @@ export async function registerRoutes(
 
   app.delete("/api/order-items/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const targetItem = await storage.getOrderItem(parseInt(req.params.id));
+      if (targetItem) {
+        const order = await storage.getOrder(targetItem.orderId);
+        if (order && order.status !== "pending" && order.status !== "approved") {
+          return res.status(400).json({ message: "Cannot edit this order" });
+        }
+      }
       await storage.deleteOrderItem(parseInt(req.params.id));
+      if (targetItem) {
+        const remaining = await storage.getOrderItems(targetItem.orderId);
+        const newTotal = remaining.reduce((sum, i) => sum + (i.estimatedPrice || 0) * i.quantity, 0);
+        await storage.updateOrderEstimatedTotal(targetItem.orderId, newTotal);
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete order item" });

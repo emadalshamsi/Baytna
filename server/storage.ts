@@ -69,9 +69,11 @@ export interface IStorage {
   deleteOldPendingOrders(daysOld: number): Promise<number>;
 
   getOrderItems(orderId: number): Promise<OrderItem[]>;
+  getOrderItem(id: number): Promise<OrderItem | undefined>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   updateOrderItem(id: number, item: Partial<InsertOrderItem>): Promise<OrderItem | undefined>;
   deleteOrderItem(id: number): Promise<void>;
+  updateOrderEstimatedTotal(id: number, total: number): Promise<Order | undefined>;
 
   getVehicles(): Promise<Vehicle[]>;
   getVehicle(id: number): Promise<Vehicle | undefined>;
@@ -364,6 +366,16 @@ export class DatabaseStorage implements IStorage {
 
   async getOrderItems(orderId: number): Promise<OrderItem[]> {
     return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  }
+
+  async getOrderItem(id: number): Promise<OrderItem | undefined> {
+    const [result] = await db.select().from(orderItems).where(eq(orderItems.id, id));
+    return result;
+  }
+
+  async updateOrderEstimatedTotal(id: number, total: number): Promise<Order | undefined> {
+    const [result] = await db.update(orders).set({ totalEstimated: total, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+    return result;
   }
 
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {

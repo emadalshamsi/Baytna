@@ -4,6 +4,11 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 15, 2026)
+- Order editing for canApprove users: can add/remove/edit items on pending orders via expandable order detail panel
+- Backend enforces canApprove/admin permission + order status (pending/approved) for item modifications
+- Auto-recalculates totalEstimated when items are added/removed/updated
+- Notification system: order_created/trip_created only sent to admins, drivers get order_ready_driver type
+- Notification filtering on GET endpoints ensures users only see relevant notifications
 - Added Shortages (نواقص) feature: users with canAddShortages permission can request shortage items
 - Shortages table: nameAr, nameEn, quantity, notes, status (pending/approved/rejected/in_progress/completed), createdBy
 - Profile management: users can upload/remove profile photo, change password, toggle push notifications
