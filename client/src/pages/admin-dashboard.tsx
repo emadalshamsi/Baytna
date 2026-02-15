@@ -1,52 +1,58 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, Car, Users, ArrowLeft } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, Car, Users, ArrowLeft, ChevronDown, ChevronUp, ExternalLink, User } from "lucide-react";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { Link } from "wouter";
+import { useState } from "react";
+import type { Order, User as UserType } from "@shared/schema";
 
-function StatsCards() {
+function StatusBadge({ status }: { status: string }) {
   useLang();
-  const { data: stats, isLoading } = useQuery<{ pending: number; approved: number; inProgress: number; completed: number; total: number; totalSpent: number }>({
-    queryKey: ["/api/stats"],
-  });
-
-  if (isLoading) return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
-    </div>
-  );
-
-  const cards = [
-    { label: t("stats.totalOrders"), sub: t("stats.completedSub"), value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
-    { label: t("stats.pendingOrders"), sub: t("stats.completedSub"), value: stats?.pending || 0, icon: ShoppingCart, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
-    { label: t("stats.completedOrders"), sub: t("stats.completedSub"), value: stats?.completed || 0, icon: Check, color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30" },
-    { label: t("stats.totalSpent"), sub: t("stats.spentSub"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30" },
-  ];
-
+  const variants: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+    approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    in_progress: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  };
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {cards.map((c, i) => (
-        <Card key={i} data-testid={`card-stat-${i}`}>
-          <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-            <div className={`w-10 h-10 rounded-full ${c.bg} flex items-center justify-center`}>
-              <c.icon className={`w-5 h-5 ${c.color}`} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground leading-tight">{c.label}</span>
-              {c.sub && <span className="text-[10px] text-muted-foreground leading-tight">{c.sub}</span>}
-            </div>
-            <span className="text-xl font-bold" data-testid={`text-stat-${i}`}>{c.value}</span>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Badge className={`no-default-hover-elevate no-default-active-elevate ${variants[status] || ""}`}>
+      {t(`status.${status}`)}
+    </Badge>
   );
 }
 
+type StatFilter = "total" | "pending" | "completed" | null;
+
 export default function AdminDashboard() {
   useLang();
+  const [activeFilter, setActiveFilter] = useState<StatFilter>(null);
+
+  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; approved: number; inProgress: number; completed: number; total: number; totalSpent: number }>({
+    queryKey: ["/api/stats"],
+  });
+
+  const { data: orders } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
+  const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
+
+  const userMap = new Map((users || []).map(u => [u.id, u]));
+
+  const filteredOrders = orders?.filter(o => {
+    if (activeFilter === "total") return true;
+    if (activeFilter === "pending") return o.status === "pending";
+    if (activeFilter === "completed") return o.status === "completed";
+    return false;
+  }) || [];
+
+  const cards = [
+    { key: "total" as StatFilter, label: t("stats.totalOrders"), sub: t("stats.completedSub"), value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
+    { key: "pending" as StatFilter, label: t("stats.pendingOrders"), sub: t("stats.completedSub"), value: stats?.pending || 0, icon: ShoppingCart, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
+    { key: "completed" as StatFilter, label: t("stats.completedOrders"), sub: t("stats.completedSub"), value: stats?.completed || 0, icon: Check, color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30" },
+    { key: null as StatFilter, label: t("stats.totalSpent"), sub: t("stats.spentSub"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30" },
+  ];
 
   const quickLinks = [
     { label: t("nav.groceries"), icon: ShoppingCart, href: "/groceries", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", desc: `${t("nav.orders")} - ${t("nav.products")} - ${t("nav.categories")} - ${t("nav.stores")}` },
@@ -56,7 +62,91 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <StatsCards />
+      {statsLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {cards.map((c, i) => {
+            const isActive = activeFilter === c.key && c.key !== null;
+            return (
+              <Card
+                key={i}
+                className={`${c.key !== null ? "cursor-pointer hover-elevate active-elevate-2" : ""} ${isActive ? "ring-2 ring-primary" : ""}`}
+                onClick={() => {
+                  if (c.key !== null) {
+                    setActiveFilter(isActive ? null : c.key);
+                  }
+                }}
+                data-testid={`card-stat-${i}`}
+              >
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full ${c.bg} flex items-center justify-center`}>
+                    <c.icon className={`w-5 h-5 ${c.color}`} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-foreground leading-tight">{c.label}</span>
+                    {c.sub && <span className="text-[10px] text-muted-foreground leading-tight">{c.sub}</span>}
+                  </div>
+                  <span className="text-xl font-bold" data-testid={`text-stat-${i}`}>{c.value}</span>
+                  {c.key !== null && (
+                    isActive ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {activeFilter && filteredOrders.length > 0 && (
+        <div className="space-y-3" data-testid="filtered-orders-list">
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            {activeFilter === "total" && t("stats.totalOrders")}
+            {activeFilter === "pending" && t("stats.pendingOrders")}
+            {activeFilter === "completed" && t("stats.completedOrders")}
+            {" "}({filteredOrders.length})
+          </h3>
+          {filteredOrders.map(order => {
+            const creator = userMap.get(order.createdBy);
+            return (
+              <Card key={order.id} data-testid={`card-dashboard-order-${order.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">#{order.id}</span>
+                      <StatusBadge status={order.status} />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap text-sm text-muted-foreground">
+                    <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
+                    {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
+                    {creator && (
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" /> {t("fields.createdBy")}: {creator.firstName || creator.username}
+                      </span>
+                    )}
+                    <span>{new Date(order.createdAt!).toLocaleDateString("ar-SA")}</span>
+                  </div>
+                  {order.notes && <p className="text-xs text-muted-foreground mt-1">{order.notes}</p>}
+                  {order.receiptImageUrl && (
+                    <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1 mt-1">
+                      {t("fields.receipt")} <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {activeFilter && filteredOrders.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground py-4">{t("messages.noOrders")}</p>
+      )}
 
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3" data-testid="text-quick-links">{t("nav.quickLinks")}</h3>

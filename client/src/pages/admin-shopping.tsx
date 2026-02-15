@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, Package, Check, X, Plus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid } from "lucide-react";
+import { ClipboardList, Package, Check, X, Plus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User } from "lucide-react";
 import { useState, useRef } from "react";
-import type { Order, Product, Category, Store } from "@shared/schema";
+import type { Order, Product, Category, Store, OrderItem, User as UserType } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 
@@ -31,10 +31,58 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function OrderDetailPanel({ orderId }: { orderId: number }) {
+  useLang();
+  const { data: items, isLoading } = useQuery<OrderItem[]>({ queryKey: ["/api/orders", orderId, "items"], queryFn: () => fetch(`/api/orders/${orderId}/items`, { credentials: "include" }).then(r => r.json()) });
+  const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+
+  if (isLoading) return <Skeleton className="h-16 mt-2" />;
+
+  const productMap = new Map((products || []).map(p => [p.id, p]));
+
+  if (!items?.length) return <p className="text-xs text-muted-foreground mt-2 py-2">{t("fields.noItems")}</p>;
+
+  return (
+    <div className="mt-3 border-t pt-3 space-y-2" data-testid={`order-items-panel-${orderId}`}>
+      <span className="text-xs font-semibold text-muted-foreground">{t("fields.orderItems")} ({items.length})</span>
+      {items.map(item => {
+        const product = productMap.get(item.productId);
+        return (
+          <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0" data-testid={`order-item-${item.id}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              {product?.imageUrl && <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+              <div className="min-w-0">
+                <span className="font-medium text-sm truncate block">{product?.nameAr || product?.nameEn || `#${item.productId}`}</span>
+                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {item.actualPrice != null ? (
+                <span className="text-xs">{formatPrice(item.actualPrice)}</span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{formatPrice(item.estimatedPrice || 0)}</span>
+              )}
+              {item.isPurchased && (
+                <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
+                  <Check className="w-3 h-3" />
+                </Badge>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function OrdersSection() {
   useLang();
   const { toast } = useToast();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
+  const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
+  const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+
+  const userMap = new Map((users || []).map(u => [u.id, u]));
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
@@ -53,41 +101,69 @@ function OrdersSection() {
 
   return (
     <div className="space-y-3">
-      {orders.map(order => (
-        <Card key={order.id} data-testid={`card-order-${order.id}`}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-              <span className="font-medium">#{order.id}</span>
-              <StatusBadge status={order.status} />
-            </div>
-            <div className="flex items-center justify-between gap-2 flex-wrap text-sm text-muted-foreground">
-              <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
-              {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
-            </div>
-            {order.receiptImageUrl && (
-              <div className="mt-2">
-                <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1">
-                  {t("fields.receipt")} <ExternalLink className="w-3 h-3" />
-                </a>
+      {orders.map(order => {
+        const isExpanded = expandedOrder === order.id;
+        const creator = userMap.get(order.createdBy);
+        const approver = order.approvedBy ? userMap.get(order.approvedBy) : null;
+        return (
+          <Card key={order.id} data-testid={`card-order-${order.id}`}>
+            <CardContent className="p-4">
+              <div
+                className="cursor-pointer"
+                onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                data-testid={`button-toggle-order-${order.id}`}
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">#{order.id}</span>
+                    <StatusBadge status={order.status} />
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap text-sm text-muted-foreground">
+                  <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
+                  {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
+                  {creator && (
+                    <span className="flex items-center gap-1">
+                      <User className="w-3 h-3" /> {t("fields.createdBy")}: {creator.firstName || creator.username}
+                    </span>
+                  )}
+                  <span>{new Date(order.createdAt!).toLocaleDateString("ar-SA")}</span>
+                </div>
+                {approver && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {t("fields.approvedByField")}: {approver.firstName || approver.username}
+                  </div>
+                )}
               </div>
-            )}
-            {order.notes && <p className="text-sm text-muted-foreground mt-1">{order.notes}</p>}
-            <div className="text-xs text-muted-foreground mt-1">
-              {new Date(order.createdAt!).toLocaleDateString("ar-SA")}
-            </div>
-            {order.status === "pending" && (
-              <div className="flex gap-2 mt-3 flex-wrap">
-                <Button size="sm" onClick={() => statusMutation.mutate({ id: order.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-${order.id}`}>
-                  <Check className="w-4 h-4 ml-1" /> {t("actions.approve")}
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate({ id: order.id, status: "rejected" })} disabled={statusMutation.isPending} data-testid={`button-reject-${order.id}`}>
-                  <X className="w-4 h-4 ml-1" /> {t("actions.reject")}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+
+              {order.receiptImageUrl && (
+                <div className="mt-2">
+                  <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1">
+                    {t("fields.receipt")} <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+              {order.notes && <p className="text-sm text-muted-foreground mt-1">{order.notes}</p>}
+
+              {order.status === "pending" && (
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <Button size="sm" onClick={() => statusMutation.mutate({ id: order.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-${order.id}`}>
+                    <Check className="w-4 h-4 ml-1" /> {t("actions.approve")}
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate({ id: order.id, status: "rejected" })} disabled={statusMutation.isPending} data-testid={`button-reject-${order.id}`}>
+                    <X className="w-4 h-4 ml-1" /> {t("actions.reject")}
+                  </Button>
+                </div>
+              )}
+
+              {isExpanded && <OrderDetailPanel orderId={order.id} />}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
