@@ -743,6 +743,24 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ dayOfWeek: "0", mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setForm(p => ({ ...p, imageUrl: data.url }));
+    } catch {
+      toast({ title: t("profile.uploadFailed"), variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const today = new Date().getDay();
 
@@ -902,7 +920,21 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
                 <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
                 <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
                 <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
-                <Input placeholder={lang === "ar" ? "رابط صورة الوجبة" : "Meal image URL"} value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))} data-testid="input-meal-image" />
+                <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
+                <div className="flex items-center gap-2">
+                  {form.imageUrl ? (
+                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                      <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <Button size="icon" variant="ghost" className="absolute top-0 end-0 w-6 h-6 bg-black/50 text-white rounded-full" onClick={() => setForm(p => ({ ...p, imageUrl: "" }))} data-testid="button-remove-meal-image">
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : null}
+                  <Button size="sm" variant="outline" className="gap-2 flex-1" disabled={uploading} onClick={() => fileInputRef.current?.click()} data-testid="button-upload-meal-image">
+                    <ImageIcon className="w-4 h-4" />
+                    {uploading ? t("profile.uploading") : form.imageUrl ? (lang === "ar" ? "تغيير الصورة" : "Change Image") : (lang === "ar" ? "رفع صورة" : "Upload Image")}
+                  </Button>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
                     {editingId ? t("actions.update") : t("actions.save")}
