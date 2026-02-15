@@ -3,7 +3,10 @@
 @tailwind utilities;
 
 .safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* LIGHT MODE */

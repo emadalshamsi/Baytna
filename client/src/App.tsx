@@ -127,7 +127,7 @@ function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm safe-area-top">
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-1.5" data-testid="lang-toggle-header">
           <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
@@ -156,7 +156,7 @@ function MainLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
-      <main className="flex-1 p-3 pb-24 max-w-2xl mx-auto w-full">
+      <main className="flex-1 p-3 pb-28 max-w-2xl mx-auto w-full">
         <Switch>
           <Route path="/" component={HomeContent} />
           <Route path="/groceries" component={GroceriesContent} />
