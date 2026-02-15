@@ -479,7 +479,11 @@ function NotificationToggle() {
 
   useEffect(() => {
     if ("Notification" in window && "serviceWorker" in navigator) {
-      setEnabled(Notification.permission === "granted");
+      navigator.serviceWorker.ready.then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          setEnabled(Notification.permission === "granted" && !!sub);
+        });
+      });
     }
   }, []);
 
