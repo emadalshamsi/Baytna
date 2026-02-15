@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Package, Check, X, Plus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
+import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
@@ -33,46 +33,166 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function OrderDetailPanel({ orderId }: { orderId: number }) {
+function OrderDetailPanel({ orderId, editable = false }: { orderId: number; editable?: boolean }) {
   useLang();
+  const { toast } = useToast();
   const { data: items, isLoading } = useQuery<OrderItem[]>({ queryKey: ["/api/orders", orderId, "items"], queryFn: () => fetch(`/api/orders/${orderId}/items`, { credentials: "include" }).then(r => r.json()) });
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [addQuantity, setAddQuantity] = useState("1");
+  const [productSearch, setProductSearch] = useState("");
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/order-items/${id}`, data); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: t("household.itemUpdated") });
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/order-items/${id}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: t("household.itemRemoved") });
+    },
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", `/api/orders/${orderId}/items`, data); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      setShowAddItem(false);
+      setSelectedProductId("");
+      setAddQuantity("1");
+      setProductSearch("");
+      toast({ title: t("household.itemAddedToOrder") });
+    },
+  });
 
   if (isLoading) return <Skeleton className="h-16 mt-2" />;
 
   const productMap = new Map((products || []).map(p => [p.id, p]));
+  const existingProductIds = new Set((items || []).map(i => i.productId));
+  const availableProducts = (products || []).filter(p => !existingProductIds.has(p.id));
+  const filteredAvailable = productSearch
+    ? availableProducts.filter(p => p.nameAr.includes(productSearch) || (p.nameEn && p.nameEn.toLowerCase().includes(productSearch.toLowerCase())))
+    : availableProducts;
 
-  if (!items?.length) return <p className="text-xs text-muted-foreground mt-2 py-2">{t("fields.noItems")}</p>;
+  const handleAddItem = () => {
+    if (!selectedProductId) return;
+    const product = products?.find(p => p.id === parseInt(selectedProductId));
+    if (!product) return;
+    addItemMutation.mutate({
+      productId: product.id,
+      quantity: parseInt(addQuantity) || 1,
+      estimatedPrice: product.estimatedPrice || 0,
+    });
+  };
 
   return (
     <div className="mt-3 border-t pt-3 space-y-2" data-testid={`order-items-panel-${orderId}`}>
-      <span className="text-xs font-semibold text-muted-foreground">{t("fields.orderItems")} ({items.length})</span>
-      {items.map(item => {
-        const product = productMap.get(item.productId);
-        return (
-          <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0" data-testid={`order-item-${item.id}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              {product?.imageUrl && <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
-              <div className="min-w-0">
-                <span className="font-medium text-sm truncate block">{product?.nameAr || product?.nameEn || `#${item.productId}`}</span>
-                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-muted-foreground">{t("fields.orderItems")} ({items?.length || 0})</span>
+        {editable && (
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowAddItem(!showAddItem)} data-testid={`button-add-item-to-order-${orderId}`}>
+            <Plus className="w-3 h-3" /> {t("household.addItemToOrder")}
+          </Button>
+        )}
+      </div>
+
+      {editable && showAddItem && (
+        <div className="p-3 rounded-md bg-muted/50 space-y-2" data-testid={`add-item-panel-${orderId}`}>
+          <Input
+            placeholder={t("actions.search")}
+            value={productSearch}
+            onChange={e => setProductSearch(e.target.value)}
+            className="text-sm"
+            data-testid={`input-search-product-${orderId}`}
+          />
+          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+            <SelectTrigger data-testid={`select-product-for-order-${orderId}`}>
+              <SelectValue placeholder={t("admin.addProduct")} />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredAvailable.map(p => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.nameAr} {p.estimatedPrice ? `- ${formatPrice(p.estimatedPrice)}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              type="number"
+              min="1"
+              value={addQuantity}
+              onChange={e => setAddQuantity(e.target.value)}
+              className="w-20 text-sm"
+              data-testid={`input-add-quantity-${orderId}`}
+            />
+            <Button size="sm" onClick={handleAddItem} disabled={!selectedProductId || addItemMutation.isPending} data-testid={`button-confirm-add-item-${orderId}`}>
+              <Plus className="w-3 h-3 ml-1" /> {t("actions.add")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!items?.length ? (
+        <p className="text-xs text-muted-foreground py-2">{t("fields.noItems")}</p>
+      ) : (
+        items.map(item => {
+          const product = productMap.get(item.productId);
+          return (
+            <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0" data-testid={`order-item-${item.id}`}>
+              <div className="flex items-center gap-2 min-w-0">
+                {product?.imageUrl && <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                <div className="min-w-0">
+                  <span className="font-medium text-sm truncate block">{product?.nameAr || product?.nameEn || `#${item.productId}`}</span>
+                  <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {item.actualPrice != null ? (
+                  <span className="text-xs">{formatPrice(item.actualPrice)}</span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{formatPrice(item.estimatedPrice || 0)}</span>
+                )}
+                {item.isPurchased && (
+                  <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
+                    <Check className="w-3 h-3" />
+                  </Badge>
+                )}
+                {editable && !item.isPurchased && (
+                  <div className="flex items-center gap-0.5">
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      if (item.quantity > 1) {
+                        updateItemMutation.mutate({ id: item.id, data: { quantity: item.quantity - 1 } });
+                      }
+                    }} disabled={item.quantity <= 1 || updateItemMutation.isPending} data-testid={`button-decrease-item-${item.id}`}>
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      updateItemMutation.mutate({ id: item.id, data: { quantity: item.quantity + 1 } });
+                    }} disabled={updateItemMutation.isPending} data-testid={`button-increase-item-${item.id}`}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      deleteItemMutation.mutate(item.id);
+                    }} disabled={deleteItemMutation.isPending} data-testid={`button-delete-item-${item.id}`}>
+                      <X className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {item.actualPrice != null ? (
-                <span className="text-xs">{formatPrice(item.actualPrice)}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">{formatPrice(item.estimatedPrice || 0)}</span>
-              )}
-              {item.isPurchased && (
-                <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
-                  <Check className="w-3 h-3" />
-                </Badge>
-              )}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
     </div>
   );
 }
@@ -161,7 +281,7 @@ function OrdersSection() {
                 </div>
               )}
 
-              {isExpanded && <OrderDetailPanel orderId={order.id} />}
+              {isExpanded && <OrderDetailPanel orderId={order.id} editable={order.status === "pending" || order.status === "approved"} />}
             </CardContent>
           </Card>
         );
