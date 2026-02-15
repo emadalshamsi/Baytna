@@ -196,6 +196,28 @@ export const meals = pgTable("meals", {
   notes: text("notes"),
 });
 
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  titleAr: varchar("title_ar", { length: 300 }).notNull(),
+  titleEn: varchar("title_en", { length: 300 }),
+  bodyAr: text("body_ar"),
+  bodyEn: text("body_en"),
+  type: varchar("type", { length: 50 }).notNull().default("general"),
+  url: varchar("url", { length: 500 }),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
@@ -224,6 +246,8 @@ export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).om
 export const insertLaundryRequestSchema = createInsertSchema(laundryRequests).omit({ id: true, createdAt: true, completedAt: true });
 export const insertLaundryScheduleSchema = createInsertSchema(laundrySchedule).omit({ id: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -258,3 +282,7 @@ export type LaundryScheduleEntry = typeof laundrySchedule.$inferSelect;
 export type InsertLaundrySchedule = z.infer<typeof insertLaundryScheduleSchema>;
 export type Meal = typeof meals.$inferSelect;
 export type InsertMeal = z.infer<typeof insertMealSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

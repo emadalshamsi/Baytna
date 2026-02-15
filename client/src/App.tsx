@@ -4,8 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,7 @@ function BottomNavBar() {
   useLang();
   const [location] = useLocation();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const role = user?.role || "";
 
   const navItems = allNavItems.filter(item => !item.hideFor.includes(role));
@@ -47,6 +51,7 @@ function BottomNavBar() {
         {navItems.map((item) => {
           const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);
           const Icon = item.icon;
+          const showBadge = item.key === "home" && unreadCount > 0;
           return (
             <Link key={item.key} href={item.path}>
               <button
@@ -57,10 +62,15 @@ function BottomNavBar() {
                 }`}
                 data-testid={`nav-${item.key}`}
               >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+                <div className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
                   isActive ? "bg-primary/10" : ""
                 }`}>
                   <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-0.5" data-testid="badge-nav-unread">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </div>
                 <span className={`text-[10px] leading-tight ${isActive ? "font-bold" : "font-medium"}`}>
                   {t(item.labelKey)}
@@ -108,9 +118,82 @@ function LogisticsContent() {
   return <AdminLogistics />;
 }
 
+function NotificationPanel({ onClose }: { onClose: () => void }) {
+  const { lang } = useLang();
+  const { notifications, markRead, markAllRead, unreadCount } = useNotifications();
+  const recent = (notifications as any[]).slice(0, 20);
+
+  return (
+    <div className="fixed inset-0 z-[100]" onClick={onClose} data-testid="notification-overlay">
+      <div
+        className="absolute top-14 left-3 right-3 max-w-md mx-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <Card className="shadow-lg" data-testid="notification-panel">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between gap-2 p-3 border-b">
+              <h3 className="text-sm font-bold">{t("notifications.title")}</h3>
+              <div className="flex items-center gap-1">
+                {unreadCount > 0 && (
+                  <Button size="sm" variant="ghost" onClick={markAllRead} data-testid="button-mark-all-read">
+                    <Check className="w-3.5 h-3.5" />
+                    <span className="text-xs">{t("notifications.markAllRead")}</span>
+                  </Button>
+                )}
+                <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-close-notifications">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {recent.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-sm" data-testid="text-no-notifications">
+                  {t("notifications.empty")}
+                </div>
+              ) : (
+                recent.map((notif: any) => (
+                  <div
+                    key={notif.id}
+                    className={`flex items-start gap-2 p-3 border-b last:border-0 cursor-pointer hover-elevate ${!notif.isRead ? "bg-primary/5" : ""}`}
+                    onClick={() => {
+                      if (!notif.isRead) markRead(notif.id);
+                      if (notif.url) window.location.href = notif.url;
+                      onClose();
+                    }}
+                    data-testid={`notification-item-${notif.id}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${!notif.isRead ? "font-bold" : ""}`}>
+                        {lang === "ar" ? notif.titleAr : (notif.titleEn || notif.titleAr)}
+                      </p>
+                      {(notif.bodyAr || notif.bodyEn) && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {lang === "ar" ? notif.bodyAr : (notif.bodyEn || notif.bodyAr)}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {new Date(notif.createdAt).toLocaleString(lang === "ar" ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    {!notif.isRead && (
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function AppHeader() {
   const { lang, toggleLang } = useLang();
+  const { unreadCount, requestPermission, permissionState } = useNotifications();
   const [dark, setDark] = useState(document.documentElement.classList.contains("dark"));
+  const [showNotifs, setShowNotifs] = useState(false);
 
   const toggleTheme = () => {
     setDark(prev => {
@@ -126,25 +209,51 @@ function AppHeader() {
     });
   };
 
+  const handleBellClick = async () => {
+    if (permissionState === "default") {
+      await requestPermission();
+    }
+    setShowNotifs(!showNotifs);
+  };
+
   return (
-    <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm safe-area-top">
-      <div className="flex items-center justify-between p-3">
-        <div className="flex items-center gap-1.5" data-testid="lang-toggle-header">
-          <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
-          <SwitchUI
-            checked={lang === "en"}
-            onCheckedChange={toggleLang}
-            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
-            data-testid="switch-lang-header"
-          />
-          <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+    <>
+      <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm safe-area-top">
+        <div className="flex items-center justify-between gap-2 p-3">
+          <div className="flex items-center gap-1.5" data-testid="lang-toggle-header">
+            <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
+            <SwitchUI
+              checked={lang === "en"}
+              onCheckedChange={toggleLang}
+              className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
+              data-testid="switch-lang-header"
+            />
+            <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+          </div>
+          <h1 className="text-sm font-bold" data-testid="text-header-title">{t("app.name")}</h1>
+          <div className="flex items-center gap-1">
+            <div className="relative">
+              <Button size="icon" variant="ghost" onClick={handleBellClick} data-testid="button-notifications">
+                {permissionState === "denied" ? (
+                  <BellOff className="w-4 h-4" />
+                ) : (
+                  <Bell className="w-4 h-4" />
+                )}
+              </Button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-[1rem] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold px-0.5" data-testid="badge-header-unread">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </div>
+            <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-header">
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
-        <h1 className="text-sm font-bold" data-testid="text-header-title">{t("app.name")}</h1>
-        <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-header">
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
-      </div>
-    </header>
+      </header>
+      {showNotifs && <NotificationPanel onClose={() => setShowNotifs(false)} />}
+    </>
   );
 }
 

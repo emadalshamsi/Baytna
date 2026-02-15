@@ -95,6 +95,22 @@ const ar = {
     thu: "خمي",
     fri: "جمع",
   },
+  notifications: {
+    title: "الإشعارات",
+    empty: "لا توجد إشعارات",
+    markAllRead: "قراءة الكل",
+    newOrder: "طلب جديد",
+    orderApproved: "تم اعتماد الطلب",
+    orderRejected: "تم رفض الطلب",
+    orderCompleted: "اكتمل الطلب",
+    newTrip: "مشوار جديد",
+    tripApproved: "تم اعتماد المشوار",
+    laundryRequest: "طلب غسيل جديد",
+    taskReminder: "تذكير بمهمة",
+    enableNotifications: "تفعيل التنبيهات",
+    notificationsEnabled: "تم تفعيل التنبيهات",
+    notificationsBlocked: "التنبيهات محظورة في المتصفح",
+  },
 };
 
 const en: typeof ar = {
@@ -193,6 +209,22 @@ const en: typeof ar = {
     wed: "Wed",
     thu: "Thu",
     fri: "Fri",
+  },
+  notifications: {
+    title: "Notifications",
+    empty: "No notifications",
+    markAllRead: "Mark all read",
+    newOrder: "New Order",
+    orderApproved: "Order Approved",
+    orderRejected: "Order Rejected",
+    orderCompleted: "Order Completed",
+    newTrip: "New Trip",
+    tripApproved: "Trip Approved",
+    laundryRequest: "New Laundry Request",
+    taskReminder: "Task Reminder",
+    enableNotifications: "Enable Notifications",
+    notificationsEnabled: "Notifications enabled",
+    notificationsBlocked: "Notifications are blocked in browser",
   },
 };
 

@@ -7,7 +7,67 @@ import bcrypt from "bcryptjs";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import webpush from "web-push";
 import { registerSchema, loginSchema } from "@shared/schema";
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:admin@baytkom.app",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
+
+async function sendPushToUser(userId: string, payload: { title: string; body: string; icon?: string; url?: string; tag?: string; badgeCount?: number }) {
+  try {
+    const subs = await storage.getPushSubscriptions(userId);
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload)
+        );
+      } catch (err: any) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await storage.deletePushSubscription(sub.endpoint);
+        }
+      }
+    }
+  } catch {}
+}
+
+async function sendPushToAllUsers(payload: { title: string; body: string; icon?: string; url?: string; tag?: string }, excludeUserId?: string) {
+  try {
+    const allUsers = await storage.getAllUsers();
+    for (const user of allUsers) {
+      if (excludeUserId && user.id === excludeUserId) continue;
+      await sendPushToUser(user.id, payload);
+    }
+  } catch {}
+}
+
+async function notifyAndPush(userId: string, data: { titleAr: string; titleEn?: string; bodyAr?: string; bodyEn?: string; type: string; url?: string }) {
+  try {
+    await storage.createNotification({
+      userId,
+      titleAr: data.titleAr,
+      titleEn: data.titleEn || null,
+      bodyAr: data.bodyAr || null,
+      bodyEn: data.bodyEn || null,
+      type: data.type,
+      url: data.url || null,
+      isRead: false,
+    });
+    const unread = await storage.getUnreadNotificationCount(userId);
+    await sendPushToUser(userId, {
+      title: data.titleAr,
+      body: data.bodyAr || "",
+      url: data.url || "/",
+      tag: data.type,
+      badgeCount: unread,
+    });
+  } catch {}
+}
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -368,6 +428,18 @@ export async function registerRoutes(
     try {
       const userId = (req.session as any).userId;
       const order = await storage.createOrder({ ...req.body, createdBy: userId, status: "pending" });
+      const allUsers = await storage.getAllUsers();
+      const approvers = allUsers.filter(u => (u.canApprove || u.role === "admin") && u.id !== userId);
+      for (const approver of approvers) {
+        notifyAndPush(approver.id, {
+          titleAr: "طلب جديد",
+          titleEn: "New Order",
+          bodyAr: `طلب جديد #${order.id} بحاجة لاعتماد`,
+          bodyEn: `New order #${order.id} needs approval`,
+          type: "order_created",
+          url: "/groceries",
+        });
+      }
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to create order" });
@@ -387,6 +459,30 @@ export async function registerRoutes(
           return res.status(403).json({ message: "No approval permission" });
         }
         const order = await storage.updateOrderStatus(orderId, status, currentUser.id);
+        if (order) {
+          const titleAr = status === "approved" ? "تم اعتماد الطلب" : "تم رفض الطلب";
+          const titleEn = status === "approved" ? "Order Approved" : "Order Rejected";
+          notifyAndPush(order.createdBy, {
+            titleAr, titleEn,
+            bodyAr: `الطلب #${order.id} ${titleAr}`,
+            bodyEn: `Order #${order.id} ${titleEn}`,
+            type: `order_${status}`,
+            url: "/groceries",
+          });
+          if (status === "approved") {
+            const drivers = (await storage.getAllUsers()).filter(u => u.role === "driver");
+            for (const driver of drivers) {
+              notifyAndPush(driver.id, {
+                titleAr: "طلب معتمد جاهز للتسوق",
+                titleEn: "Approved order ready for shopping",
+                bodyAr: `الطلب #${order.id} جاهز للتسوق`,
+                bodyEn: `Order #${order.id} is ready`,
+                type: "order_approved",
+                url: "/groceries",
+              });
+            }
+          }
+        }
         return res.json(order);
       }
 
@@ -397,6 +493,16 @@ export async function registerRoutes(
       }
 
       const order = await storage.updateOrderStatus(orderId, status);
+      if (order && status === "completed") {
+        notifyAndPush(order.createdBy, {
+          titleAr: "اكتمل الطلب",
+          titleEn: "Order Completed",
+          bodyAr: `الطلب #${order.id} اكتمل`,
+          bodyEn: `Order #${order.id} completed`,
+          type: "order_completed",
+          url: "/groceries",
+        });
+      }
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order status" });
@@ -733,6 +839,18 @@ export async function registerRoutes(
         completedAt: null,
       };
       const trip = await storage.createTrip(tripData);
+      const allUsers = await storage.getAllUsers();
+      const approvers = allUsers.filter(u => (u.canApprove || u.role === "admin") && u.id !== currentUser.id);
+      for (const approver of approvers) {
+        notifyAndPush(approver.id, {
+          titleAr: "مشوار جديد",
+          titleEn: "New Trip",
+          bodyAr: `مشوار جديد لـ ${trip.personName} إلى ${trip.location}`,
+          bodyEn: `New trip for ${trip.personName} to ${trip.location}`,
+          type: "trip_created",
+          url: "/logistics",
+        });
+      }
       res.json(trip);
     } catch (error) {
       console.error("Failed to create trip:", error);
@@ -755,6 +873,24 @@ export async function registerRoutes(
           return res.status(403).json({ message: "No approval permission" });
         }
         const updated = await storage.updateTripStatus(tripId, status, { approvedBy: currentUser.id });
+        if (updated && updated.assignedDriver) {
+          notifyAndPush(updated.assignedDriver, {
+            titleAr: status === "approved" ? "تم اعتماد المشوار" : "تم رفض المشوار",
+            titleEn: status === "approved" ? "Trip Approved" : "Trip Rejected",
+            bodyAr: `المشوار إلى ${updated.location} ${status === "approved" ? "تم اعتماده" : "تم رفضه"}`,
+            bodyEn: `Trip to ${updated.location} was ${status}`,
+            type: `trip_${status}`,
+            url: "/logistics",
+          });
+        }
+        notifyAndPush(trip.createdBy, {
+          titleAr: status === "approved" ? "تم اعتماد المشوار" : "تم رفض المشوار",
+          titleEn: status === "approved" ? "Trip Approved" : "Trip Rejected",
+          bodyAr: `المشوار إلى ${trip.location} ${status === "approved" ? "تم اعتماده" : "تم رفضه"}`,
+          bodyEn: `Trip to ${trip.location} was ${status}`,
+          type: `trip_${status}`,
+          url: "/logistics",
+        });
         return res.json(updated);
       }
 
@@ -1067,6 +1203,20 @@ export async function registerRoutes(
         requestedBy: userId,
         status: "pending",
       });
+      const room = await storage.getRoom(req.body.roomId);
+      const maids = (await storage.getAllUsers()).filter(u => u.role === "maid" || u.role === "admin");
+      for (const maid of maids) {
+        if (maid.id !== userId) {
+          notifyAndPush(maid.id, {
+            titleAr: "طلب غسيل جديد",
+            titleEn: "New Laundry Request",
+            bodyAr: `طلب غسيل من ${room ? room.nameAr : "غرفة"}`,
+            bodyEn: `Laundry request from ${room ? (room.nameEn || room.nameAr) : "room"}`,
+            type: "laundry_request",
+            url: "/housekeeping",
+          });
+        }
+      }
       res.json(request);
     } catch (error) {
       res.status(500).json({ message: "Failed to create laundry request" });
@@ -1185,6 +1335,80 @@ export async function registerRoutes(
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to add item" });
+    }
+  });
+
+  app.get("/api/vapid-public-key", (_req: Request, res: Response) => {
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || "" });
+  });
+
+  app.post("/api/push-subscribe", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { endpoint, keys } = req.body;
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        return res.status(400).json({ message: "Invalid subscription" });
+      }
+      await storage.createPushSubscription({
+        userId,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save subscription" });
+    }
+  });
+
+  app.post("/api/push-unsubscribe", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { endpoint } = req.body;
+      if (endpoint) {
+        await storage.deletePushSubscription(endpoint);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unsubscribe" });
+    }
+  });
+
+  app.get("/api/notifications", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const notifs = await storage.getNotifications(userId);
+      res.json(notifs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get count" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.markNotificationRead(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark read" });
+    }
+  });
+
+  app.post("/api/notifications/mark-all-read", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      await storage.markAllNotificationsRead(userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark all read" });
     }
   });
 
