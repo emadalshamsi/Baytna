@@ -266,8 +266,8 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const { role, canApprove, canAddShortages } = req.body;
-      const user = await storage.updateUserRole(req.params.id, role, canApprove ?? false, canAddShortages);
+      const { role, canApprove, canAddShortages, canApproveTrips } = req.body;
+      const user = await storage.updateUserRole(req.params.id, role, canApprove ?? false, canAddShortages, canApproveTrips);
       if (user) {
         const { password: _, ...safeUser } = user;
         res.json(safeUser);
@@ -903,7 +903,7 @@ export async function registerRoutes(
   app.post("/api/trips", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+      if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "household")) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const tripData = {
@@ -911,6 +911,7 @@ export async function registerRoutes(
         createdBy: currentUser.id,
         status: "pending",
         departureTime: req.body.departureTime ? new Date(req.body.departureTime) : new Date(),
+        estimatedDuration: req.body.estimatedDuration ? parseInt(req.body.estimatedDuration) : 30,
         vehicleId: req.body.vehicleId ? parseInt(req.body.vehicleId) : null,
         assignedDriver: req.body.assignedDriver || null,
         approvedBy: null,
@@ -950,7 +951,7 @@ export async function registerRoutes(
       if (!trip) return res.status(404).json({ message: "Trip not found" });
 
       if (status === "approved" || status === "rejected") {
-        if (!currentUser.canApprove && currentUser.role !== "admin") {
+        if (!currentUser.canApproveTrips && currentUser.role !== "admin") {
           return res.status(403).json({ message: "No approval permission" });
         }
         const updated = await storage.updateTripStatus(tripId, status, { approvedBy: currentUser.id });

@@ -12,6 +12,7 @@ export type AuthUser = {
   displayName: string | null;
   canApprove: boolean;
   canAddShortages: boolean;
+  canApproveTrips: boolean;
   isSuspended: boolean;
   createdAt: string | null;
   updatedAt: string | null;

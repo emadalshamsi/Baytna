@@ -31,7 +31,7 @@ export interface IStorage {
   createUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
-  updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean): Promise<User | undefined>;
+  updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean, canApproveTrips?: boolean): Promise<User | undefined>;
   updateUserProfile(id: string, data: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User | undefined>;
   updateUserPassword(id: string, newPasswordHash: string): Promise<void>;
   suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
@@ -197,9 +197,10 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean): Promise<User | undefined> {
+  async updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean, canApproveTrips?: boolean): Promise<User | undefined> {
     const setData: any = { role, canApprove, updatedAt: new Date() };
     if (canAddShortages !== undefined) setData.canAddShortages = canAddShortages;
+    if (canApproveTrips !== undefined) setData.canApproveTrips = canApproveTrips;
     const [user] = await db.update(users).set(setData).where(eq(users.id, id)).returning();
     return user;
   }

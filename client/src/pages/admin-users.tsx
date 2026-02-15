@@ -80,8 +80,8 @@ export default function AdminUsers() {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ id, role, canApprove, canAddShortages }: { id: string; role: string; canApprove: boolean; canAddShortages?: boolean }) => {
-      await apiRequest("PATCH", `/api/users/${id}/role`, { role, canApprove, canAddShortages });
+    mutationFn: async ({ id, role, canApprove, canAddShortages, canApproveTrips }: { id: string; role: string; canApprove: boolean; canAddShortages?: boolean; canApproveTrips?: boolean }) => {
+      await apiRequest("PATCH", `/api/users/${id}/role`, { role, canApprove, canAddShortages, canApproveTrips });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/users"] }); toast({ title: t("admin.userRoleUpdated") }); },
   });
@@ -156,6 +156,12 @@ export default function AdminUsers() {
                   onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canAddShortages: !u.canAddShortages })}
                   disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-shortages-${u.id}`}>
                   {t("shortages.permission")}
+                </Button>
+                <Button size="sm" variant="outline"
+                  className={u.canApproveTrips ? "bg-green-600 text-white border-green-600 dark:bg-green-500 dark:border-green-500" : ""}
+                  onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canApproveTrips: !u.canApproveTrips })}
+                  disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-trips-${u.id}`}>
+                  {t("trips.approvePermission")}
                 </Button>
               </div>
               {expandedUsers.has(u.id) && (

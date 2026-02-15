@@ -223,7 +223,8 @@ function TripsSection() {
   const lang = getLang();
   const { toast } = useToast();
   const { data: currentUser } = useQuery<AuthUser>({ queryKey: ["/api/auth/user"] });
-  const canCreateTrip = currentUser?.role === "admin" || currentUser?.canApprove;
+  const canCreateTrip = currentUser?.role === "admin" || currentUser?.role === "household";
+  const canApproveTrip = currentUser?.role === "admin" || currentUser?.canApproveTrips;
   const { data: allTrips, isLoading } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
   const { data: allVehicles } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
   const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
@@ -232,11 +233,12 @@ function TripsSection() {
   const [personName, setPersonName] = useState("");
   const [location, setLocation] = useState("");
   const [departureTime, setDepartureTime] = useState("");
+  const [estimatedDuration, setEstimatedDuration] = useState("30");
   const [vehicleId, setVehicleId] = useState("");
   const [assignedDriver, setAssignedDriver] = useState("");
   const [notes, setNotes] = useState("");
 
-  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureTime(""); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureTime(""); setEstimatedDuration("30"); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
@@ -267,6 +269,7 @@ function TripsSection() {
     createMutation.mutate({
       personName, location,
       departureTime: new Date(departureTime),
+      estimatedDuration: parseInt(estimatedDuration),
       vehicleId: vehicleId ? parseInt(vehicleId) : null,
       assignedDriver: assignedDriver || null,
       notes: notes || null,
@@ -352,6 +355,22 @@ function TripsSection() {
               <Input type="datetime-local" value={departureTime} onChange={e => setDepartureTime(e.target.value)} data-testid="input-trip-departure" />
             </div>
 
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">{t("trips.estimatedDuration")}</label>
+              <Select value={estimatedDuration} onValueChange={setEstimatedDuration}>
+                <SelectTrigger data-testid="select-trip-duration">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[15, 30, 45, 60, 75, 90, 105, 120].map(min => (
+                    <SelectItem key={min} value={String(min)}>
+                      {min} {t("trips.minutes")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {drivers.length > 0 && (
               <Select value={assignedDriver} onValueChange={setAssignedDriver}>
                 <SelectTrigger data-testid="select-trip-driver">
@@ -429,6 +448,12 @@ function TripsSection() {
                   <Clock className="w-3 h-3" />
                   <span>{t("trips.departureTime")}: {new Date(trip.departureTime).toLocaleString("ar-SA")}</span>
                 </div>
+                {trip.estimatedDuration && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Clock className="w-3 h-3" />
+                    <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
+                  </div>
+                )}
                 {trip.vehicleId && (
                   <div className="flex items-center gap-2 flex-wrap">
                     <Car className="w-3 h-3" />
@@ -441,7 +466,7 @@ function TripsSection() {
                 )}
                 {trip.notes && <p>{t("fields.notes")}: {trip.notes}</p>}
               </div>
-              {trip.status === "pending" && (
+              {trip.status === "pending" && canApproveTrip && (
                 <div className="flex gap-2 mt-3 flex-wrap">
                   <Button size="sm" onClick={() => statusMutation.mutate({ id: trip.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-trip-${trip.id}`}>
                     <Check className="w-4 h-4 ml-1" /> {t("actions.approve")}
