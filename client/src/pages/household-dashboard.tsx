@@ -10,6 +10,7 @@ import type { Order } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
+import { ShortagesSection } from "@/pages/admin-shopping";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
@@ -160,7 +161,16 @@ export default function HouseholdDashboard() {
         </div>
       )}
 
-      {!orders?.length && (
+      {user?.canAddShortages && (
+        <div className="space-y-2 border-t pt-4">
+          <h3 className="text-sm font-bold flex items-center gap-2" data-testid="text-shortages-section">
+            {t("shortages.title")}
+          </h3>
+          <ShortagesSection />
+        </div>
+      )}
+
+      {!orders?.length && !user?.canAddShortages && (
         <div className="text-center py-12">
           <Package className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">{t("messages.noOrders")}</p>

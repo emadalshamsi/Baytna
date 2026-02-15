@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, Package, Check, X, Plus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ClipboardList, Package, Check, X, Plus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
-import type { Order, Product, Category, Store, OrderItem, User as UserType } from "@shared/schema";
+import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
 import { t, formatPrice } from "@/lib/i18n";
+import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -510,6 +512,143 @@ function StoresSection() {
   );
 }
 
+export function ShortagesSection({ isAdmin = false }: { isAdmin?: boolean }) {
+  useLang();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: shortages, isLoading } = useQuery<Shortage[]>({ queryKey: ["/api/shortages"] });
+  const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"], enabled: isAdmin });
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [nameAr, setNameAr] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [shortageNotes, setShortageNotes] = useState("");
+
+  const userMap = new Map((users || []).map(u => [u.id, u]));
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/shortages", { nameAr, nameEn: nameEn || undefined, quantity, notes: shortageNotes || undefined });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shortages"] });
+      setShowAddDialog(false);
+      setNameAr(""); setNameEn(""); setQuantity(1); setShortageNotes("");
+      toast({ title: t("shortages.shortageAdded") });
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      await apiRequest("PATCH", `/api/shortages/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shortages"] });
+      toast({ title: t("shortages.statusUpdated") });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/shortages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shortages"] });
+      toast({ title: t("shortages.shortageDeleted") });
+    },
+  });
+
+  const canAdd = user?.role === "admin" || user?.canAddShortages;
+
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
+
+  return (
+    <div className="space-y-3">
+      {canAdd && (
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button className="w-full gap-2" data-testid="button-add-shortage">
+              <Plus className="w-4 h-4" /> {t("shortages.addShortage")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("shortages.addShortage")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder={t("shortages.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-shortage-name-ar" />
+              <Input placeholder={t("shortages.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-shortage-name-en" />
+              <Input type="number" min={1} placeholder={t("shortages.quantity")} value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} data-testid="input-shortage-quantity" />
+              <Textarea placeholder={t("shortages.notes")} value={shortageNotes} onChange={e => setShortageNotes(e.target.value)} data-testid="input-shortage-notes" />
+              <Button className="w-full" onClick={() => createMutation.mutate()} disabled={!nameAr.trim() || createMutation.isPending} data-testid="button-submit-shortage">
+                {t("actions.submit")}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {!shortages?.length ? (
+        <p className="text-center text-muted-foreground py-8" data-testid="text-no-shortages">{t("shortages.noShortages")}</p>
+      ) : (
+        shortages.map(s => (
+          <Card key={s.id} data-testid={`card-shortage-${s.id}`}>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium" data-testid={`text-shortage-name-${s.id}`}>{s.nameAr}</span>
+                    {s.nameEn && <span className="text-sm text-muted-foreground">({s.nameEn})</span>}
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+                    <span>{t("shortages.quantity")}: {s.quantity}</span>
+                    {isAdmin && s.createdBy && (
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {userMap.get(s.createdBy)?.firstName || userMap.get(s.createdBy)?.username || "?"}
+                      </span>
+                    )}
+                  </div>
+                  {s.notes && <p className="text-xs text-muted-foreground mt-1">{s.notes}</p>}
+                </div>
+              </div>
+
+              {isAdmin && (
+                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t flex-wrap">
+                  {s.status === "pending" && (
+                    <>
+                      <Button size="sm" variant="default" className="gap-1" onClick={() => statusMutation.mutate({ id: s.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-shortage-${s.id}`}>
+                        <Check className="w-3 h-3" /> {t("actions.approve")}
+                      </Button>
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => statusMutation.mutate({ id: s.id, status: "rejected" })} disabled={statusMutation.isPending} data-testid={`button-reject-shortage-${s.id}`}>
+                        <X className="w-3 h-3" /> {t("actions.reject")}
+                      </Button>
+                    </>
+                  )}
+                  {s.status === "approved" && (
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => statusMutation.mutate({ id: s.id, status: "in_progress" })} disabled={statusMutation.isPending} data-testid={`button-start-shortage-${s.id}`}>
+                      {t("status.in_progress")}
+                    </Button>
+                  )}
+                  {s.status === "in_progress" && (
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => statusMutation.mutate({ id: s.id, status: "completed" })} disabled={statusMutation.isPending} data-testid={`button-complete-shortage-${s.id}`}>
+                      <Check className="w-3 h-3" /> {t("status.completed")}
+                    </Button>
+                  )}
+                  <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} disabled={deleteMutation.isPending} data-testid={`button-delete-shortage-${s.id}`}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function AdminShopping() {
   useLang();
   const [activeTab, setActiveTab] = useState("orders");
@@ -534,11 +673,15 @@ export default function AdminShopping() {
           <TabsTrigger value="stores" className="gap-1 shrink-0" data-testid="tab-stores">
             <StoreIcon className="w-4 h-4" /> {t("nav.stores")}
           </TabsTrigger>
+          <TabsTrigger value="shortages" className="gap-1 shrink-0" data-testid="tab-shortages">
+            <AlertTriangle className="w-4 h-4" /> {t("shortages.title")}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="orders"><OrdersSection /></TabsContent>
         <TabsContent value="products"><ProductsSection /></TabsContent>
         <TabsContent value="categories"><CategoriesSection /></TabsContent>
         <TabsContent value="stores"><StoresSection /></TabsContent>
+        <TabsContent value="shortages"><ShortagesSection isAdmin={true} /></TabsContent>
       </Tabs>
     </div>
   );

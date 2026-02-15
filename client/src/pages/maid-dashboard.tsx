@@ -16,8 +16,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order } from "@shared/schema";
-import { t, formatPrice } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
+import { useAuth } from "@/hooks/use-auth";
+import { ShortagesSection } from "@/pages/admin-shopping";
 
 const categoryIcons: Record<string, any> = {
   milk: Milk, dairy: Milk, apple: Apple, fruit: Apple, fruits: Apple,
@@ -36,6 +38,7 @@ function getIcon(iconName?: string | null) {
 
 export default function MaidDashboard() {
   useLang();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { data: products, isLoading: loadingProducts } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -231,9 +234,6 @@ export default function MaidDashboard() {
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                   )}
                   <span className="text-xs font-medium leading-tight">{product.nameAr}</span>
-                  {product.estimatedPrice ? (
-                    <span className="text-[10px] text-muted-foreground mt-1">{formatPrice(product.estimatedPrice)}</span>
-                  ) : null}
                   {inCart && (
                     <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                       {inCart.quantity}
@@ -257,6 +257,15 @@ export default function MaidDashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {user?.canAddShortages && (
+        <div className="space-y-2 border-t pt-4">
+          <h3 className="text-sm font-bold flex items-center gap-2" data-testid="text-shortages-section">
+            {t("shortages.title")}
+          </h3>
+          <ShortagesSection />
         </div>
       )}
 
@@ -290,8 +299,7 @@ export default function MaidDashboard() {
                 </div>
               ))}
               <div className="flex items-center justify-between gap-2 pt-2 border-t">
-                <span className="font-bold">{t("fields.total")}</span>
-                <span className="font-bold">{formatPrice(cart.reduce((s, i) => s + (i.product.estimatedPrice || 0) * i.quantity, 0))}</span>
+                <span className="font-bold">{t("fields.total")}: {cart.reduce((s, i) => s + i.quantity, 0)} {t("fields.items")}</span>
               </div>
               <Textarea placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} className="text-sm" data-testid="input-order-notes" />
               <Button className="w-full gap-2" onClick={() => createOrderMutation.mutate()} disabled={createOrderMutation.isPending} data-testid="button-submit-order">
@@ -310,7 +318,7 @@ export default function MaidDashboard() {
               <Select value={selectedOrderForUpdate} onValueChange={setSelectedOrderForUpdate}>
                 <SelectTrigger data-testid="select-active-order"><SelectValue placeholder={t("maid.selectOrder")} /></SelectTrigger>
                 <SelectContent>
-                  {activeOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>#{o.id} - {formatPrice(o.totalEstimated || 0)}</SelectItem>)}
+                  {activeOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>#{o.id}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}

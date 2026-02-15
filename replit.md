@@ -4,6 +4,13 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 15, 2026)
+- Added Shortages (نواقص) feature: users with canAddShortages permission can request shortage items
+- Shortages table: nameAr, nameEn, quantity, notes, status (pending/approved/rejected/in_progress/completed), createdBy
+- canAddShortages permission toggle in admin user management (green button)
+- Admin sees all shortages in Groceries > Shortages tab with approve/reject/progress/complete workflow
+- Users with permission see shortages section in their dashboards (maid/household)
+- Push notifications: new shortage notifies admins, status changes notify requesters
+- Hidden all prices (estimated/actual) from maid dashboard view
 - Replaced daily/weekly/monthly frequency filter with horizontal date strip in Tasks tab
 - Added daysOfWeek integer[] column to housekeeping_tasks for flexible day-of-week scheduling
 - DateStrip component: scrollable 29-day range centered on today, auto-scrolls to selected date

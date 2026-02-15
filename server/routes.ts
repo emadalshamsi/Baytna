@@ -1437,8 +1437,15 @@ export async function registerRoutes(
       if (!currentUser.canAddShortages && currentUser.role !== "admin") {
         return res.status(403).json({ message: "ليس لديك صلاحية لإضافة نواقص" });
       }
+      const { nameAr, nameEn, quantity, notes } = req.body;
+      if (!nameAr || typeof nameAr !== "string" || !nameAr.trim()) {
+        return res.status(400).json({ message: "nameAr is required" });
+      }
       const shortage = await storage.createShortage({
-        ...req.body,
+        nameAr: nameAr.trim(),
+        nameEn: nameEn?.trim() || null,
+        quantity: typeof quantity === "number" && quantity > 0 ? quantity : 1,
+        notes: notes?.trim() || null,
         createdBy: userId,
         status: "pending",
       });
