@@ -74,7 +74,7 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
           <button
             key={formatDateStr(d)}
             data-selected={isSelected ? "true" : "false"}
-            className={`flex flex-col items-center justify-center min-w-[3rem] py-1.5 px-1 rounded-md transition-colors flex-shrink-0 ${
+            className={`flex flex-col items-center justify-center min-w-[3rem] py-3 px-1 rounded-md transition-colors flex-shrink-0 ${
               isSelected
                 ? "bg-primary text-primary-foreground"
                 : isToday
@@ -144,11 +144,11 @@ function TabButton({ active, icon: Icon, label, onClick, testId }: { active: boo
   return (
     <Button
       variant={active ? "default" : "outline"}
-      className="flex-1 gap-2"
+      className="flex-1 gap-2 min-h-[4.5rem]"
       onClick={onClick}
       data-testid={testId}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className="w-6 h-6" />
       <span className="text-sm">{label}</span>
     </Button>
   );
