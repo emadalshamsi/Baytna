@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil } from "lucide-react";
+import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil, DoorOpen } from "lucide-react";
 import { ROOM_ICON_OPTIONS, getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
