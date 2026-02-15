@@ -445,17 +445,17 @@ export default function AdminShopping() {
         {t("nav.shoppingSection")}
       </h2>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start gap-1 flex-wrap">
-          <TabsTrigger value="orders" className="gap-1" data-testid="tab-orders">
+        <TabsList className="w-full justify-start gap-1 flex-nowrap overflow-x-auto">
+          <TabsTrigger value="orders" className="gap-1 shrink-0" data-testid="tab-orders">
             <ClipboardList className="w-4 h-4" /> {t("nav.orders")}
           </TabsTrigger>
-          <TabsTrigger value="products" className="gap-1" data-testid="tab-products">
+          <TabsTrigger value="products" className="gap-1 shrink-0" data-testid="tab-products">
             <Package className="w-4 h-4" /> {t("nav.products")}
           </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-1" data-testid="tab-categories">
+          <TabsTrigger value="categories" className="gap-1 shrink-0" data-testid="tab-categories">
             <LayoutGrid className="w-4 h-4" /> {t("nav.categories")}
           </TabsTrigger>
-          <TabsTrigger value="stores" className="gap-1" data-testid="tab-stores">
+          <TabsTrigger value="stores" className="gap-1 shrink-0" data-testid="tab-stores">
             <StoreIcon className="w-4 h-4" /> {t("nav.stores")}
           </TabsTrigger>
         </TabsList>

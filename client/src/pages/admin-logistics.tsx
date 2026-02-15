@@ -582,17 +582,17 @@ export default function AdminLogistics() {
         {t("nav.logisticsSection")}
       </h2>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start gap-1 flex-wrap">
-          <TabsTrigger value="trips" className="gap-1" data-testid="tab-trips">
+        <TabsList className="w-full justify-start gap-1 flex-nowrap overflow-x-auto">
+          <TabsTrigger value="trips" className="gap-1 shrink-0" data-testid="tab-trips">
             <MapPin className="w-4 h-4" /> {t("nav.trips")}
           </TabsTrigger>
-          <TabsTrigger value="locations" className="gap-1" data-testid="tab-locations">
+          <TabsTrigger value="locations" className="gap-1 shrink-0" data-testid="tab-locations">
             <Navigation className="w-4 h-4" /> {t("nav.locations")}
           </TabsTrigger>
-          <TabsTrigger value="vehicles" className="gap-1" data-testid="tab-vehicles">
+          <TabsTrigger value="vehicles" className="gap-1 shrink-0" data-testid="tab-vehicles">
             <Car className="w-4 h-4" /> {t("nav.vehicles")}
           </TabsTrigger>
-          <TabsTrigger value="technicians" className="gap-1" data-testid="tab-technicians">
+          <TabsTrigger value="technicians" className="gap-1 shrink-0" data-testid="tab-technicians">
             <Wrench className="w-4 h-4" /> {t("nav.technicians")}
           </TabsTrigger>
         </TabsList>
