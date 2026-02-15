@@ -140,7 +140,7 @@ export default function AdminDashboard() {
                         <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                       </span>
                     )}
-                    <span className="text-foreground/60">{formatDate(order.createdAt!)}</span>
+                    <span className="text-foreground/80 font-medium">{formatDate(order.createdAt!)}</span>
                   </div>
                   {order.notes && <p className="text-xs text-muted-foreground mt-1">{order.notes}</p>}
                   {order.receiptImageUrl && (
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
                     </span>
                     {trip.departureTime && (
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> <span className="text-foreground/60">{formatDateTime(trip.departureTime)}</span>
+                        <Clock className="w-3 h-3" /> <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
                       </span>
                     )}
                   </div>

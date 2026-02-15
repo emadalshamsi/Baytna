@@ -502,7 +502,7 @@ function TripsSection() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
-                  <span className="text-foreground/60">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>
+                  <span className="text-foreground/80 font-medium">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>
                 </div>
                 {trip.estimatedDuration && (
                   <div className="flex items-center gap-2 flex-wrap">

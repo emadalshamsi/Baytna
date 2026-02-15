@@ -252,7 +252,7 @@ function OrdersSection() {
                       <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                     </span>
                   )}
-                  <span className="text-foreground/60">{formatDate(order.createdAt!)}</span>
+                  <span className="text-foreground/80 font-medium">{formatDate(order.createdAt!)}</span>
                 </div>
                 {approver && (
                   <div className="text-xs text-muted-foreground mt-1">
