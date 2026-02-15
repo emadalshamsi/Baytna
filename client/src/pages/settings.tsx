@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { LogOut, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, getLang } from "@/lib/i18n";
+import { t, getLang, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -310,8 +310,8 @@ function ProfilePhotoSection() {
     <div className="flex flex-col items-center gap-3">
       <div className="relative">
         <Avatar className="w-20 h-20">
-          {user.profileImageUrl && <AvatarImage src={user.profileImageUrl} alt={user.firstName || user.username} />}
-          <AvatarFallback className="text-2xl font-bold">{(user.firstName?.[0] || user.username?.[0] || "U").toUpperCase()}</AvatarFallback>
+          {user.profileImageUrl && <AvatarImage src={user.profileImageUrl} alt={displayName(user)} />}
+          <AvatarFallback className="text-2xl font-bold">{displayName(user)[0].toUpperCase()}</AvatarFallback>
         </Avatar>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} data-testid="input-profile-photo" />
         <Button
@@ -568,7 +568,7 @@ export default function SettingsPage() {
             <ProfilePhotoSection />
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-bold truncate" data-testid="text-profile-name">
-                {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username}
+                {displayName(user)}
               </h2>
               <p className="text-xs text-muted-foreground truncate" data-testid="text-profile-username">@{user.username}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">

@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock } from "lucide-react";
-import { t, formatPrice } from "@/lib/i18n";
+import { t, formatPrice, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useState } from "react";
 import type { Order, Trip, User as UserType } from "@shared/schema";
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
                     {creator && (
                       <span className="flex items-center gap-1">
-                        <User className="w-3 h-3" /> {t("fields.createdBy")}: {creator.firstName || creator.username}
+                        <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                       </span>
                     )}
                     <span>{new Date(order.createdAt!).toLocaleDateString("ar-SA")}</span>

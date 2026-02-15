@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice } from "@/lib/i18n";
+import { t, formatPrice, displayName } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 
@@ -249,14 +249,14 @@ function OrdersSection() {
                 <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
                   {creator && (
                     <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" /> {t("fields.createdBy")}: {creator.firstName || creator.username}
+                      <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                     </span>
                   )}
                   <span>{new Date(order.createdAt!).toLocaleDateString("ar-SA")}</span>
                 </div>
                 {approver && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {t("fields.approvedByField")}: {approver.firstName || approver.username}
+                    {t("fields.approvedByField")}: {displayName(approver)}
                   </div>
                 )}
               </div>
@@ -726,7 +726,7 @@ export function ShortagesSection({ isAdmin = false }: { isAdmin?: boolean }) {
                     {isAdmin && s.createdBy && (
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
-                        {userMap.get(s.createdBy)?.firstName || userMap.get(s.createdBy)?.username || "?"}
+                        {userMap.get(s.createdBy) ? displayName(userMap.get(s.createdBy)!) : "?"}
                       </span>
                     )}
                   </div>

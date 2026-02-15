@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { t } from "@/lib/i18n";
+import { t, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
 import type { Room } from "@shared/schema";
@@ -232,11 +232,11 @@ export default function AdminUsers() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">{(u.firstName || u.username || "?")[0]}</span>
+                  <span className="text-sm font-bold text-primary">{displayName(u)[0]}</span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{(lang === "ar" ? (u.firstName || u.lastName || u.username) : (u.lastName || u.firstName || u.username)) || t("roles.household")}</span>
+                    <span className="font-medium">{displayName(u)}</span>
                     {u.isSuspended && (
                       <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
                         {t("admin.suspended")}
@@ -312,7 +312,7 @@ export default function AdminUsers() {
                 {t("admin.confirmDeleteUser")}
                 {deleteConfirmUser && (
                   <span className="block mt-2 font-semibold text-foreground">
-                    {deleteConfirmUser.firstName || deleteConfirmUser.username} (@{deleteConfirmUser.username})
+                    {displayName(deleteConfirmUser)} (@{deleteConfirmUser.username})
                   </span>
                 )}
               </AlertDialogDescription>

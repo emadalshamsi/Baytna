@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock } from "lucide-react";
 import { useState } from "react";
 import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
-import { t, getLang } from "@/lib/i18n";
+import { t, getLang, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
 
@@ -67,7 +67,7 @@ function VehiclesSection() {
   const getUserName = (uid: string | null) => {
     if (!uid) return "";
     const u = allUsers?.find(usr => usr.id === uid);
-    return u?.firstName || u?.username || "";
+    return u ? displayName(u) : "";
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -98,7 +98,7 @@ function VehiclesSection() {
                 </SelectTrigger>
                 <SelectContent>
                   {householdUsers.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.firstName || u.username}</SelectItem>
+                    <SelectItem key={u.id} value={u.id}>{displayName(u)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -343,7 +343,7 @@ function TripsSection() {
   const getUserName = (uid: string | null) => {
     if (!uid) return "";
     const u = allUsers?.find(usr => usr.id === uid);
-    return u?.firstName || u?.username || "";
+    return u ? displayName(u) : "";
   };
 
   const formatWaiting = (seconds: number) => {
@@ -427,7 +427,7 @@ function TripsSection() {
                 <SelectContent>
                   {drivers.map(d => (
                     <SelectItem key={d.id} value={d.id}>
-                      {d.firstName || d.username}
+                      {displayName(d)}
                     </SelectItem>
                   ))}
                 </SelectContent>

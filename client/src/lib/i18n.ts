@@ -299,6 +299,13 @@ export function t(path: string): string {
   return result || path;
 }
 
+export function displayName(user: { firstName?: string | null; lastName?: string | null; username?: string | null }): string {
+  if (currentLang === "ar") {
+    return user.firstName || user.lastName || user.username || "?";
+  }
+  return user.lastName || user.firstName || user.username || "?";
+}
+
 export function formatPrice(amount: number): string {
   return currentLang === "ar" ? `${amount} ر.س` : `${amount} SAR`;
 }
