@@ -5,15 +5,79 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ban, UserCheck } from "lucide-react";
+import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
+import type { Room } from "@shared/schema";
+
+function UserRoomAssignment({ userId, lang }: { userId: string; lang: string }) {
+  const { toast } = useToast();
+  const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
+  const { data: assignedRoomIds = [] } = useQuery<number[]>({
+    queryKey: ["/api/user-rooms", userId],
+  });
+
+  const updateRoomsMutation = useMutation({
+    mutationFn: async (roomIds: number[]) => {
+      await apiRequest("PUT", `/api/user-rooms/${userId}`, { roomIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-rooms", userId] });
+      toast({ title: t("rooms.roomsUpdated") });
+    },
+  });
+
+  const activeRooms = rooms.filter(r => !r.isExcluded && r.isActive);
+
+  const toggleRoom = (roomId: number) => {
+    const newIds = assignedRoomIds.includes(roomId)
+      ? assignedRoomIds.filter(id => id !== roomId)
+      : [...assignedRoomIds, roomId];
+    updateRoomsMutation.mutate(newIds);
+  };
+
+  if (activeRooms.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t" data-testid={`section-rooms-${userId}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <DoorOpen className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs font-bold text-muted-foreground">{t("rooms.assignRooms")}</span>
+        {assignedRoomIds.length === 0 && (
+          <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+            {t("rooms.allRooms")}
+          </Badge>
+        )}
+      </div>
+      <div className="flex gap-1.5 flex-wrap">
+        {activeRooms.map(room => {
+          const isAssigned = assignedRoomIds.includes(room.id);
+          return (
+            <Button
+              key={room.id}
+              size="sm"
+              variant="outline"
+              className={isAssigned ? "bg-purple-600 text-white border-purple-600 dark:bg-purple-500 dark:border-purple-500" : ""}
+              onClick={() => toggleRoom(room.id)}
+              disabled={updateRoomsMutation.isPending}
+              data-testid={`button-toggle-room-${room.id}-${userId}`}
+            >
+              {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminUsers() {
-  useLang();
+  const { lang } = useLang();
   const { toast } = useToast();
   const { data: allUsers, isLoading } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, role, canApprove, canAddShortages }: { id: string; role: string; canApprove: boolean; canAddShortages?: boolean }) => {
@@ -31,6 +95,15 @@ export default function AdminUsers() {
       toast({ title: variables.isSuspended ? t("admin.userSuspended") : t("admin.userActivated") });
     },
   });
+
+  const toggleExpand = (userId: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
@@ -56,6 +129,9 @@ export default function AdminUsers() {
                   </div>
                   {u.username && <span className="text-xs text-muted-foreground block">@{u.username}</span>}
                 </div>
+                <Button size="icon" variant="ghost" onClick={() => toggleExpand(u.id)} data-testid={`button-expand-${u.id}`}>
+                  {expandedUsers.has(u.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex gap-1.5 flex-wrap">
@@ -81,15 +157,20 @@ export default function AdminUsers() {
                   {t("shortages.permission")}
                 </Button>
               </div>
-              <div className="mt-3 pt-3 border-t">
-                <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
-                  className="gap-1.5"
-                  onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
-                  disabled={suspendMutation.isPending} data-testid={`button-suspend-${u.id}`}>
-                  {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                  {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
-                </Button>
-              </div>
+              {expandedUsers.has(u.id) && (
+                <>
+                  <UserRoomAssignment userId={u.id} lang={lang} />
+                  <div className="mt-3 pt-3 border-t">
+                    <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
+                      className="gap-1.5"
+                      onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
+                      disabled={suspendMutation.isPending} data-testid={`button-suspend-${u.id}`}>
+                      {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                      {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         ))}

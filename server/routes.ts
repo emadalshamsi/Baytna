@@ -1088,6 +1088,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/user-rooms/:userId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "admin" && currentUser.id !== req.params.userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const userRoomsList = await storage.getUserRooms(req.params.userId);
+      res.json(userRoomsList.map(ur => ur.roomId));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user rooms" });
+    }
+  });
+
+  app.put("/api/user-rooms/:userId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { roomIds } = req.body as { roomIds: number[] };
+      if (!Array.isArray(roomIds)) return res.status(400).json({ message: "roomIds required" });
+      await storage.setUserRooms(req.params.userId, roomIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user rooms" });
+    }
+  });
+
   // Housekeeping Tasks CRUD
   app.get("/api/housekeeping-tasks", isAuthenticated, async (_req, res) => {
     try {

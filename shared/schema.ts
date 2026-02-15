@@ -148,6 +148,12 @@ export const rooms = pgTable("rooms", {
   sortOrder: integer("sort_order").default(0),
 });
 
+export const userRooms = pgTable("user_rooms", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  roomId: integer("room_id").notNull().references(() => rooms.id),
+});
+
 export const housekeepingTasks = pgTable("housekeeping_tasks", {
   id: serial("id").primaryKey(),
   titleAr: varchar("title_ar", { length: 200 }).notNull(),
@@ -255,6 +261,7 @@ export const insertTripSchema = createInsertSchema(trips).omit({ id: true, creat
 export const insertTripLocationSchema = createInsertSchema(tripLocations).omit({ id: true, createdAt: true });
 export const insertTechnicianSchema = createInsertSchema(technicians).omit({ id: true, createdAt: true });
 export const insertRoomSchema = createInsertSchema(rooms).omit({ id: true });
+export const insertUserRoomSchema = createInsertSchema(userRooms).omit({ id: true });
 export const insertHousekeepingTaskSchema = createInsertSchema(housekeepingTasks).omit({ id: true });
 export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).omit({ id: true, completedAt: true });
 export const insertLaundryRequestSchema = createInsertSchema(laundryRequests).omit({ id: true, createdAt: true, completedAt: true });
@@ -287,6 +294,8 @@ export type Technician = typeof technicians.$inferSelect;
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
 export type Room = typeof rooms.$inferSelect;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
+export type UserRoom = typeof userRooms.$inferSelect;
+export type InsertUserRoom = z.infer<typeof insertUserRoomSchema>;
 export type HousekeepingTask = typeof housekeepingTasks.$inferSelect;
 export type InsertHousekeepingTask = z.infer<typeof insertHousekeepingTaskSchema>;
 export type TaskCompletion = typeof taskCompletions.$inferSelect;

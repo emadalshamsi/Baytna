@@ -3,7 +3,7 @@ import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
-  rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
+  rooms, userRooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
   shortages, pushSubscriptions, notifications,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
@@ -13,7 +13,7 @@ import {
   type Trip, type InsertTrip,
   type TripLocation, type InsertTripLocation,
   type Technician, type InsertTechnician,
-  type Room, type InsertRoom,
+  type Room, type InsertRoom, type UserRoom,
   type HousekeepingTask, type InsertHousekeepingTask,
   type TaskCompletion, type InsertTaskCompletion,
   type LaundryRequest, type InsertLaundryRequest,
@@ -102,6 +102,9 @@ export interface IStorage {
   createRoom(room: InsertRoom): Promise<Room>;
   updateRoom(id: number, room: Partial<InsertRoom>): Promise<Room | undefined>;
   deleteRoom(id: number): Promise<void>;
+
+  getUserRooms(userId: string): Promise<UserRoom[]>;
+  setUserRooms(userId: string, roomIds: number[]): Promise<void>;
 
   getHousekeepingTasks(): Promise<HousekeepingTask[]>;
   getHousekeepingTask(id: number): Promise<HousekeepingTask | undefined>;
@@ -494,6 +497,17 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRoom(id: number): Promise<void> {
     await db.update(rooms).set({ isActive: false }).where(eq(rooms.id, id));
+  }
+
+  async getUserRooms(userId: string): Promise<UserRoom[]> {
+    return db.select().from(userRooms).where(eq(userRooms.userId, userId));
+  }
+
+  async setUserRooms(userId: string, roomIds: number[]): Promise<void> {
+    await db.delete(userRooms).where(eq(userRooms.userId, userId));
+    if (roomIds.length > 0) {
+      await db.insert(userRooms).values(roomIds.map(roomId => ({ userId, roomId })));
+    }
   }
 
   async getHousekeepingTasks(): Promise<HousekeepingTask[]> {

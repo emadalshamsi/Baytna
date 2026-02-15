@@ -332,8 +332,15 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     queryKey: ["/api/task-completions", dateStr],
     refetchInterval: 10000,
   });
+  const { data: myRoomIds = [] } = useQuery<number[]>({
+    queryKey: ["/api/user-rooms", user?.id],
+    enabled: !!user && user.role === "household",
+  });
 
-  const activeRooms = rooms.filter(r => !r.isExcluded);
+  const isHousehold = user?.role === "household";
+  const hasRoomFilter = isHousehold && myRoomIds.length > 0;
+  const allActiveRooms = rooms.filter(r => !r.isExcluded);
+  const activeRooms = hasRoomFilter ? allActiveRooms.filter(r => myRoomIds.includes(r.id)) : allActiveRooms;
 
   const selectedWeekNum = getWeekOfMonth(selectedDate);
 
@@ -341,6 +348,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     if (!task.isActive) return false;
     const room = rooms.find(r => r.id === task.roomId);
     if (room?.isExcluded) return false;
+    if (hasRoomFilter && !myRoomIds.includes(task.roomId)) return false;
     if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
 
     if (task.frequency === "once") {
@@ -554,6 +562,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid: boolean; isHousehold: boolean }) {
   const { lang } = useLang();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedRoom, setSelectedRoom] = useState<string>("");
 
   const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
@@ -562,9 +571,19 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
     refetchInterval: 10000,
   });
   const { data: schedule = [] } = useQuery<LaundryScheduleEntry[]>({ queryKey: ["/api/laundry-schedule"] });
+  const { data: myRoomIds = [] } = useQuery<number[]>({
+    queryKey: ["/api/user-rooms", user?.id],
+    enabled: !!user && isHousehold,
+  });
 
-  const activeRooms = rooms.filter(r => !r.isExcluded);
-  const pendingRequests = requests.filter(r => r.status === "pending");
+  const hasRoomFilter = isHousehold && myRoomIds.length > 0;
+  const allActiveRooms = rooms.filter(r => !r.isExcluded);
+  const activeRooms = hasRoomFilter ? allActiveRooms.filter(r => myRoomIds.includes(r.id)) : allActiveRooms;
+  const pendingRequests = requests.filter(r => {
+    if (r.status !== "pending") return false;
+    if (hasRoomFilter && !myRoomIds.includes(r.roomId)) return false;
+    return true;
+  });
   const today = new Date().getDay();
   const scheduledDays = schedule.map(s => s.dayOfWeek);
   const isLaundryDay = scheduledDays.includes(today);
