@@ -190,22 +190,18 @@ export default function AdminUsers() {
                 onChange={e => setNewPassword(e.target.value)}
                 data-testid="input-new-password"
               />
-              <div className="flex gap-2">
-                <Input
-                  placeholder={t("auth.firstName")}
-                  value={newFirstName}
-                  onChange={e => setNewFirstName(e.target.value)}
-                  className="flex-1"
-                  data-testid="input-new-firstname"
-                />
-                <Input
-                  placeholder={t("auth.lastName")}
-                  value={newLastName}
-                  onChange={e => setNewLastName(e.target.value)}
-                  className="flex-1"
-                  data-testid="input-new-lastname"
-                />
-              </div>
+              <Input
+                placeholder={t("auth.firstName")}
+                value={newFirstName}
+                onChange={e => setNewFirstName(e.target.value)}
+                data-testid="input-new-firstname"
+              />
+              <Input
+                placeholder={t("auth.nameEn")}
+                value={newLastName}
+                onChange={e => setNewLastName(e.target.value)}
+                data-testid="input-new-name-en"
+              />
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger data-testid="select-new-role">
                   <SelectValue />
@@ -240,7 +236,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{u.firstName || u.username || t("roles.household")}</span>
+                    <span className="font-medium">{(lang === "ar" ? (u.firstName || u.lastName || u.username) : (u.lastName || u.firstName || u.username)) || t("roles.household")}</span>
                     {u.isSuspended && (
                       <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
                         {t("admin.suspended")}
