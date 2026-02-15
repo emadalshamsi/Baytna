@@ -60,6 +60,72 @@ function TabButton({ active, icon: Icon, label, onClick, testId }: { active: boo
   );
 }
 
+function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]; selectedIds: number[]; onChange: (ids: number[]) => void; lang: string }) {
+  const [open, setOpen] = useState(false);
+  const unselected = rooms.filter(r => !selectedIds.includes(r.id));
+
+  return (
+    <div className="space-y-1.5" data-testid="multi-select-rooms">
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map(id => {
+            const room = rooms.find(r => r.id === id);
+            if (!room) return null;
+            return (
+              <Badge
+                key={id}
+                variant="secondary"
+                className="gap-1 cursor-pointer"
+                onClick={() => onChange(selectedIds.filter(rid => rid !== id))}
+                data-testid={`chip-room-${id}`}
+              >
+                <DoorOpen className="w-3 h-3" />
+                {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+                <X className="w-3 h-3" />
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+      {unselected.length > 0 && (
+        <div className="relative">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground"
+            onClick={() => setOpen(!open)}
+            data-testid="button-open-room-picker"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {selectedIds.length === 0 ? t("housekeepingSection.selectRoom") : t("housekeepingSection.addRoom")}
+          </Button>
+          {open && (
+            <Card className="absolute z-50 mt-1 w-full shadow-md" data-testid="room-picker-dropdown">
+              <CardContent className="p-1">
+                {unselected.map(room => (
+                  <div
+                    key={room.id}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover-elevate"
+                    onClick={() => {
+                      onChange([...selectedIds, room.id]);
+                      if (unselected.length <= 1) setOpen(false);
+                    }}
+                    data-testid={`option-room-${room.id}`}
+                  >
+                    <DoorOpen className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const { lang } = useLang();
   const { user } = useAuth();
@@ -67,7 +133,9 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const [filter, setFilter] = useState<string>("daily");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [newTask, setNewTask] = useState({ titleAr: "", titleEn: "", frequency: "daily", roomId: "", icon: "" });
+  const [newTask, setNewTask] = useState({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<HousekeepingTask[]>({ queryKey: ["/api/housekeeping-tasks"] });
   const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
@@ -92,15 +160,29 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     todayCompletions.map(c => c.taskId)
   );
 
-  const createTask = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/housekeeping-tasks", data),
-    onSuccess: () => {
+  const saveTasks = async () => {
+    if (!newTask.titleAr || selectedRoomIds.length === 0) return;
+    setIsSaving(true);
+    try {
+      for (const roomId of selectedRoomIds) {
+        await apiRequest("POST", "/api/housekeeping-tasks", {
+          titleAr: newTask.titleAr,
+          titleEn: newTask.titleEn,
+          frequency: newTask.frequency,
+          roomId,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/housekeeping-tasks"] });
       toast({ title: t("housekeepingSection.taskCompleted") });
       setShowAdd(false);
-      setNewTask({ titleAr: "", titleEn: "", frequency: "daily", roomId: "", icon: "" });
-    },
-  });
+      setNewTask({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
+      setSelectedRoomIds([]);
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const toggleCompletion = useMutation({
     mutationFn: async ({ taskId, isDone, frequency }: { taskId: number; isDone: boolean; frequency: string }) => {
@@ -176,7 +258,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
       {showAdd && isAdmin && (
         <Card>
-          <CardContent className="p-3 space-y-2">
+          <CardContent className="p-3 space-y-3">
             <Input placeholder={t("housekeepingSection.taskTitle") + " (عربي)"} value={newTask.titleAr} onChange={e => setNewTask(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-task-title-ar" />
             <Input placeholder={t("housekeepingSection.taskTitle") + " (EN)"} value={newTask.titleEn} onChange={e => setNewTask(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-task-title-en" />
             <Select value={newTask.frequency} onValueChange={v => setNewTask(p => ({ ...p, frequency: v }))}>
@@ -187,15 +269,17 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                 <SelectItem value="monthly">{t("housekeepingSection.monthly")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={newTask.roomId} onValueChange={v => setNewTask(p => ({ ...p, roomId: v }))}>
-              <SelectTrigger data-testid="select-task-room"><SelectValue placeholder={t("housekeepingSection.selectRoom")} /></SelectTrigger>
-              <SelectContent>
-                {activeRooms.map(r => <SelectItem key={r.id} value={String(r.id)}>{lang === "ar" ? r.nameAr : (r.nameEn || r.nameAr)}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <MultiRoomSelect
+              rooms={activeRooms}
+              selectedIds={selectedRoomIds}
+              onChange={setSelectedRoomIds}
+              lang={lang}
+            />
             <div className="flex gap-2">
-              <Button size="sm" disabled={!newTask.titleAr || !newTask.roomId || createTask.isPending} onClick={() => createTask.mutate({ ...newTask, roomId: parseInt(newTask.roomId) })} data-testid="button-save-task">{t("actions.save")}</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>{t("actions.cancel")}</Button>
+              <Button size="sm" disabled={!newTask.titleAr || selectedRoomIds.length === 0 || isSaving} onClick={saveTasks} data-testid="button-save-task">
+                {isSaving ? "..." : t("actions.save")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setSelectedRoomIds([]); }}>{t("actions.cancel")}</Button>
             </div>
           </CardContent>
         </Card>
