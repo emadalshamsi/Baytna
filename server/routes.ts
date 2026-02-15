@@ -221,7 +221,11 @@ export async function registerRoutes(
     try {
       const userId = (req.session as any).userId;
       const { firstName, lastName, profileImageUrl } = req.body;
-      const updated = await storage.updateUserProfile(userId, { firstName, lastName, profileImageUrl });
+      const updateData: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null } = {};
+      if (firstName !== undefined) updateData.firstName = typeof firstName === "string" && firstName.trim() ? firstName.trim().slice(0, 100) : null;
+      if (lastName !== undefined) updateData.lastName = typeof lastName === "string" && lastName.trim() ? lastName.trim().slice(0, 100) : null;
+      if (profileImageUrl !== undefined) updateData.profileImageUrl = typeof profileImageUrl === "string" && profileImageUrl.trim() ? profileImageUrl.trim().slice(0, 500) : null;
+      const updated = await storage.updateUserProfile(userId, updateData);
       if (!updated) return res.status(404).json({ message: "User not found" });
       const { password: _, ...safeUser } = updated;
       res.json(safeUser);

@@ -6,6 +6,8 @@ Arabic RTL web application for household shopping and task management. Features 
 ## Recent Changes (Feb 15, 2026)
 - Added Shortages (نواقص) feature: users with canAddShortages permission can request shortage items
 - Shortages table: nameAr, nameEn, quantity, notes, status (pending/approved/rejected/in_progress/completed), createdBy
+- Profile management: users can upload/remove profile photo, change password, toggle push notifications
+- PATCH /api/auth/profile and POST /api/auth/change-password endpoints added
 - User-room assignment: admin can assign rooms to household users, users only see tasks/laundry for their rooms
 - userRooms junction table links users to rooms, admin manages via expandable user cards
 - Household users with assigned rooms see filtered tasks, laundry in Housekeeping page
