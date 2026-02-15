@@ -114,8 +114,14 @@ function RoomManagement() {
   const [selectedIcon, setSelectedIcon] = useState("door");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [localRooms, setLocalRooms] = useState<Room[]>([]);
+  const [touchDrag, setTouchDrag] = useState<{ active: boolean; index: number | null; offsetY: number }>({ active: false, index: null, offsetY: 0 });
 
   const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartData = useRef<{ index: number; startY: number; itemHeight: number } | null>(null);
+  const localRoomsRef = useRef(localRooms);
+  localRoomsRef.current = localRooms;
 
   useEffect(() => {
     setLocalRooms(rooms);
@@ -222,37 +228,87 @@ function RoomManagement() {
     setDraggedIndex(null);
   };
 
-  const handleTouchStart = useRef<{ index: number; startY: number } | null>(null);
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
-  const onTouchStart = (index: number, e: React.TouchEvent) => {
-    handleTouchStart.current = { index, startY: e.touches[0].clientY };
-  };
+  const touchDragRef = useRef(touchDrag);
+  touchDragRef.current = touchDrag;
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!handleTouchStart.current) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - handleTouchStart.current.startY;
-    const threshold = 50;
-    if (Math.abs(diff) > threshold) {
-      const { index } = handleTouchStart.current;
-      const direction = diff > 0 ? 1 : -1;
-      const newIndex = index + direction;
-      if (newIndex >= 0 && newIndex < localRooms.length) {
-        const newOrder = [...localRooms];
-        const [moved] = newOrder.splice(index, 1);
-        newOrder.splice(newIndex, 0, moved);
-        setLocalRooms(newOrder);
-        handleTouchStart.current = { index: newIndex, startY: currentY };
+  const onTouchStart = useCallback((index: number, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const el = itemRefs.current[index];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    touchStartData.current = { index, startY: touch.clientY, itemHeight: rect.height };
+
+    cancelLongPress();
+    longPressTimer.current = setTimeout(() => {
+      setTouchDrag({ active: true, index, offsetY: 0 });
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 300);
+  }, [cancelLongPress]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartData.current) return;
+    const td = touchDragRef.current;
+
+    if (!td.active) {
+      const touch = e.touches[0];
+      const diff = Math.abs(touch.clientY - touchStartData.current.startY);
+      if (diff > 10) {
+        cancelLongPress();
       }
+      return;
     }
-  };
 
-  const onTouchEnd = () => {
-    if (handleTouchStart.current) {
-      reorderRooms.mutate(localRooms.map(r => r.id));
-      handleTouchStart.current = null;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const { startY, itemHeight } = touchStartData.current;
+    const currentY = touch.clientY;
+    const rawOffset = currentY - startY;
+    const curIdx = td.index;
+    if (curIdx === null) return;
+
+    const moveThreshold = itemHeight * 0.5;
+    const curRooms = localRoomsRef.current;
+
+    if (rawOffset > moveThreshold && curIdx < curRooms.length - 1) {
+      const newOrder = [...curRooms];
+      const [moved] = newOrder.splice(curIdx, 1);
+      newOrder.splice(curIdx + 1, 0, moved);
+      setLocalRooms(newOrder);
+      const newIdx = curIdx + 1;
+      touchStartData.current = { ...touchStartData.current, startY: startY + itemHeight };
+      setTouchDrag({ active: true, index: newIdx, offsetY: rawOffset - itemHeight });
+    } else if (rawOffset < -moveThreshold && curIdx > 0) {
+      const newOrder = [...curRooms];
+      const [moved] = newOrder.splice(curIdx, 1);
+      newOrder.splice(curIdx - 1, 0, moved);
+      setLocalRooms(newOrder);
+      const newIdx = curIdx - 1;
+      touchStartData.current = { ...touchStartData.current, startY: startY - itemHeight };
+      setTouchDrag({ active: true, index: newIdx, offsetY: rawOffset + itemHeight });
+    } else {
+      setTouchDrag({ active: true, index: curIdx, offsetY: rawOffset });
     }
-  };
+  }, [cancelLongPress]);
+
+  const onTouchEnd = useCallback(() => {
+    cancelLongPress();
+    if (touchDragRef.current.active) {
+      reorderRooms.mutate(localRoomsRef.current.map(r => r.id));
+    }
+    touchStartData.current = null;
+    setTouchDrag({ active: false, index: null, offsetY: 0 });
+  }, [reorderRooms, cancelLongPress]);
+
+  useEffect(() => {
+    return () => cancelLongPress();
+  }, [cancelLongPress]);
 
   return (
     <div className="space-y-3">
@@ -302,58 +358,72 @@ function RoomManagement() {
       {localRooms.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">{t("rooms.noRooms")}</p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5" style={{ position: "relative" }}>
           {localRooms.map((room, index) => {
             const RoomIconComp = getRoomIcon(room.icon);
+            const isTouchDragged = touchDrag.active && touchDrag.index === index;
             return (
-              <Card
+              <div
                 key={room.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={handleDrop}
-                className={`transition-all ${draggedIndex === index ? "ring-2 ring-primary" : ""}`}
-                data-testid={`card-room-${room.id}`}
+                ref={(el) => { itemRefs.current[index] = el; }}
+                style={isTouchDragged ? {
+                  transform: `translateY(${touchDrag.offsetY}px)`,
+                  zIndex: 50,
+                  position: "relative",
+                  transition: "none",
+                } : {
+                  transition: touchDrag.active ? "transform 200ms ease" : "none",
+                  transform: "translateY(0)",
+                }}
               >
-                <CardContent className="p-3 flex items-center justify-between gap-2">
-                  <div
-                    className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing"
-                    onTouchStart={(e) => onTouchStart(index, e)}
-                    onTouchMove={onTouchMove}
-                    onTouchEnd={onTouchEnd}
-                  >
-                    <GripVertical className="w-4 h-4 flex-shrink-0 text-muted-foreground/50" />
-                    <RoomIconComp className={`w-4 h-4 flex-shrink-0 ${room.isExcluded ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
-                    <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground/50" : ""}`}>
-                      {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <Switch
-                      checked={!room.isExcluded}
-                      onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
-                      data-testid={`switch-room-${room.id}`}
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => startEdit(room)}
-                      data-testid={`button-edit-room-${room.id}`}
+                <Card
+                  draggable={!touchDrag.active}
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={handleDrop}
+                  className={`${draggedIndex === index ? "ring-2 ring-primary" : ""} ${isTouchDragged ? "ring-2 ring-primary shadow-lg scale-[1.03]" : ""}`}
+                  data-testid={`card-room-${room.id}`}
+                >
+                  <CardContent className="p-3 flex items-center justify-between gap-2">
+                    <div
+                      className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing touch-none select-none"
+                      onTouchStart={(e) => onTouchStart(index, e)}
+                      onTouchMove={onTouchMove}
+                      onTouchEnd={onTouchEnd}
                     >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => deleteRoom.mutate(room.id)}
-                      data-testid={`button-delete-room-${room.id}`}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                      <GripVertical className={`w-4 h-4 flex-shrink-0 ${isTouchDragged ? "text-primary" : "text-muted-foreground/50"}`} />
+                      <RoomIconComp className={`w-4 h-4 flex-shrink-0 ${room.isExcluded ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
+                      <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground/50" : ""}`}>
+                        {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Switch
+                        checked={!room.isExcluded}
+                        onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
+                        data-testid={`switch-room-${room.id}`}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => startEdit(room)}
+                        data-testid={`button-edit-room-${room.id}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteRoom.mutate(room.id)}
+                        data-testid={`button-delete-room-${room.id}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
         </div>
