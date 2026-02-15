@@ -3,11 +3,19 @@
 ## Overview
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
-## Recent Changes (Feb 14, 2026)
+## Recent Changes (Feb 15, 2026)
+- Replaced daily/weekly/monthly frequency filter with horizontal date strip in Tasks tab
+- Added daysOfWeek integer[] column to housekeeping_tasks for flexible day-of-week scheduling
+- DateStrip component: scrollable 29-day range centered on today, auto-scrolls to selected date
+- DaysOfWeekSelector component: multi-select toggle for choosing recurring days when creating tasks
+- Tasks now filter by selected date's day-of-week matching task's daysOfWeek array
+- Completion tracking uses simple YYYY-MM-DD date strings per selected date
+- Added i18n translations for day abbreviations (sat/sun/mon/tue/wed/thu/fri)
+
+## Previous Changes (Feb 14, 2026)
 - Built complete Housekeeping module with 3 subsystems: Tasks, Laundry, Kitchen
 - Added 6 new database tables: rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals
 - Room management in Settings page (admin can add, exclude, delete rooms)
-- Tasks tab: recurring task checklist (daily/weekly/monthly) linked to rooms, completion tracking
 - Laundry tab: household sends laundry requests per room, maid marks as done, admin manages weekly schedule
 - Kitchen tab: weekly meal planning with meal type, people count, notes, image URLs
 - All housekeeping features have full Arabic/English i18n support

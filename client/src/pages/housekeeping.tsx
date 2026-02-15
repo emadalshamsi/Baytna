@@ -10,7 +10,7 @@ import {
   Users, StickyNote, Clock, DoorOpen, CalendarDays,
   Shirt, AlertCircle, ImageIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -20,30 +20,124 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundryScheduleEntry, Meal } from "@shared/schema";
 
 const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+const dayAbbrevKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const mealTypes = ["breakfast", "lunch", "dinner"] as const;
 
-function getTodayDateStr(): string {
-  const d = new Date();
+function formatDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function getWeekDateStr(frequency: string): string {
-  const d = new Date();
-  if (frequency === "weekly") {
-    const day = d.getDay();
-    const diff = day === 6 ? 0 : -(day + 1);
-    const sat = new Date(d);
-    sat.setDate(d.getDate() + diff);
-    return `W-${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, "0")}-${String(sat.getDate()).padStart(2, "0")}`;
-  }
-  if (frequency === "monthly") {
-    return `M-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  return getTodayDateStr();
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function getCompletionKey(taskId: number, frequency: string): string {
-  return `${taskId}-${getWeekDateStr(frequency)}`;
+function getDateRange(centerDate: Date, range: number): Date[] {
+  const dates: Date[] = [];
+  for (let i = -range; i <= range; i++) {
+    const d = new Date(centerDate);
+    d.setDate(centerDate.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (d: Date) => void }) {
+  const { lang } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const today = new Date();
+  const dates = getDateRange(today, 14);
+  const isRtl = lang === "ar";
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      const selected = scrollRef.current.querySelector("[data-selected='true']") as HTMLElement;
+      if (selected) {
+        selected.scrollIntoView({ inline: "center", behavior: "auto", block: "nearest" });
+      }
+    }
+  }, []);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="flex gap-1.5 overflow-x-auto pb-1.5"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      data-testid="date-strip"
+    >
+      {dates.map(d => {
+        const isToday = isSameDay(d, today);
+        const isSelected = isSameDay(d, selectedDate);
+        const dayOfWeek = d.getDay();
+        const dayAbbr = t(`housekeepingSection.${dayAbbrevKeys[dayOfWeek]}`);
+        const dateNum = d.getDate();
+        return (
+          <button
+            key={formatDateStr(d)}
+            data-selected={isSelected ? "true" : "false"}
+            className={`flex flex-col items-center justify-center min-w-[3rem] py-1.5 px-1 rounded-md transition-colors flex-shrink-0 ${
+              isSelected
+                ? "bg-primary text-primary-foreground"
+                : isToday
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover-elevate"
+            }`}
+            onClick={() => onSelect(d)}
+            data-testid={`date-${formatDateStr(d)}`}
+          >
+            <span className="text-[10px] font-medium leading-none mb-0.5">{dayAbbr}</span>
+            <span className="text-base font-bold leading-none">{dateNum}</span>
+            {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-primary mt-0.5" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function DaysOfWeekSelector({ selectedDays, onChange }: { selectedDays: number[]; onChange: (days: number[]) => void }) {
+  const toggle = (day: number) => {
+    if (selectedDays.includes(day)) {
+      onChange(selectedDays.filter(d => d !== day));
+    } else {
+      onChange([...selectedDays, day]);
+    }
+  };
+  const allSelected = selectedDays.length === 7;
+  const toggleAll = () => {
+    onChange(allSelected ? [] : [0, 1, 2, 3, 4, 5, 6]);
+  };
+
+  return (
+    <div className="space-y-1.5" data-testid="days-of-week-selector">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          type="button"
+          variant={allSelected ? "default" : "outline"}
+          size="sm"
+          className="text-xs"
+          onClick={toggleAll}
+          data-testid="button-toggle-all-days"
+        >
+          {t("housekeepingSection.everyDay")}
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {dayAbbrevKeys.map((key, i) => (
+          <Button
+            key={i}
+            type="button"
+            variant={selectedDays.includes(i) ? "default" : "outline"}
+            size="sm"
+            className="text-xs p-1"
+            onClick={() => toggle(i)}
+            data-testid={`button-day-${i}`}
+          >
+            {t(`housekeepingSection.${key}`)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function TabButton({ active, icon: Icon, label, onClick, testId }: { active: boolean; icon: any; label: string; onClick: () => void; testId: string }) {
@@ -130,38 +224,42 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const { lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [filter, setFilter] = useState<string>("daily");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
+  const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [isSaving, setIsSaving] = useState(false);
+
+  const dateStr = formatDateStr(selectedDate);
+  const selectedDayOfWeek = selectedDate.getDay();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<HousekeepingTask[]>({ queryKey: ["/api/housekeeping-tasks"] });
   const { data: rooms = [] } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
   const { data: completions = [] } = useQuery<TaskCompletion[]>({
-    queryKey: ["/api/task-completions", getWeekDateStr(filter)],
+    queryKey: ["/api/task-completions", dateStr],
     refetchInterval: 10000,
   });
-
-  const todayCompletions = completions;
 
   const activeRooms = rooms.filter(r => !r.isExcluded);
 
   const filteredTasks = tasks.filter(task => {
-    if (task.frequency !== filter) return false;
+    if (!task.isActive) return false;
     const room = rooms.find(r => r.id === task.roomId);
     if (room?.isExcluded) return false;
     if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
+    const taskDays = task.daysOfWeek as number[] | null;
+    if (taskDays && taskDays.length > 0) {
+      if (!taskDays.includes(selectedDayOfWeek)) return false;
+    }
     return true;
   });
 
-  const completedTaskIds = new Set(
-    todayCompletions.map(c => c.taskId)
-  );
+  const completedTaskIds = new Set(completions.map(c => c.taskId));
 
   const saveTasks = async () => {
-    if (!newTask.titleAr || selectedRoomIds.length === 0) return;
+    if (!newTask.titleAr || selectedRoomIds.length === 0 || selectedDaysOfWeek.length === 0) return;
     setIsSaving(true);
     try {
       for (const roomId of selectedRoomIds) {
@@ -169,6 +267,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           titleAr: newTask.titleAr,
           titleEn: newTask.titleEn,
           frequency: newTask.frequency,
+          daysOfWeek: selectedDaysOfWeek,
           roomId,
         });
       }
@@ -177,6 +276,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       setShowAdd(false);
       setNewTask({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
       setSelectedRoomIds([]);
+      setSelectedDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
     } catch {
       toast({ title: "Error", variant: "destructive" });
     } finally {
@@ -185,8 +285,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   };
 
   const toggleCompletion = useMutation({
-    mutationFn: async ({ taskId, isDone, frequency }: { taskId: number; isDone: boolean; frequency: string }) => {
-      const dateStr = getWeekDateStr(frequency);
+    mutationFn: async ({ taskId, isDone }: { taskId: number; isDone: boolean }) => {
       if (isDone) {
         await apiRequest("DELETE", `/api/task-completions/${taskId}/${dateStr}`);
       } else {
@@ -210,20 +309,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1.5">
-        {(["daily", "weekly", "monthly"] as const).map(f => (
-          <Button
-            key={f}
-            variant={filter === f ? "default" : "outline"}
-            size="sm"
-            className="flex-1"
-            onClick={() => setFilter(f)}
-            data-testid={`button-filter-${f}`}
-          >
-            {t(`housekeepingSection.${f}`)}
-          </Button>
-        ))}
-      </div>
+      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
 
       {activeRooms.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -261,14 +347,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           <CardContent className="p-3 space-y-3">
             <Input placeholder={t("housekeepingSection.taskTitle") + " (عربي)"} value={newTask.titleAr} onChange={e => setNewTask(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-task-title-ar" />
             <Input placeholder={t("housekeepingSection.taskTitle") + " (EN)"} value={newTask.titleEn} onChange={e => setNewTask(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-task-title-en" />
-            <Select value={newTask.frequency} onValueChange={v => setNewTask(p => ({ ...p, frequency: v }))}>
-              <SelectTrigger data-testid="select-task-frequency"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">{t("housekeepingSection.daily")}</SelectItem>
-                <SelectItem value="weekly">{t("housekeepingSection.weekly")}</SelectItem>
-                <SelectItem value="monthly">{t("housekeepingSection.monthly")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <DaysOfWeekSelector selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek} />
             <MultiRoomSelect
               rooms={activeRooms}
               selectedIds={selectedRoomIds}
@@ -276,7 +355,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
               lang={lang}
             />
             <div className="flex gap-2">
-              <Button size="sm" disabled={!newTask.titleAr || selectedRoomIds.length === 0 || isSaving} onClick={saveTasks} data-testid="button-save-task">
+              <Button size="sm" disabled={!newTask.titleAr || selectedRoomIds.length === 0 || selectedDaysOfWeek.length === 0 || isSaving} onClick={saveTasks} data-testid="button-save-task">
                 {isSaving ? "..." : t("actions.save")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setSelectedRoomIds([]); }}>{t("actions.cancel")}</Button>
@@ -301,7 +380,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                 className={`hover-elevate active-elevate-2 cursor-pointer transition-all ${isDone ? "opacity-60" : ""}`}
                 onClick={() => {
                   if (user?.role === "maid" || user?.role === "admin") {
-                    toggleCompletion.mutate({ taskId: task.id, isDone, frequency: task.frequency });
+                    toggleCompletion.mutate({ taskId: task.id, isDone });
                   }
                 }}
                 data-testid={`card-task-${task.id}`}

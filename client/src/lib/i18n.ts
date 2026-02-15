@@ -76,6 +76,15 @@ const ar = {
     today: "اليوم",
     allRooms: "كل الغرف",
     selectFrequency: "اختر التكرار",
+    selectDays: "اختر أيام التكرار",
+    everyDay: "كل يوم",
+    sat: "سب",
+    sun: "أحد",
+    mon: "إثن",
+    tue: "ثلا",
+    wed: "أرب",
+    thu: "خمي",
+    fri: "جمع",
   },
 };
 
@@ -157,6 +166,15 @@ const en: typeof ar = {
     today: "Today",
     allRooms: "All Rooms",
     selectFrequency: "Select Frequency",
+    selectDays: "Select days",
+    everyDay: "Every day",
+    sat: "Sat",
+    sun: "Sun",
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
   },
 };
 
