@@ -90,7 +90,7 @@ export default function LoginPage() {
           <Switch
             checked={lang === "en"}
             onCheckedChange={toggleLang}
-            className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
+            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
             data-testid="switch-lang-toggle"
           />
           <span className={`text-[11px] ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
