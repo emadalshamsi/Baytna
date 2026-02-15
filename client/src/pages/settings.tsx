@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Moon, Sun, Plus, DoorOpen, X, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Moon, Sun, Plus, DoorOpen, X, GripVertical } from "lucide-react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -113,13 +113,27 @@ function RoomManagement() {
     },
   });
 
-  const moveRoom = (index: number, direction: "up" | "down") => {
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= rooms.length) return;
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    dragItem.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverItem.current = index;
+  };
+
+  const handleDrop = () => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) return;
     const newOrder = [...rooms];
-    const [moved] = newOrder.splice(index, 1);
-    newOrder.splice(newIndex, 0, moved);
+    const [moved] = newOrder.splice(dragItem.current, 1);
+    newOrder.splice(dragOverItem.current, 0, moved);
     reorderRooms.mutate(newOrder.map(r => r.id));
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
 
   return (
@@ -172,11 +186,19 @@ function RoomManagement() {
       ) : (
         <div className="space-y-1.5">
           {rooms.map((room, index) => (
-            <Card key={room.id} data-testid={`card-room-${room.id}`}>
+            <Card
+              key={room.id}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={handleDrop}
+              className="cursor-grab active:cursor-grabbing"
+              data-testid={`card-room-${room.id}`}
+            >
               <CardContent className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <DoorOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground line-through" : ""}`}>
+                  <DoorOpen className={`w-4 h-4 flex-shrink-0 ${room.isExcluded ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
+                  <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground/50" : ""}`}>
                     {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
                   </span>
                 </div>
@@ -194,24 +216,7 @@ function RoomManagement() {
                   >
                     <X className="w-4 h-4" />
                   </Button>
-                  <div className="flex flex-col">
-                    <button
-                      className="p-0.5 text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
-                      disabled={index === 0}
-                      onClick={() => moveRoom(index, "up")}
-                      data-testid={`button-room-up-${room.id}`}
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="p-0.5 text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
-                      disabled={index === rooms.length - 1}
-                      onClick={() => moveRoom(index, "down")}
-                      data-testid={`button-room-down-${room.id}`}
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <GripVertical className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
                 </div>
               </CardContent>
             </Card>
