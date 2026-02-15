@@ -233,8 +233,8 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const { role, canApprove } = req.body;
-      const user = await storage.updateUserRole(req.params.id, role, canApprove ?? false);
+      const { role, canApprove, canAddShortages } = req.body;
+      const user = await storage.updateUserRole(req.params.id, role, canApprove ?? false, canAddShortages);
       if (user) {
         const { password: _, ...safeUser } = user;
         res.json(safeUser);
@@ -1409,6 +1409,100 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to mark all read" });
+    }
+  });
+
+  app.get("/api/shortages", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role === "admin") {
+        const all = await storage.getShortages();
+        res.json(all);
+      } else {
+        const mine = await storage.getShortagesByUser(userId);
+        res.json(mine);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch shortages" });
+    }
+  });
+
+  app.post("/api/shortages", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (!currentUser.canAddShortages && currentUser.role !== "admin") {
+        return res.status(403).json({ message: "ليس لديك صلاحية لإضافة نواقص" });
+      }
+      const shortage = await storage.createShortage({
+        ...req.body,
+        createdBy: userId,
+        status: "pending",
+      });
+
+      const allUsers = await storage.getAllUsers();
+      const admins = allUsers.filter(u => u.role === "admin");
+      for (const admin of admins) {
+        if (admin.id !== userId) {
+          await notifyAndPush(admin.id, {
+            titleAr: "طلب نقص جديد",
+            titleEn: "New Shortage Request",
+            bodyAr: `${currentUser.firstName || currentUser.username} أضاف نقص: ${req.body.nameAr}`,
+            bodyEn: `${currentUser.firstName || currentUser.username} added shortage: ${req.body.nameEn || req.body.nameAr}`,
+            type: "shortage",
+            url: "/groceries",
+          });
+        }
+      }
+
+      res.json(shortage);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create shortage" });
+    }
+  });
+
+  app.patch("/api/shortages/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { status } = req.body;
+      const shortage = await storage.updateShortageStatus(parseInt(req.params.id), status, currentUser.id);
+      if (!shortage) return res.status(404).json({ message: "Not found" });
+
+      if (shortage.createdBy !== currentUser.id) {
+        const statusAr = status === "approved" ? "تمت الموافقة" : status === "rejected" ? "تم الرفض" : status === "in_progress" ? "قيد التنفيذ" : "مكتمل";
+        const statusEn = status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : status === "in_progress" ? "In Progress" : "Completed";
+        await notifyAndPush(shortage.createdBy, {
+          titleAr: `تحديث طلب النقص: ${statusAr}`,
+          titleEn: `Shortage Update: ${statusEn}`,
+          bodyAr: `طلب النقص "${shortage.nameAr}" ${statusAr}`,
+          bodyEn: `Shortage "${shortage.nameEn || shortage.nameAr}" ${statusEn}`,
+          type: "shortage_update",
+          url: "/groceries",
+        });
+      }
+
+      res.json(shortage);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update shortage status" });
+    }
+  });
+
+  app.delete("/api/shortages/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await storage.deleteShortage(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete shortage" });
     }
   });
 

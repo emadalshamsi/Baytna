@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 20 }).notNull().default("household"),
   displayName: varchar("display_name"),
   canApprove: boolean("can_approve").notNull().default(false),
+  canAddShortages: boolean("can_add_shortages").notNull().default(false),
   isSuspended: boolean("is_suspended").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -196,6 +197,19 @@ export const meals = pgTable("meals", {
   notes: text("notes"),
 });
 
+export const shortages = pgTable("shortages", {
+  id: serial("id").primaryKey(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  quantity: integer("quantity").notNull().default(1),
+  notes: text("notes"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -246,6 +260,7 @@ export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).om
 export const insertLaundryRequestSchema = createInsertSchema(laundryRequests).omit({ id: true, createdAt: true, completedAt: true });
 export const insertLaundryScheduleSchema = createInsertSchema(laundrySchedule).omit({ id: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
+export const insertShortageSchema = createInsertSchema(shortages).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
@@ -282,6 +297,8 @@ export type LaundryScheduleEntry = typeof laundrySchedule.$inferSelect;
 export type InsertLaundrySchedule = z.infer<typeof insertLaundryScheduleSchema>;
 export type Meal = typeof meals.$inferSelect;
 export type InsertMeal = z.infer<typeof insertMealSchema>;
+export type Shortage = typeof shortages.$inferSelect;
+export type InsertShortage = z.infer<typeof insertShortageSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type Notification = typeof notifications.$inferSelect;

@@ -4,7 +4,7 @@ import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
   rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
-  pushSubscriptions, notifications,
+  shortages, pushSubscriptions, notifications,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
@@ -19,6 +19,7 @@ import {
   type LaundryRequest, type InsertLaundryRequest,
   type LaundryScheduleEntry, type InsertLaundrySchedule,
   type Meal, type InsertMeal,
+  type Shortage, type InsertShortage,
   type PushSubscription, type InsertPushSubscription,
   type Notification, type InsertNotification,
 } from "@shared/schema";
@@ -30,7 +31,7 @@ export interface IStorage {
   createUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
-  updateUserRole(id: string, role: string, canApprove: boolean): Promise<User | undefined>;
+  updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean): Promise<User | undefined>;
   suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
 
   getCategories(): Promise<Category[]>;
@@ -126,6 +127,13 @@ export interface IStorage {
   updateMeal(id: number, meal: Partial<InsertMeal>): Promise<Meal | undefined>;
   deleteMeal(id: number): Promise<void>;
 
+  getShortages(): Promise<Shortage[]>;
+  getShortagesByUser(userId: string): Promise<Shortage[]>;
+  getShortage(id: number): Promise<Shortage | undefined>;
+  createShortage(shortage: InsertShortage): Promise<Shortage>;
+  updateShortageStatus(id: number, status: string, approvedBy?: string): Promise<Shortage | undefined>;
+  deleteShortage(id: number): Promise<void>;
+
   getPushSubscriptions(userId: string): Promise<PushSubscription[]>;
   getAllPushSubscriptions(): Promise<PushSubscription[]>;
   createPushSubscription(sub: InsertPushSubscription): Promise<PushSubscription>;
@@ -182,8 +190,10 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async updateUserRole(id: string, role: string, canApprove: boolean): Promise<User | undefined> {
-    const [user] = await db.update(users).set({ role, canApprove, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+  async updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean): Promise<User | undefined> {
+    const setData: any = { role, canApprove, updatedAt: new Date() };
+    if (canAddShortages !== undefined) setData.canAddShortages = canAddShortages;
+    const [user] = await db.update(users).set(setData).where(eq(users.id, id)).returning();
     return user;
   }
 
@@ -578,6 +588,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMeal(id: number): Promise<void> {
     await db.delete(meals).where(eq(meals.id, id));
+  }
+
+  async getShortages(): Promise<Shortage[]> {
+    return db.select().from(shortages).orderBy(desc(shortages.createdAt));
+  }
+
+  async getShortagesByUser(userId: string): Promise<Shortage[]> {
+    return db.select().from(shortages).where(eq(shortages.createdBy, userId)).orderBy(desc(shortages.createdAt));
+  }
+
+  async getShortage(id: number): Promise<Shortage | undefined> {
+    const [result] = await db.select().from(shortages).where(eq(shortages.id, id));
+    return result;
+  }
+
+  async createShortage(shortage: InsertShortage): Promise<Shortage> {
+    const [result] = await db.insert(shortages).values(shortage).returning();
+    return result;
+  }
+
+  async updateShortageStatus(id: number, status: string, approvedBy?: string): Promise<Shortage | undefined> {
+    const setData: any = { status, updatedAt: new Date() };
+    if (approvedBy) setData.approvedBy = approvedBy;
+    const [result] = await db.update(shortages).set(setData).where(eq(shortages.id, id)).returning();
+    return result;
+  }
+
+  async deleteShortage(id: number): Promise<void> {
+    await db.delete(shortages).where(eq(shortages.id, id));
   }
 
   async getPushSubscriptions(userId: string): Promise<PushSubscription[]> {
