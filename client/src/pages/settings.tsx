@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Moon, Sun, Plus, DoorOpen, X, ArrowUp, ArrowDown } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Moon, Sun, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -15,56 +15,35 @@ import { Input } from "@/components/ui/input";
 import AdminUsers from "@/pages/admin-users";
 import type { Room } from "@shared/schema";
 
-function ThemeToggleCard() {
+function CollapsibleSection({ title, icon, defaultOpen = false, children, testId }: {
+  title: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  testId: string;
+}) {
   const { lang } = useLang();
-  const [dark, setDark] = useState(document.documentElement.classList.contains("dark"));
-
-  const toggle = () => {
-    const next = !dark;
-    setDark(next);
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
+  const [open, setOpen] = useState(defaultOpen);
+  const ChevronClosed = lang === "ar" ? ChevronLeft : ChevronRight;
 
   return (
-    <Card className="hover-elevate active-elevate-2 cursor-pointer" onClick={toggle} data-testid="card-theme-toggle">
-      <CardContent className="p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-            {dark ? <Moon className="w-5 h-5 text-muted-foreground" /> : <Sun className="w-5 h-5 text-muted-foreground" />}
-          </div>
-          <span className="text-sm font-medium">{dark ? (lang === "ar" ? "الوضع الداكن" : "Dark Mode") : (lang === "ar" ? "الوضع الفاتح" : "Light Mode")}</span>
+    <div data-testid={testId}>
+      <button
+        type="button"
+        className="flex items-center gap-2 w-full text-start py-2 px-1"
+        onClick={() => setOpen(!open)}
+        data-testid={`button-toggle-${testId}`}
+      >
+        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronClosed className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+        {icon}
+        <span className="text-sm font-bold flex-1">{title}</span>
+      </button>
+      {open && (
+        <div className="mt-1">
+          {children}
         </div>
-        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate">
-          {dark ? (lang === "ar" ? "مفعّل" : "On") : (lang === "ar" ? "معطّل" : "Off")}
-        </Badge>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LangToggleCard() {
-  const { lang, toggleLang } = useLang();
-
-  return (
-    <Card className="hover-elevate active-elevate-2 cursor-pointer" onClick={toggleLang} data-testid="card-lang-toggle">
-      <CardContent className="p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-muted-foreground">{lang === "ar" ? "EN" : "ع"}</span>
-          </div>
-          <span className="text-sm font-medium">{lang === "ar" ? "اللغة" : "Language"}</span>
-        </div>
-        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate">
-          {lang === "ar" ? "العربية" : "English"}
-        </Badge>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 
@@ -123,12 +102,8 @@ function RoomManagement() {
   };
 
   return (
-    <div className="space-y-3" data-testid="section-rooms">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-sm font-bold flex items-center gap-2">
-          <DoorOpen className="w-4 h-4" />
-          {t("rooms.title")}
-        </h3>
+    <div className="space-y-3">
+      <div className="flex items-center justify-end">
         <Button size="sm" onClick={() => setShowAdd(!showAdd)} data-testid="button-add-room">
           <Plus className="w-4 h-4" />
           {t("rooms.addRoom")}
@@ -227,12 +202,48 @@ function RoomManagement() {
 }
 
 export default function SettingsPage() {
-  useLang();
+  const { lang, toggleLang } = useLang();
   const { user, logout } = useAuth();
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  const toggleTheme = () => {
+    setDark(prev => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+      return next;
+    });
+  };
+
   if (!user) return null;
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5" data-testid="lang-toggle-container">
+          <span className={`text-xs ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>ع</span>
+          <Switch
+            checked={lang === "en"}
+            onCheckedChange={toggleLang}
+            className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:ltr:translate-x-4 [&>span]:data-[state=checked]:rtl:-translate-x-4"
+            data-testid="switch-lang-toggle"
+          />
+          <span className={`text-xs ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+        </div>
+        <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-toggle">
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </Button>
+      </div>
+
       <Card data-testid="card-profile">
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
@@ -258,25 +269,29 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <ThemeToggleCard />
-        <LangToggleCard />
-      </div>
-
       <Button variant="destructive" className="w-full gap-2" onClick={logout} data-testid="button-logout">
         <LogOut className="w-4 h-4" />
         {t("actions.logout")}
       </Button>
 
       {user.role === "admin" && (
-        <>
-          <div className="mt-6">
+        <div className="space-y-2">
+          <CollapsibleSection
+            title={t("rooms.title")}
+            icon={<DoorOpen className="w-4 h-4" />}
+            testId="section-rooms"
+          >
             <RoomManagement />
-          </div>
-          <div className="mt-6">
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title={t("admin.users")}
+            icon={<Users className="w-4 h-4" />}
+            testId="section-users"
+          >
             <AdminUsers />
-          </div>
-        </>
+          </CollapsibleSection>
+        </div>
       )}
     </div>
   );
