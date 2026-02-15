@@ -98,7 +98,7 @@ function DateStrip({ selectedDate, onSelect, daysWithData }: { selectedDate: Dat
           <button
             key={formatDateStr(d)}
             data-selected={isSelected ? "true" : "false"}
-            className={`flex flex-col items-center justify-center min-w-[3rem] py-3 px-1 rounded-md transition-colors flex-shrink-0 ${
+            className={`flex flex-col items-center justify-center min-w-[3rem] h-[3.5rem] px-1 rounded-md transition-colors flex-shrink-0 ${
               isSelected
                 ? "bg-primary text-primary-foreground"
                 : isToday
@@ -110,8 +110,10 @@ function DateStrip({ selectedDate, onSelect, daysWithData }: { selectedDate: Dat
           >
             <span className="text-[10px] font-medium leading-none mb-0.5">{dayAbbr}</span>
             <span className="text-base font-bold leading-none">{dateNum}</span>
-            {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-primary mt-0.5" />}
-            {!isToday && !isSelected && daysWithData?.has(dayOfWeek) && <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-0.5" />}
+            <div className="h-1.5 mt-0.5 flex items-center justify-center">
+              {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-primary" />}
+              {!isToday && !isSelected && daysWithData?.has(dayOfWeek) && <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />}
+            </div>
           </button>
         );
       })}
