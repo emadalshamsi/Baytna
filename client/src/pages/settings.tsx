@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Moon, Sun, Plus, DoorOpen, X } from "lucide-react";
+import { LogOut, Moon, Sun, Plus, DoorOpen, X, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
@@ -106,6 +106,22 @@ function RoomManagement() {
     },
   });
 
+  const reorderRooms = useMutation({
+    mutationFn: (orderedIds: number[]) => apiRequest("POST", "/api/rooms/reorder", { orderedIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+    },
+  });
+
+  const moveRoom = (index: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= rooms.length) return;
+    const newOrder = [...rooms];
+    const [moved] = newOrder.splice(index, 1);
+    newOrder.splice(newIndex, 0, moved);
+    reorderRooms.mutate(newOrder.map(r => r.id));
+  };
+
   return (
     <div className="space-y-3" data-testid="section-rooms">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -155,16 +171,16 @@ function RoomManagement() {
         <p className="text-sm text-muted-foreground text-center py-4">{t("rooms.noRooms")}</p>
       ) : (
         <div className="space-y-1.5">
-          {rooms.map((room) => (
+          {rooms.map((room, index) => (
             <Card key={room.id} data-testid={`card-room-${room.id}`}>
-              <CardContent className="p-3 flex items-center justify-between gap-3">
+              <CardContent className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <DoorOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <span className={`text-sm font-medium truncate ${room.isExcluded ? "text-muted-foreground line-through" : ""}`}>
                     {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Switch
                     checked={!room.isExcluded}
                     onCheckedChange={(checked) => toggleExclude.mutate({ id: room.id, isExcluded: !checked })}
@@ -178,6 +194,24 @@ function RoomManagement() {
                   >
                     <X className="w-4 h-4" />
                   </Button>
+                  <div className="flex flex-col">
+                    <button
+                      className="p-0.5 text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
+                      disabled={index === 0}
+                      onClick={() => moveRoom(index, "up")}
+                      data-testid={`button-room-up-${room.id}`}
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      className="p-0.5 text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors"
+                      disabled={index === rooms.length - 1}
+                      onClick={() => moveRoom(index, "down")}
+                      data-testid={`button-room-down-${room.id}`}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

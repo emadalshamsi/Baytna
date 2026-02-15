@@ -899,10 +899,29 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const room = await storage.createRoom(req.body);
+      const allRooms = await storage.getRooms();
+      const maxSort = allRooms.reduce((max, r) => Math.max(max, r.sortOrder || 0), 0);
+      const room = await storage.createRoom({ ...req.body, sortOrder: maxSort + 1 });
       res.json(room);
     } catch (error) {
       res.status(500).json({ message: "Failed to create room" });
+    }
+  });
+
+  app.post("/api/rooms/reorder", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { orderedIds } = req.body as { orderedIds: number[] };
+      if (!Array.isArray(orderedIds)) return res.status(400).json({ message: "orderedIds required" });
+      for (let i = 0; i < orderedIds.length; i++) {
+        await storage.updateRoom(orderedIds[i], { sortOrder: i });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reorder rooms" });
     }
   });
 
