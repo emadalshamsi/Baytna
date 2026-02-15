@@ -162,6 +162,38 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/create-user", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const admin = await storage.getUser(userId);
+      if (!admin || admin.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+      const { username, password, firstName, lastName, role } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "اسم المستخدم مستخدم بالفعل" });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        role: role || "household",
+        canApprove: false,
+      });
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Admin create user error:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const parsed = loginSchema.safeParse(req.body);

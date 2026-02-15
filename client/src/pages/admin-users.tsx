@@ -4,8 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -78,12 +80,38 @@ export default function AdminUsers() {
   const { toast } = useToast();
   const { data: allUsers, isLoading } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
+  const [newRole, setNewRole] = useState("household");
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, role, canApprove, canAddShortages, canApproveTrips }: { id: string; role: string; canApprove: boolean; canAddShortages?: boolean; canApproveTrips?: boolean }) => {
       await apiRequest("PATCH", `/api/users/${id}/role`, { role, canApprove, canAddShortages, canApproveTrips });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/users"] }); toast({ title: t("admin.userRoleUpdated") }); },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: { username: string; password: string; firstName: string; lastName: string; role: string }) => {
+      const res = await apiRequest("POST", "/api/admin/create-user", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: t("admin.userCreated") });
+      setShowAddForm(false);
+      setNewUsername("");
+      setNewPassword("");
+      setNewFirstName("");
+      setNewLastName("");
+      setNewRole("household");
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || t("admin.usernameExists"), variant: "destructive" });
+    },
   });
 
   const suspendMutation = useMutation({
@@ -110,8 +138,86 @@ export default function AdminUsers() {
   const roles = ["admin", "household", "maid", "driver"] as const;
   const sortedUsers = [...(allUsers || [])].sort((a, b) => (a.username || "").localeCompare(b.username || ""));
 
+  const handleCreateUser = () => {
+    if (!newUsername.trim() || !newPassword.trim()) return;
+    createUserMutation.mutate({
+      username: newUsername.trim(),
+      password: newPassword.trim(),
+      firstName: newFirstName.trim(),
+      lastName: newLastName.trim(),
+      role: newRole,
+    });
+  };
+
   return (
     <div className="space-y-3">
+        <Button
+          variant={showAddForm ? "secondary" : "default"}
+          className="w-full gap-2"
+          onClick={() => setShowAddForm(!showAddForm)}
+          data-testid="button-toggle-add-user"
+        >
+          <UserPlus className="w-4 h-4" />
+          {t("admin.addUser")}
+        </Button>
+
+        {showAddForm && (
+          <Card data-testid="card-add-user-form">
+            <CardContent className="p-4 space-y-3">
+              <Input
+                placeholder={t("auth.username")}
+                value={newUsername}
+                onChange={e => setNewUsername(e.target.value)}
+                data-testid="input-new-username"
+              />
+              <Input
+                type="password"
+                placeholder={t("auth.password")}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                data-testid="input-new-password"
+              />
+              <div className="flex gap-2">
+                <Input
+                  placeholder={t("auth.firstName")}
+                  value={newFirstName}
+                  onChange={e => setNewFirstName(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-new-firstname"
+                />
+                <Input
+                  placeholder={t("auth.lastName")}
+                  value={newLastName}
+                  onChange={e => setNewLastName(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-new-lastname"
+                />
+              </div>
+              <Select value={newRole} onValueChange={setNewRole}>
+                <SelectTrigger data-testid="select-new-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map(role => (
+                    <SelectItem key={role} value={role} data-testid={`option-role-${role}`}>
+                      {t(`roles.${role}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="w-full gap-2"
+                onClick={handleCreateUser}
+                disabled={createUserMutation.isPending || !newUsername.trim() || !newPassword.trim()}
+                data-testid="button-create-user"
+              >
+                <Plus className="w-4 h-4" />
+                {t("admin.addUser")}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {sortedUsers.map(u => (
           <Card key={u.id} className={u.isSuspended ? "opacity-60" : ""} data-testid={`card-user-${u.id}`}>
             <CardContent className="p-4">
