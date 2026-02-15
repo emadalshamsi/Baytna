@@ -771,7 +771,10 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
   onEdit?: (meal: Meal) => void;
   onDelete?: (id: number) => void;
 }) {
-  if (meals.length === 0) {
+  const mealOrder: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
+  const sorted = [...meals].sort((a, b) => (mealOrder[a.mealType] ?? 9) - (mealOrder[b.mealType] ?? 9));
+
+  if (sorted.length === 0) {
     return (
       <div className="text-center py-6 text-muted-foreground">
         <ChefHat className="w-12 h-12 mx-auto mb-2 opacity-30" />
@@ -782,7 +785,7 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
 
   return (
     <div className="grid grid-cols-3 gap-2" data-testid="meal-cards-grid">
-      {meals.map(meal => (
+      {sorted.map(meal => (
         <Card key={meal.id} className="overflow-hidden" data-testid={`card-meal-${meal.id}`}>
           <CardContent className="p-0">
             <div className="aspect-square relative bg-muted">

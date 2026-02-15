@@ -63,7 +63,8 @@ export default function MaidHomePage() {
   });
   const completedTaskIds = new Set(dailyCompletions.map(c => c.taskId));
   const pendingLaundry = laundryRequests.filter(r => r.status === "pending");
-  const todayMeals = allMeals.filter(m => m.dayOfWeek === today);
+  const mealOrder: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
+  const todayMeals = allMeals.filter(m => m.dayOfWeek === today).sort((a, b) => (mealOrder[a.mealType] ?? 9) - (mealOrder[b.mealType] ?? 9));
   const isLaundryDay = schedule.some(s => s.dayOfWeek === today);
 
   const doneCount = dailyTasks.filter(t => completedTaskIds.has(t.id)).length;
