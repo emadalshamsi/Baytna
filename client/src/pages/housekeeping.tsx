@@ -49,7 +49,7 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
   const scrollLeft = useRef(0);
   const hasMoved = useRef(false);
   const today = new Date();
-  const dates = getDateRange(today, 14);
+  const dates = getDateRange(today, 30);
 
   useEffect(() => {
     if (scrollRef.current) {
