@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { LogOut, Plus, DoorOpen, X, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -12,8 +14,41 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
 import AdminUsers from "@/pages/admin-users";
 import type { Room } from "@shared/schema";
+
+async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = reject;
+    image.src = imageSrc;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas toBlob failed"));
+    }, "image/jpeg", 0.9);
+  });
+}
 
 function CollapsibleSection({ title, icon, defaultOpen = false, children, testId }: {
   title: string;
@@ -206,6 +241,11 @@ function ProfilePhotoSection() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: { profileImageUrl?: string }) =>
@@ -216,24 +256,48 @@ function ProfilePhotoSection() {
     },
   });
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCropDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleCropConfirm = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
     setUploading(true);
     try {
+      const croppedBlob = await getCroppedBlob(imageSrc, croppedAreaPixels);
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", croppedBlob, "profile.jpg");
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (data.imageUrl) {
         updateProfileMutation.mutate({ profileImageUrl: data.imageUrl });
       }
+      setCropDialogOpen(false);
+      setImageSrc(null);
     } catch {
-      toast({ title: "Upload failed", variant: "destructive" });
+      toast({ title: t("profile.uploadFailed"), variant: "destructive" });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleCropCancel = () => {
+    setCropDialogOpen(false);
+    setImageSrc(null);
   };
 
   const removePhoto = () => {
@@ -249,7 +313,7 @@ function ProfilePhotoSection() {
           {user.profileImageUrl && <AvatarImage src={user.profileImageUrl} alt={user.firstName || user.username} />}
           <AvatarFallback className="text-2xl font-bold">{(user.firstName?.[0] || user.username?.[0] || "U").toUpperCase()}</AvatarFallback>
         </Avatar>
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} data-testid="input-profile-photo" />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} data-testid="input-profile-photo" />
         <Button
           size="icon"
           variant="secondary"
@@ -266,6 +330,51 @@ function ProfilePhotoSection() {
           {t("profile.removePhoto")}
         </Button>
       )}
+
+      <Dialog open={cropDialogOpen} onOpenChange={(open) => { if (!open) handleCropCancel(); }}>
+        <DialogContent className="max-w-sm p-0 overflow-visible" data-testid="dialog-crop-photo">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>{t("profile.cropPhoto")}</DialogTitle>
+          </DialogHeader>
+          <div className="relative w-full aspect-square bg-black">
+            {imageSrc && (
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            )}
+          </div>
+          <div className="px-4 pb-2">
+            <div className="flex items-center gap-3">
+              <ZoomOut className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <Slider
+                value={[zoom]}
+                min={1}
+                max={3}
+                step={0.05}
+                onValueChange={(v) => setZoom(v[0])}
+                data-testid="slider-zoom"
+              />
+              <ZoomIn className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            </div>
+          </div>
+          <DialogFooter className="p-4 pt-0 gap-2">
+            <Button variant="outline" onClick={handleCropCancel} data-testid="button-crop-cancel">
+              {t("actions.cancel")}
+            </Button>
+            <Button onClick={handleCropConfirm} disabled={uploading} data-testid="button-crop-confirm">
+              {uploading ? t("profile.uploading") : t("actions.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
