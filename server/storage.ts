@@ -63,6 +63,7 @@ export interface IStorage {
   updateOrderActualTotal(id: number, total: number, receiptUrl?: string): Promise<Order | undefined>;
   assignDriver(orderId: number, driverId: string): Promise<Order | undefined>;
   getOrdersInDateRange(start: Date, end: Date): Promise<Order[]>;
+  deleteOldPendingOrders(daysOld: number): Promise<number>;
 
   getOrderItems(orderId: number): Promise<OrderItem[]>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
@@ -323,6 +324,18 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(orders)
       .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)))
       .orderBy(desc(orders.createdAt));
+  }
+
+  async deleteOldPendingOrders(daysOld: number): Promise<number> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysOld);
+    const oldPending = await db.select().from(orders)
+      .where(and(eq(orders.status, "pending"), lte(orders.createdAt, cutoff)));
+    if (oldPending.length === 0) return 0;
+    const orderIds = oldPending.map(o => o.id);
+    await db.delete(orderItems).where(inArray(orderItems.orderId, orderIds));
+    await db.delete(orders).where(inArray(orders.id, orderIds));
+    return oldPending.length;
   }
 
   async getOrderItems(orderId: number): Promise<OrderItem[]> {

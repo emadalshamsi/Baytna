@@ -2,10 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, Car, Users, ArrowLeft, ChevronDown, ChevronUp, ExternalLink, User } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User } from "lucide-react";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
-import { Link } from "wouter";
 import { useState } from "react";
 import type { Order, User as UserType } from "@shared/schema";
 
@@ -25,7 +24,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-type StatFilter = "total" | "pending" | "completed" | null;
+type StatFilter = "total" | "pending" | "completed" | "spent" | null;
 
 export default function AdminDashboard() {
   useLang();
@@ -40,10 +39,14 @@ export default function AdminDashboard() {
 
   const userMap = new Map((users || []).map(u => [u.id, u]));
 
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
   const filteredOrders = orders?.filter(o => {
     if (activeFilter === "total") return true;
     if (activeFilter === "pending") return o.status === "pending";
     if (activeFilter === "completed") return o.status === "completed";
+    if (activeFilter === "spent") return o.status === "completed" && o.createdAt && new Date(o.createdAt) >= monthStart;
     return false;
   }) || [];
 
@@ -51,14 +54,16 @@ export default function AdminDashboard() {
     { key: "total" as StatFilter, label: t("stats.totalOrders"), sub: t("stats.completedSub"), value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
     { key: "pending" as StatFilter, label: t("stats.pendingOrders"), sub: t("stats.completedSub"), value: stats?.pending || 0, icon: ShoppingCart, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
     { key: "completed" as StatFilter, label: t("stats.completedOrders"), sub: t("stats.completedSub"), value: stats?.completed || 0, icon: Check, color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30" },
-    { key: null as StatFilter, label: t("stats.totalSpent"), sub: t("stats.spentSub"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30" },
+    { key: "spent" as StatFilter, label: t("stats.totalSpent"), sub: t("stats.spentSub"), value: formatPrice(stats?.totalSpent || 0), icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30" },
   ];
 
-  const quickLinks = [
-    { label: t("nav.groceries"), icon: ShoppingCart, href: "/groceries", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30", desc: `${t("nav.orders")} - ${t("nav.products")} - ${t("nav.categories")} - ${t("nav.stores")}` },
-    { label: t("nav.logistics"), icon: Car, href: "/logistics", color: "text-green-600 dark:text-green-400", bg: "bg-green-100 dark:bg-green-900/30", desc: `${t("nav.vehicles")} - ${t("nav.trips")} - ${t("nav.technicians")}` },
-    { label: t("nav.users"), icon: Users, href: "/settings", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", desc: t("admin.approvePermission") },
-  ];
+  const filterTitle = (f: StatFilter) => {
+    if (f === "total") return t("stats.totalOrders");
+    if (f === "pending") return t("stats.pendingOrders");
+    if (f === "completed") return t("stats.completedOrders");
+    if (f === "spent") return t("stats.totalSpent");
+    return "";
+  };
 
   return (
     <div className="space-y-6">
@@ -69,16 +74,12 @@ export default function AdminDashboard() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {cards.map((c, i) => {
-            const isActive = activeFilter === c.key && c.key !== null;
+            const isActive = activeFilter === c.key;
             return (
               <Card
                 key={i}
-                className={`${c.key !== null ? "cursor-pointer hover-elevate active-elevate-2" : ""} ${isActive ? "ring-2 ring-primary" : ""}`}
-                onClick={() => {
-                  if (c.key !== null) {
-                    setActiveFilter(isActive ? null : c.key);
-                  }
-                }}
+                className={`cursor-pointer hover-elevate active-elevate-2 ${isActive ? "ring-2 ring-primary" : ""}`}
+                onClick={() => setActiveFilter(isActive ? null : c.key)}
                 data-testid={`card-stat-${i}`}
               >
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
@@ -90,9 +91,7 @@ export default function AdminDashboard() {
                     {c.sub && <span className="text-[10px] text-muted-foreground leading-tight">{c.sub}</span>}
                   </div>
                   <span className="text-xl font-bold" data-testid={`text-stat-${i}`}>{c.value}</span>
-                  {c.key !== null && (
-                    isActive ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                  )}
+                  {isActive ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
                 </CardContent>
               </Card>
             );
@@ -103,13 +102,11 @@ export default function AdminDashboard() {
       {activeFilter && filteredOrders.length > 0 && (
         <div className="space-y-3" data-testid="filtered-orders-list">
           <h3 className="text-sm font-semibold text-muted-foreground">
-            {activeFilter === "total" && t("stats.totalOrders")}
-            {activeFilter === "pending" && t("stats.pendingOrders")}
-            {activeFilter === "completed" && t("stats.completedOrders")}
-            {" "}({filteredOrders.length})
+            {filterTitle(activeFilter)} ({filteredOrders.length})
           </h3>
           {filteredOrders.map(order => {
             const creator = userMap.get(order.createdBy);
+            const orderTotal = order.totalActual || order.totalEstimated || 0;
             return (
               <Card key={order.id} data-testid={`card-dashboard-order-${order.id}`}>
                 <CardContent className="p-4">
@@ -118,10 +115,14 @@ export default function AdminDashboard() {
                       <span className="font-medium text-sm">#{order.id}</span>
                       <StatusBadge status={order.status} />
                     </div>
+                    <span className="font-semibold text-sm">{formatPrice(orderTotal)}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap text-sm text-muted-foreground">
-                    <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
-                    {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
+                  <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
+                    {order.totalActual ? (
+                      <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span>
+                    ) : (
+                      <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
                     {creator && (
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
                   </div>
                   {order.notes && <p className="text-xs text-muted-foreground mt-1">{order.notes}</p>}
                   {order.receiptImageUrl && (
-                    <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1 mt-1">
+                    <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1 mt-1" data-testid={`link-receipt-${order.id}`}>
                       {t("fields.receipt")} <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -141,34 +142,20 @@ export default function AdminDashboard() {
               </Card>
             );
           })}
+          {activeFilter === "spent" && (
+            <Card data-testid="card-spending-total">
+              <CardContent className="p-4 flex items-center justify-between gap-2">
+                <span className="font-semibold text-sm">{t("fields.total")}</span>
+                <span className="font-bold text-lg">{formatPrice(filteredOrders.reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0))}</span>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
       {activeFilter && filteredOrders.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-4">{t("messages.noOrders")}</p>
       )}
-
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-3" data-testid="text-quick-links">{t("nav.quickLinks")}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {quickLinks.map((link, i) => (
-            <Link key={i} href={link.href}>
-              <Card className="cursor-pointer hover-elevate active-elevate-2 h-full" data-testid={`card-quick-link-${i}`}>
-                <CardContent className="p-4 flex flex-col items-center text-center gap-3">
-                  <div className={`w-12 h-12 rounded-full ${link.bg} flex items-center justify-center`}>
-                    <link.icon className={`w-6 h-6 ${link.color}`} />
-                  </div>
-                  <div>
-                    <span className="font-medium text-sm">{link.label}</span>
-                    <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{link.desc}</p>
-                  </div>
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

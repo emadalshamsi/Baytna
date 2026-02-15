@@ -671,7 +671,7 @@ export async function registerRoutes(
       // Total spent = current month
       const monthRange = getCurrentMonthRange();
       const monthOrders = await storage.getOrdersInDateRange(monthRange.start, monthRange.end);
-      const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || 0), 0);
+      const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0);
 
       res.json({
         pending,
@@ -1411,6 +1411,20 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to mark all read" });
     }
   });
+
+  async function cleanupOldPendingOrders() {
+    try {
+      const count = await storage.deleteOldPendingOrders(15);
+      if (count > 0) {
+        console.log(`Cleaned up ${count} pending orders older than 15 days`);
+      }
+    } catch (err) {
+      console.error("Failed to clean up old pending orders:", err);
+    }
+  }
+
+  cleanupOldPendingOrders();
+  setInterval(cleanupOldPendingOrders, 60 * 60 * 1000);
 
   return httpServer;
 }
