@@ -217,6 +217,37 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/auth/profile", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { firstName, lastName, profileImageUrl } = req.body;
+      const updated = await storage.updateUserProfile(userId, { firstName, lastName, profileImageUrl });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safeUser } = updated;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/auth/change-password", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) return res.status(400).json({ message: "Missing fields" });
+      if (newPassword.length < 6) return res.status(400).json({ message: "Password too short" });
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) return res.status(400).json({ message: "كلمة المرور الحالية غير صحيحة" });
+      const hash = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(userId, hash);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
   app.get("/api/users", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allUsers = await storage.getAllUsers();

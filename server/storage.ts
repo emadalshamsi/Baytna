@@ -32,6 +32,8 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
   updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean): Promise<User | undefined>;
+  updateUserProfile(id: string, data: { firstName?: string; lastName?: string; profileImageUrl?: string }): Promise<User | undefined>;
+  updateUserPassword(id: string, newPasswordHash: string): Promise<void>;
   suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
 
   getCategories(): Promise<Category[]>;
@@ -198,6 +200,15 @@ export class DatabaseStorage implements IStorage {
     if (canAddShortages !== undefined) setData.canAddShortages = canAddShortages;
     const [user] = await db.update(users).set(setData).where(eq(users.id, id)).returning();
     return user;
+  }
+
+  async updateUserProfile(id: string, data: { firstName?: string; lastName?: string; profileImageUrl?: string }): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserPassword(id: string, newPasswordHash: string): Promise<void> {
+    await db.update(users).set({ password: newPasswordHash, updatedAt: new Date() }).where(eq(users.id, id));
   }
 
   async suspendUser(id: string, isSuspended: boolean): Promise<User | undefined> {
