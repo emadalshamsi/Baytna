@@ -448,7 +448,7 @@ function TripsSection() {
                     <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
                   ))}
                   {driverAvailability.timeConflicts?.map(tc => (
-                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {new Date(tc.departureTime).toLocaleTimeString(lang === "ar" ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" })} - {tc.estimatedDuration} {t("trips.minutes")}</div>
+                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {new Date(tc.departureTime).toLocaleTimeString(lang === "ar" ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" })} {t("conflict.toLocation")} {new Date(new Date(tc.departureTime).getTime() + tc.estimatedDuration * 60000).toLocaleTimeString(lang === "ar" ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" })}</div>
                   ))}
                 </div>
               </div>
