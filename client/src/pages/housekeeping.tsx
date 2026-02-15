@@ -94,8 +94,22 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
   );
 }
 
-function DaysOfWeekSelector({ selectedDays, onChange, frequency, onFrequencyChange }: { selectedDays: number[]; onChange: (days: number[]) => void; frequency: string; onFrequencyChange: (f: string) => void }) {
-  const toggle = (day: number) => {
+function getWeekOfMonth(date: Date): number {
+  const d = date.getDate();
+  return Math.ceil(d / 7);
+}
+
+function DaysOfWeekSelector({
+  selectedDays, onChange, frequency, onFrequencyChange,
+  weekOfMonth, onWeekOfMonthChange,
+  specificDate, onSpecificDateChange,
+}: {
+  selectedDays: number[]; onChange: (days: number[]) => void;
+  frequency: string; onFrequencyChange: (f: string) => void;
+  weekOfMonth: number | null; onWeekOfMonthChange: (w: number | null) => void;
+  specificDate: string; onSpecificDateChange: (d: string) => void;
+}) {
+  const toggleDay = (day: number) => {
     if (selectedDays.includes(day)) {
       onChange(selectedDays.filter(d => d !== day));
     } else {
@@ -104,63 +118,81 @@ function DaysOfWeekSelector({ selectedDays, onChange, frequency, onFrequencyChan
   };
   const allSelected = selectedDays.length === 7;
 
-  const selectPreset = (preset: "daily" | "weekly" | "monthly") => {
+  const selectPreset = (preset: string) => {
     onFrequencyChange(preset);
     if (preset === "daily") {
       onChange([0, 1, 2, 3, 4, 5, 6]);
+      onWeekOfMonthChange(null);
+      onSpecificDateChange("");
+    } else if (preset === "weekly") {
+      onWeekOfMonthChange(null);
+      onSpecificDateChange("");
+    } else if (preset === "monthly") {
+      onSpecificDateChange("");
+      if (!weekOfMonth) onWeekOfMonthChange(1);
+      if (selectedDays.length === 7 || selectedDays.length === 0) onChange([6]);
+    } else if (preset === "once") {
+      onChange([]);
+      onWeekOfMonthChange(null);
+      if (!specificDate) onSpecificDateChange(formatDateStr(new Date()));
     }
   };
 
+  const weekKeys = ["week1", "week2", "week3", "week4"] as const;
+
   return (
-    <div className="space-y-1.5" data-testid="days-of-week-selector">
+    <div className="space-y-2" data-testid="days-of-week-selector">
       <div className="flex items-center gap-1.5 flex-wrap">
-        <Button
-          type="button"
-          variant={frequency === "daily" && allSelected ? "default" : "outline"}
-          size="sm"
-          className="text-xs"
-          onClick={() => selectPreset("daily")}
-          data-testid="button-toggle-all-days"
-        >
+        <Button type="button" variant={frequency === "daily" && allSelected ? "default" : "outline"} size="sm" className="text-xs" onClick={() => selectPreset("daily")} data-testid="button-toggle-all-days">
           {t("housekeepingSection.everyDay")}
         </Button>
-        <Button
-          type="button"
-          variant={frequency === "weekly" ? "default" : "outline"}
-          size="sm"
-          className="text-xs"
-          onClick={() => selectPreset("weekly")}
-          data-testid="button-every-week"
-        >
+        <Button type="button" variant={frequency === "weekly" ? "default" : "outline"} size="sm" className="text-xs" onClick={() => selectPreset("weekly")} data-testid="button-every-week">
           {t("housekeepingSection.everyWeek")}
         </Button>
-        <Button
-          type="button"
-          variant={frequency === "monthly" ? "default" : "outline"}
-          size="sm"
-          className="text-xs"
-          onClick={() => selectPreset("monthly")}
-          data-testid="button-every-month"
-        >
+        <Button type="button" variant={frequency === "monthly" ? "default" : "outline"} size="sm" className="text-xs" onClick={() => selectPreset("monthly")} data-testid="button-every-month">
           {t("housekeepingSection.everyMonth")}
         </Button>
+        <Button type="button" variant={frequency === "once" ? "default" : "outline"} size="sm" className="text-xs" onClick={() => selectPreset("once")} data-testid="button-specific-date">
+          {t("housekeepingSection.specificDate")}
+        </Button>
       </div>
-      {frequency !== "daily" && (
+
+      {frequency === "weekly" && (
         <div className="grid grid-cols-7 gap-1">
           {dayAbbrevKeys.map((key, i) => (
-            <Button
-              key={i}
-              type="button"
-              variant={selectedDays.includes(i) ? "default" : "outline"}
-              size="sm"
-              className="text-xs p-1"
-              onClick={() => toggle(i)}
-              data-testid={`button-day-${i}`}
-            >
+            <Button key={i} type="button" variant={selectedDays.includes(i) ? "default" : "outline"} size="sm" className="text-xs p-1" onClick={() => toggleDay(i)} data-testid={`button-day-${i}`}>
               {t(`housekeepingSection.${key}`)}
             </Button>
           ))}
         </div>
+      )}
+
+      {frequency === "monthly" && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-4 gap-1">
+            {weekKeys.map((key, i) => (
+              <Button key={i} type="button" variant={weekOfMonth === i + 1 ? "default" : "outline"} size="sm" className="text-xs" onClick={() => onWeekOfMonthChange(i + 1)} data-testid={`button-week-${i + 1}`}>
+                {t(`housekeepingSection.${key}`)}
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {dayAbbrevKeys.map((key, i) => (
+              <Button key={i} type="button" variant={selectedDays.includes(i) ? "default" : "outline"} size="sm" className="text-xs p-1" onClick={() => onChange([i])} data-testid={`button-day-${i}`}>
+                {t(`housekeepingSection.${key}`)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {frequency === "once" && (
+        <Input
+          type="date"
+          value={specificDate}
+          onChange={e => onSpecificDateChange(e.target.value)}
+          data-testid="input-specific-date"
+        />
       )}
     </div>
   );
@@ -256,6 +288,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const [newTask, setNewTask] = useState({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
   const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [selectedWeekOfMonth, setSelectedWeekOfMonth] = useState<number | null>(null);
+  const [selectedSpecificDate, setSelectedSpecificDate] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
   const dateStr = formatDateStr(selectedDate);
@@ -270,11 +304,26 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const activeRooms = rooms.filter(r => !r.isExcluded);
 
+  const selectedWeekNum = getWeekOfMonth(selectedDate);
+
   const filteredTasks = tasks.filter(task => {
     if (!task.isActive) return false;
     const room = rooms.find(r => r.id === task.roomId);
     if (room?.isExcluded) return false;
     if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
+
+    if (task.frequency === "once") {
+      return task.specificDate === dateStr;
+    }
+
+    if (task.frequency === "monthly") {
+      const taskWeek = task.weekOfMonth as number | null;
+      const taskDays = task.daysOfWeek as number[] | null;
+      if (taskWeek && taskWeek !== selectedWeekNum) return false;
+      if (taskDays && taskDays.length > 0 && !taskDays.includes(selectedDayOfWeek)) return false;
+      return true;
+    }
+
     const taskDays = task.daysOfWeek as number[] | null;
     if (taskDays && taskDays.length > 0) {
       if (!taskDays.includes(selectedDayOfWeek)) return false;
@@ -284,8 +333,16 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const completedTaskIds = new Set(completions.map(c => c.taskId));
 
+  const canSave = () => {
+    if (!newTask.titleAr || selectedRoomIds.length === 0) return false;
+    if (newTask.frequency === "once") return !!selectedSpecificDate;
+    if (newTask.frequency === "monthly") return selectedDaysOfWeek.length > 0 && selectedWeekOfMonth !== null;
+    if (newTask.frequency === "weekly") return selectedDaysOfWeek.length > 0;
+    return true;
+  };
+
   const saveTasks = async () => {
-    if (!newTask.titleAr || selectedRoomIds.length === 0 || selectedDaysOfWeek.length === 0) return;
+    if (!canSave()) return;
     setIsSaving(true);
     try {
       for (const roomId of selectedRoomIds) {
@@ -293,7 +350,9 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           titleAr: newTask.titleAr,
           titleEn: newTask.titleEn,
           frequency: newTask.frequency,
-          daysOfWeek: selectedDaysOfWeek,
+          daysOfWeek: newTask.frequency === "once" ? [] : selectedDaysOfWeek,
+          weekOfMonth: newTask.frequency === "monthly" ? selectedWeekOfMonth : null,
+          specificDate: newTask.frequency === "once" ? selectedSpecificDate : null,
           roomId,
         });
       }
@@ -303,6 +362,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       setNewTask({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
       setSelectedRoomIds([]);
       setSelectedDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
+      setSelectedWeekOfMonth(null);
+      setSelectedSpecificDate("");
     } catch {
       toast({ title: "Error", variant: "destructive" });
     } finally {
@@ -373,7 +434,12 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           <CardContent className="p-3 space-y-3">
             <Input placeholder={t("housekeepingSection.taskTitle") + " (عربي)"} value={newTask.titleAr} onChange={e => setNewTask(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-task-title-ar" />
             <Input placeholder={t("housekeepingSection.taskTitle") + " (EN)"} value={newTask.titleEn} onChange={e => setNewTask(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-task-title-en" />
-            <DaysOfWeekSelector selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek} frequency={newTask.frequency} onFrequencyChange={f => setNewTask(p => ({ ...p, frequency: f }))} />
+            <DaysOfWeekSelector
+              selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek}
+              frequency={newTask.frequency} onFrequencyChange={f => setNewTask(p => ({ ...p, frequency: f }))}
+              weekOfMonth={selectedWeekOfMonth} onWeekOfMonthChange={setSelectedWeekOfMonth}
+              specificDate={selectedSpecificDate} onSpecificDateChange={setSelectedSpecificDate}
+            />
             <MultiRoomSelect
               rooms={activeRooms}
               selectedIds={selectedRoomIds}
@@ -381,7 +447,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
               lang={lang}
             />
             <div className="flex gap-2">
-              <Button size="sm" disabled={!newTask.titleAr || selectedRoomIds.length === 0 || selectedDaysOfWeek.length === 0 || isSaving} onClick={saveTasks} data-testid="button-save-task">
+              <Button size="sm" disabled={!canSave() || isSaving} onClick={saveTasks} data-testid="button-save-task">
                 {isSaving ? "..." : t("actions.save")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setSelectedRoomIds([]); }}>{t("actions.cancel")}</Button>

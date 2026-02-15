@@ -153,6 +153,8 @@ export const housekeepingTasks = pgTable("housekeeping_tasks", {
   titleEn: varchar("title_en", { length: 200 }),
   frequency: varchar("frequency", { length: 20 }).notNull().default("daily"),
   daysOfWeek: integer("days_of_week").array(),
+  weekOfMonth: integer("week_of_month"),
+  specificDate: varchar("specific_date", { length: 10 }),
   roomId: integer("room_id").notNull().references(() => rooms.id),
   icon: varchar("icon", { length: 50 }),
   isActive: boolean("is_active").notNull().default(true),
