@@ -13,6 +13,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import AdminShopping from "@/pages/admin-shopping";
 import AdminLogistics from "@/pages/admin-logistics";
 import MaidDashboard from "@/pages/maid-dashboard";
+import MaidHomePage from "@/pages/maid-home";
 import DriverDashboard from "@/pages/driver-dashboard";
 import HouseholdDashboard from "@/pages/household-dashboard";
 import HousekeepingPage from "@/pages/housekeeping";
@@ -22,17 +23,21 @@ import NotFound from "@/pages/not-found";
 const LangContext = createContext<{ lang: Lang; toggleLang: () => void }>({ lang: "ar", toggleLang: () => {} });
 export function useLang() { return useContext(LangContext); }
 
-const navItems = [
-  { key: "home", path: "/", icon: Home, labelKey: "nav.dashboard" },
-  { key: "groceries", path: "/groceries", icon: ShoppingCart, labelKey: "nav.groceries" },
-  { key: "logistics", path: "/logistics", icon: Truck, labelKey: "nav.logistics" },
-  { key: "housekeeping", path: "/housekeeping", icon: Sparkles, labelKey: "nav.housekeeping" },
-  { key: "settings", path: "/settings", icon: Settings, labelKey: "nav.settings" },
+const allNavItems = [
+  { key: "home", path: "/", icon: Home, labelKey: "nav.dashboard", hideFor: [] as string[] },
+  { key: "groceries", path: "/groceries", icon: ShoppingCart, labelKey: "nav.groceries", hideFor: [] as string[] },
+  { key: "logistics", path: "/logistics", icon: Truck, labelKey: "nav.logistics", hideFor: ["maid"] },
+  { key: "housekeeping", path: "/housekeeping", icon: Sparkles, labelKey: "nav.housekeeping", hideFor: [] as string[] },
+  { key: "settings", path: "/settings", icon: Settings, labelKey: "nav.settings", hideFor: [] as string[] },
 ];
 
 function BottomNavBar() {
   useLang();
   const [location] = useLocation();
+  const { user } = useAuth();
+  const role = user?.role || "";
+
+  const navItems = allNavItems.filter(item => !item.hideFor.includes(role));
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-md safe-area-bottom" data-testid="bottom-nav">
@@ -72,7 +77,7 @@ function HomeContent() {
   if (!user) return null;
   switch (user.role) {
     case "admin": return <AdminDashboard />;
-    case "maid": return <MaidDashboard />;
+    case "maid": return <MaidHomePage />;
     case "driver": return <DriverDashboard />;
     default: return <HouseholdDashboard />;
   }
@@ -91,7 +96,12 @@ function GroceriesContent() {
 
 function LogisticsContent() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   if (!user) return null;
+  if (user.role === "maid") {
+    setLocation("/");
+    return null;
+  }
   if (user.role === "driver") return <DriverDashboard />;
   return <AdminLogistics />;
 }

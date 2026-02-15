@@ -18,6 +18,13 @@ const ar = {
   household: { needsApproval: "طلبات بحاجة لاعتماد", pendingLabel: "معلق", activeLabel: "نشط", completedLabel: "مكتمل", activeOrders: "طلبات نشطة", completedOrders: "طلبات مكتملة", pendingOrders: "طلبات معلقة" },
   admin: { approvePermission: "صلاحية الاعتماد", noApproval: "بدون اعتماد", orderStatusUpdated: "تم تحديث حالة الطلب", userRoleUpdated: "تم تحديث صلاحيات المستخدم", categoryAdded: "تمت إضافة التصنيف", storeAdded: "تمت إضافة المتجر", storeUpdated: "تم تحديث المتجر", iconCode: "رمز الأيقونة (مثال: milk)", addProduct: "إضافة منتج", addCategory: "إضافة تصنيف", addStore: "إضافة متجر", editProduct: "تعديل منتج", editCategory: "تعديل تصنيف", editStore: "تعديل متجر", suspendUser: "تعليق", activateUser: "تفعيل", userSuspended: "تم تعليق المستخدم", userActivated: "تم تفعيل المستخدم", suspended: "معلّق" },
   rooms: { title: "الغرف", addRoom: "إضافة غرفة", editRoom: "تعديل غرفة", nameAr: "اسم الغرفة بالعربية", nameEn: "اسم الغرفة بالإنجليزية", noRooms: "لا توجد غرف", roomAdded: "تمت إضافة الغرفة", roomUpdated: "تم تحديث الغرفة", roomDeleted: "تم حذف الغرفة", excluded: "مستثناة", includeRoom: "تفعيل الغرفة", excludeRoom: "استثناء الغرفة" },
+  maidHome: {
+    todayTasks: "مهام اليوم",
+    completed: "مكتملة",
+    laundryAlerts: "طلبات غسيل",
+    todayMeals: "وجبات اليوم",
+    noLaundryPending: "لا توجد طلبات غسيل حالياً",
+  },
   housekeepingSection: {
     title: "إدارة المنزل",
     tasks: "المهام",
@@ -92,6 +99,13 @@ const en: typeof ar = {
   household: { needsApproval: "Orders needing approval", pendingLabel: "Pending", activeLabel: "Active", completedLabel: "Completed", activeOrders: "Active Orders", completedOrders: "Completed Orders", pendingOrders: "Pending Orders" },
   admin: { approvePermission: "Approval Permission", noApproval: "No Approval", orderStatusUpdated: "Order status updated", userRoleUpdated: "User role updated", categoryAdded: "Category added", storeAdded: "Store added", storeUpdated: "Store updated", iconCode: "Icon code (e.g. milk)", addProduct: "Add Product", addCategory: "Add Category", addStore: "Add Store", editProduct: "Edit Product", editCategory: "Edit Category", editStore: "Edit Store", suspendUser: "Suspend", activateUser: "Activate", userSuspended: "User suspended", userActivated: "User activated", suspended: "Suspended" },
   rooms: { title: "Rooms", addRoom: "Add Room", editRoom: "Edit Room", nameAr: "Room Name (Arabic)", nameEn: "Room Name (English)", noRooms: "No rooms", roomAdded: "Room added", roomUpdated: "Room updated", roomDeleted: "Room deleted", excluded: "Excluded", includeRoom: "Include Room", excludeRoom: "Exclude Room" },
+  maidHome: {
+    todayTasks: "Today's Tasks",
+    completed: "completed",
+    laundryAlerts: "Laundry Requests",
+    todayMeals: "Today's Meals",
+    noLaundryPending: "No pending laundry requests",
+  },
   housekeepingSection: {
     title: "Housekeeping",
     tasks: "Tasks",
