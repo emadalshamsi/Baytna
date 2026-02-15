@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Home, LogIn, UserPlus, Eye, EyeOff, Moon, Sun } from "lucide-react";
+import { Home, LogIn, UserPlus, Eye, EyeOff, Moon, Sun, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 
@@ -82,10 +83,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="fixed top-3 left-3 flex gap-1">
-        <Button size="sm" variant="ghost" onClick={toggleLang} data-testid="button-lang-toggle" className="text-xs">
-          {lang === "ar" ? "EN" : "عربي"}
-        </Button>
+      <div className="fixed top-3 start-3 flex items-center gap-3">
+        <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm rounded-md px-3 py-1.5 border" data-testid="lang-toggle-container">
+          <Globe className="w-4 h-4 text-muted-foreground" />
+          <span className={`text-xs font-medium ${lang === "ar" ? "font-bold" : "text-muted-foreground"}`}>عربي</span>
+          <Switch
+            checked={lang === "en"}
+            onCheckedChange={toggleLang}
+            data-testid="switch-lang-toggle"
+          />
+          <span className={`text-xs font-medium ${lang === "en" ? "font-bold" : "text-muted-foreground"}`}>EN</span>
+        </div>
         <Button size="icon" variant="ghost" onClick={toggleTheme} data-testid="button-theme-toggle">
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
@@ -122,7 +130,7 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground"
+                className="absolute top-1/2 -translate-y-1/2 end-3 text-muted-foreground"
                 onClick={() => setShowPassword(!showPassword)}
                 data-testid="button-toggle-password"
               >
