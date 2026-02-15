@@ -330,6 +330,22 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/users/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (req.params.id === currentUser.id) {
+        return res.status(400).json({ message: "Cannot delete yourself" });
+      }
+      await storage.deleteUser(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   app.get("/api/categories", isAuthenticated, async (_req, res) => {
     try {
       const cats = await storage.getCategories();

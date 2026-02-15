@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
@@ -86,6 +87,7 @@ export default function AdminUsers() {
   const [newFirstName, setNewFirstName] = useState("");
   const [newLastName, setNewLastName] = useState("");
   const [newRole, setNewRole] = useState("household");
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<AuthUser | null>(null);
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, role, canApprove, canAddShortages, canApproveTrips }: { id: string; role: string; canApprove: boolean; canAddShortages?: boolean; canApproveTrips?: boolean }) => {
@@ -121,6 +123,17 @@ export default function AdminUsers() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ title: variables.isSuspended ? t("admin.userSuspended") : t("admin.userActivated") });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: t("admin.userDeleted") });
+      setDeleteConfirmUser(null);
     },
   });
 
@@ -273,7 +286,7 @@ export default function AdminUsers() {
               {expandedUsers.has(u.id) && (
                 <>
                   <UserRoomAssignment userId={u.id} lang={lang} />
-                  <div className="mt-3 pt-3 border-t">
+                  <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
                     <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
                       className="gap-1.5"
                       onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
@@ -281,12 +294,47 @@ export default function AdminUsers() {
                       {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                       {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
                     </Button>
+                    <Button size="sm" variant="destructive"
+                      className="gap-1.5"
+                      onClick={() => setDeleteConfirmUser(u)}
+                      data-testid={`button-delete-${u.id}`}>
+                      <Trash2 className="w-4 h-4" />
+                      {t("admin.deleteUser")}
+                    </Button>
                   </div>
                 </>
               )}
             </CardContent>
           </Card>
         ))}
+
+        <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => { if (!open) setDeleteConfirmUser(null); }}>
+          <AlertDialogContent data-testid="dialog-confirm-delete-user">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("admin.deleteUser")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("admin.confirmDeleteUser")}
+                {deleteConfirmUser && (
+                  <span className="block mt-2 font-semibold text-foreground">
+                    {deleteConfirmUser.firstName || deleteConfirmUser.username} (@{deleteConfirmUser.username})
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">{t("admin.cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground"
+                onClick={() => deleteConfirmUser && deleteUserMutation.mutate(deleteConfirmUser.id)}
+                disabled={deleteUserMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                <Trash2 className="w-4 h-4" />
+                {t("admin.confirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

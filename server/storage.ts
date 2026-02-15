@@ -35,6 +35,7 @@ export interface IStorage {
   updateUserProfile(id: string, data: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User | undefined>;
   updateUserPassword(id: string, newPasswordHash: string): Promise<void>;
   suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
+  deleteUser(id: string): Promise<void>;
 
   getCategories(): Promise<Category[]>;
   createCategory(cat: InsertCategory): Promise<Category>;
@@ -218,6 +219,10 @@ export class DatabaseStorage implements IStorage {
   async suspendUser(id: string, isSuspended: boolean): Promise<User | undefined> {
     const [user] = await db.update(users).set({ isSuspended, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return user;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async getCategories(): Promise<Category[]> {
