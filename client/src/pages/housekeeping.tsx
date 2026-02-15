@@ -44,9 +44,12 @@ function getDateRange(centerDate: Date, range: number): Date[] {
 function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (d: Date) => void }) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  const hasMoved = useRef(false);
   const today = new Date();
   const dates = getDateRange(today, 14);
-  const isRtl = lang === "ar";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -57,12 +60,33 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
     }
   }, []);
 
+  const onMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    hasMoved.current = false;
+    startX.current = e.pageX - (scrollRef.current?.offsetLeft || 0);
+    scrollLeft.current = scrollRef.current?.scrollLeft || 0;
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - (scrollRef.current.offsetLeft || 0);
+    const walk = x - startX.current;
+    if (Math.abs(walk) > 3) hasMoved.current = true;
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+  const onMouseUp = () => { isDragging.current = false; };
+  const onMouseLeave = () => { isDragging.current = false; };
+
   return (
     <div
       ref={scrollRef}
-      className="flex gap-1.5 overflow-x-auto pb-1.5"
+      className="flex gap-1.5 overflow-x-auto pb-1.5 cursor-grab active:cursor-grabbing select-none"
       style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       data-testid="date-strip"
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
     >
       {dates.map(d => {
         const isToday = isSameDay(d, today);
@@ -81,7 +105,7 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover-elevate"
             }`}
-            onClick={() => onSelect(d)}
+            onClick={() => { if (!hasMoved.current) onSelect(d); }}
             data-testid={`date-${formatDateStr(d)}`}
           >
             <span className="text-[10px] font-medium leading-none mb-0.5">{dayAbbr}</span>
