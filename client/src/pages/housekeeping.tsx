@@ -101,12 +101,12 @@ function getWeekOfMonth(date: Date): number {
 
 function DaysOfWeekSelector({
   selectedDays, onChange, frequency, onFrequencyChange,
-  weekOfMonth, onWeekOfMonthChange,
+  weeksOfMonth, onWeeksOfMonthChange,
   specificDate, onSpecificDateChange,
 }: {
   selectedDays: number[]; onChange: (days: number[]) => void;
   frequency: string; onFrequencyChange: (f: string) => void;
-  weekOfMonth: number | null; onWeekOfMonthChange: (w: number | null) => void;
+  weeksOfMonth: number[]; onWeeksOfMonthChange: (w: number[]) => void;
   specificDate: string; onSpecificDateChange: (d: string) => void;
 }) {
   const toggleDay = (day: number) => {
@@ -116,24 +116,31 @@ function DaysOfWeekSelector({
       onChange([...selectedDays, day]);
     }
   };
+  const toggleWeek = (week: number) => {
+    if (weeksOfMonth.includes(week)) {
+      onWeeksOfMonthChange(weeksOfMonth.filter(w => w !== week));
+    } else {
+      onWeeksOfMonthChange([...weeksOfMonth, week]);
+    }
+  };
   const allSelected = selectedDays.length === 7;
 
   const selectPreset = (preset: string) => {
     onFrequencyChange(preset);
     if (preset === "daily") {
       onChange([0, 1, 2, 3, 4, 5, 6]);
-      onWeekOfMonthChange(null);
+      onWeeksOfMonthChange([]);
       onSpecificDateChange("");
     } else if (preset === "weekly") {
-      onWeekOfMonthChange(null);
+      onWeeksOfMonthChange([]);
       onSpecificDateChange("");
     } else if (preset === "monthly") {
       onSpecificDateChange("");
-      if (!weekOfMonth) onWeekOfMonthChange(1);
+      if (weeksOfMonth.length === 0) onWeeksOfMonthChange([1]);
       if (selectedDays.length === 7 || selectedDays.length === 0) onChange([6]);
     } else if (preset === "once") {
       onChange([]);
-      onWeekOfMonthChange(null);
+      onWeeksOfMonthChange([]);
       if (!specificDate) onSpecificDateChange(formatDateStr(new Date()));
     }
   };
@@ -171,14 +178,14 @@ function DaysOfWeekSelector({
         <div className="space-y-2">
           <div className="grid grid-cols-4 gap-1">
             {weekKeys.map((key, i) => (
-              <Button key={i} type="button" variant={weekOfMonth === i + 1 ? "default" : "outline"} size="sm" className="text-xs" onClick={() => onWeekOfMonthChange(i + 1)} data-testid={`button-week-${i + 1}`}>
+              <Button key={i} type="button" variant={weeksOfMonth.includes(i + 1) ? "default" : "outline"} size="sm" className="text-xs" onClick={() => toggleWeek(i + 1)} data-testid={`button-week-${i + 1}`}>
                 {t(`housekeepingSection.${key}`)}
               </Button>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {dayAbbrevKeys.map((key, i) => (
-              <Button key={i} type="button" variant={selectedDays.includes(i) ? "default" : "outline"} size="sm" className="text-xs p-1" onClick={() => onChange([i])} data-testid={`button-day-${i}`}>
+              <Button key={i} type="button" variant={selectedDays.includes(i) ? "default" : "outline"} size="sm" className="text-xs p-1" onClick={() => toggleDay(i)} data-testid={`button-day-${i}`}>
                 {t(`housekeepingSection.${key}`)}
               </Button>
             ))}
@@ -288,7 +295,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const [newTask, setNewTask] = useState({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
   const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
-  const [selectedWeekOfMonth, setSelectedWeekOfMonth] = useState<number | null>(null);
+  const [selectedWeeksOfMonth, setSelectedWeeksOfMonth] = useState<number[]>([]);
   const [selectedSpecificDate, setSelectedSpecificDate] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -317,9 +324,9 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     }
 
     if (task.frequency === "monthly") {
-      const taskWeek = task.weekOfMonth as number | null;
+      const taskWeeks = task.weeksOfMonth as number[] | null;
       const taskDays = task.daysOfWeek as number[] | null;
-      if (taskWeek && taskWeek !== selectedWeekNum) return false;
+      if (taskWeeks && taskWeeks.length > 0 && !taskWeeks.includes(selectedWeekNum)) return false;
       if (taskDays && taskDays.length > 0 && !taskDays.includes(selectedDayOfWeek)) return false;
       return true;
     }
@@ -336,7 +343,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const canSave = () => {
     if (!newTask.titleAr || selectedRoomIds.length === 0) return false;
     if (newTask.frequency === "once") return !!selectedSpecificDate;
-    if (newTask.frequency === "monthly") return selectedDaysOfWeek.length > 0 && selectedWeekOfMonth !== null;
+    if (newTask.frequency === "monthly") return selectedDaysOfWeek.length > 0 && selectedWeeksOfMonth.length > 0;
     if (newTask.frequency === "weekly") return selectedDaysOfWeek.length > 0;
     return true;
   };
@@ -351,7 +358,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           titleEn: newTask.titleEn,
           frequency: newTask.frequency,
           daysOfWeek: newTask.frequency === "once" ? [] : selectedDaysOfWeek,
-          weekOfMonth: newTask.frequency === "monthly" ? selectedWeekOfMonth : null,
+          weeksOfMonth: newTask.frequency === "monthly" ? selectedWeeksOfMonth : null,
           specificDate: newTask.frequency === "once" ? selectedSpecificDate : null,
           roomId,
         });
@@ -362,7 +369,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       setNewTask({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
       setSelectedRoomIds([]);
       setSelectedDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
-      setSelectedWeekOfMonth(null);
+      setSelectedWeeksOfMonth([]);
       setSelectedSpecificDate("");
     } catch {
       toast({ title: "Error", variant: "destructive" });
@@ -437,7 +444,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
             <DaysOfWeekSelector
               selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek}
               frequency={newTask.frequency} onFrequencyChange={f => setNewTask(p => ({ ...p, frequency: f }))}
-              weekOfMonth={selectedWeekOfMonth} onWeekOfMonthChange={setSelectedWeekOfMonth}
+              weeksOfMonth={selectedWeeksOfMonth} onWeeksOfMonthChange={setSelectedWeeksOfMonth}
               specificDate={selectedSpecificDate} onSpecificDateChange={setSelectedSpecificDate}
             />
             <MultiRoomSelect
