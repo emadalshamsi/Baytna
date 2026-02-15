@@ -823,10 +823,30 @@ export async function registerRoutes(
       const driverId = req.params.id;
       const activeTrips = await storage.getDriverActiveTrips(driverId);
       const activeOrders = await storage.getDriverActiveOrders(driverId);
+
+      const departureTime = req.query.departureTime ? new Date(req.query.departureTime as string) : null;
+      const duration = req.query.duration ? parseInt(req.query.duration as string) : 30;
+
+      let timeConflicts: { id: number; personName: string; location: string; departureTime: Date; estimatedDuration: number | null }[] = [];
+      if (departureTime) {
+        const scheduledTrips = await storage.getDriverScheduledTrips(driverId);
+        const newStart = departureTime.getTime();
+        const newEnd = newStart + duration * 60 * 1000;
+        timeConflicts = scheduledTrips.filter(t => {
+          const tripStart = new Date(t.departureTime).getTime();
+          const tripEnd = tripStart + (t.estimatedDuration || 30) * 60 * 1000;
+          return newStart < tripEnd && newEnd > tripStart;
+        });
+      }
+
       res.json({
-        busy: activeTrips.length > 0 || activeOrders.length > 0,
+        busy: activeTrips.length > 0 || activeOrders.length > 0 || timeConflicts.length > 0,
         activeTrips: activeTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status })),
         activeOrders: activeOrders.map(o => ({ id: o.id, status: o.status })),
+        timeConflicts: timeConflicts.map(t => ({
+          id: t.id, personName: t.personName, location: t.location,
+          departureTime: t.departureTime, estimatedDuration: t.estimatedDuration,
+        })),
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to check driver availability" });

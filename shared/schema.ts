@@ -98,6 +98,8 @@ export const vehicles = pgTable("vehicles", {
   name: varchar("name", { length: 200 }).notNull(),
   odometerReading: integer("odometer_reading").default(0),
   lastMaintenanceDate: timestamp("last_maintenance_date"),
+  isPrivate: boolean("is_private").notNull().default(false),
+  assignedUserId: varchar("assigned_user_id").references(() => users.id),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

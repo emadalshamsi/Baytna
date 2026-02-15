@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock } from "lucide-react";
 import { useState } from "react";
 import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
 import { t, getLang } from "@/lib/i18n";
@@ -22,17 +23,23 @@ function VehiclesSection() {
   useLang();
   const { toast } = useToast();
   const { data: allVehicles, isLoading } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
+  const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
   const [showAdd, setShowAdd] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [name, setName] = useState("");
   const [odometer, setOdometer] = useState("");
   const [lastMaintenance, setLastMaintenance] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [assignedUserId, setAssignedUserId] = useState("");
 
-  const resetForm = () => { setName(""); setOdometer(""); setLastMaintenance(""); setEditingVehicle(null); };
+  const householdUsers = allUsers?.filter(u => u.role === "household") || [];
+
+  const resetForm = () => { setName(""); setOdometer(""); setLastMaintenance(""); setIsPrivate(false); setAssignedUserId(""); setEditingVehicle(null); };
 
   const openEdit = (v: Vehicle) => {
     setEditingVehicle(v); setName(v.name); setOdometer(String(v.odometerReading || ""));
     setLastMaintenance(v.lastMaintenanceDate ? new Date(v.lastMaintenanceDate).toISOString().split("T")[0] : "");
+    setIsPrivate(v.isPrivate || false); setAssignedUserId(v.assignedUserId || "");
     setShowAdd(true);
   };
 
@@ -52,9 +59,15 @@ function VehiclesSection() {
   });
 
   const handleSave = () => {
-    const data = { name, odometerReading: odometer ? parseInt(odometer) : 0, lastMaintenanceDate: lastMaintenance ? new Date(lastMaintenance) : null };
+    const data = { name, odometerReading: odometer ? parseInt(odometer) : 0, lastMaintenanceDate: lastMaintenance ? new Date(lastMaintenance) : null, isPrivate, assignedUserId: isPrivate && assignedUserId ? assignedUserId : null };
     if (editingVehicle) updateMutation.mutate({ id: editingVehicle.id, data });
     else createMutation.mutate(data);
+  };
+
+  const getUserName = (uid: string | null) => {
+    if (!uid) return "";
+    const u = allUsers?.find(usr => usr.id === uid);
+    return u?.firstName || u?.username || "";
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -74,7 +87,23 @@ function VehiclesSection() {
             <Input placeholder={t("vehicles.name")} value={name} onChange={e => setName(e.target.value)} data-testid="input-vehicle-name" />
             <Input type="number" placeholder={t("vehicles.odometer")} value={odometer} onChange={e => setOdometer(e.target.value)} data-testid="input-vehicle-odometer" />
             <Input type="date" placeholder={t("vehicles.lastMaintenance")} value={lastMaintenance} onChange={e => setLastMaintenance(e.target.value)} data-testid="input-vehicle-maintenance" />
-            <Button className="w-full" disabled={!name || createMutation.isPending || updateMutation.isPending} data-testid="button-save-vehicle" onClick={handleSave}>
+            <div className="flex items-center gap-2">
+              <Checkbox id="vehicle-private" checked={isPrivate} onCheckedChange={(checked) => { setIsPrivate(!!checked); if (!checked) setAssignedUserId(""); }} data-testid="checkbox-vehicle-private" />
+              <label htmlFor="vehicle-private" className="text-sm cursor-pointer">{t("vehicles.privateVehicle")}</label>
+            </div>
+            {isPrivate && householdUsers.length > 0 && (
+              <Select value={assignedUserId} onValueChange={setAssignedUserId}>
+                <SelectTrigger data-testid="select-vehicle-user">
+                  <SelectValue placeholder={t("vehicles.selectOwner")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {householdUsers.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.firstName || u.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button className="w-full" disabled={!name || (isPrivate && !assignedUserId) || createMutation.isPending || updateMutation.isPending} data-testid="button-save-vehicle" onClick={handleSave}>
               {t("actions.save")}
             </Button>
           </div>
@@ -91,11 +120,20 @@ function VehiclesSection() {
                 <div className="flex items-center gap-2">
                   <Car className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{v.name}</span>
+                  {v.isPrivate && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Lock className="w-3 h-3" />
+                      {t("vehicles.private")}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 flex gap-3 flex-wrap">
                   <span>{t("vehicles.odometer")}: {v.odometerReading || 0} {t("vehicles.km")}</span>
                   {v.lastMaintenanceDate && (
                     <span>{t("vehicles.lastMaintenance")}: {new Date(v.lastMaintenanceDate).toLocaleDateString("ar-SA")}</span>
+                  )}
+                  {v.isPrivate && v.assignedUserId && (
+                    <span>{t("vehicles.owner")}: {getUserName(v.assignedUserId)}</span>
                   )}
                 </div>
               </div>
@@ -242,11 +280,21 @@ function TripsSection() {
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
-  type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
+  type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[]; timeConflicts?: { id: number; personName: string; location: string; departureTime: string; estimatedDuration: number }[] };
+  const availabilityParams = new URLSearchParams();
+  if (departureTime) availabilityParams.set("departureTime", new Date(departureTime).toISOString());
+  if (estimatedDuration) availabilityParams.set("duration", estimatedDuration);
   const { data: driverAvailability } = useQuery<DriverAvailability>({
-    queryKey: ["/api/drivers", assignedDriver, "availability"],
+    queryKey: ["/api/drivers", assignedDriver, "availability", departureTime, estimatedDuration],
+    queryFn: async () => {
+      const res = await fetch(`/api/drivers/${assignedDriver}/availability?${availabilityParams.toString()}`);
+      if (!res.ok) throw new Error("Failed to check");
+      return res.json();
+    },
     enabled: !!assignedDriver,
   });
+
+  const availableVehicles = allVehicles?.filter(v => !v.isPrivate || v.assignedUserId === currentUser?.id || currentUser?.role === "driver" || currentUser?.role === "admin") || [];
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/trips", data); },
@@ -399,6 +447,9 @@ function TripsSection() {
                   {driverAvailability.activeOrders.map(o => (
                     <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
                   ))}
+                  {driverAvailability.timeConflicts?.map(tc => (
+                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripTo")} {tc.location} ({new Date(tc.departureTime).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })} - {tc.estimatedDuration} {t("trips.minutes")})</div>
+                  ))}
                 </div>
               </div>
             )}
@@ -410,10 +461,10 @@ function TripsSection() {
               </div>
             )}
 
-            {allVehicles && allVehicles.length > 0 && (
+            {availableVehicles.length > 0 && (
               <Select value={vehicleId} onValueChange={setVehicleId}>
                 <SelectTrigger data-testid="select-trip-vehicle"><SelectValue placeholder={t("trips.selectVehicle")} /></SelectTrigger>
-                <SelectContent>{allVehicles.map(v => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{availableVehicles.map(v => <SelectItem key={v.id} value={String(v.id)}>{v.name}{v.isPrivate ? ` (${t("vehicles.private")})` : ""}</SelectItem>)}</SelectContent>
               </Select>
             )}
 

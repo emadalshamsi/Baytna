@@ -4,6 +4,13 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 15, 2026)
+- Trip time overlap detection: availability check now considers departureTime + estimatedDuration range, shows time conflicts
+- Private vehicles: isPrivate + assignedUserId fields on vehicles, private vehicles only available to assigned user and driver
+- Vehicle form: checkbox for private + user selector, vehicle card shows private badge and owner
+- Trip form: filters vehicles based on privacy, passes departure time + duration to availability API
+- canApproveTrips permission for trip approval (separate from canApprove for orders)
+- estimatedDuration field on trips (15-120 min in 15-min increments)
+- All household users can create trips
 - Order editing for canApprove users: can add/remove/edit items on pending orders via expandable order detail panel
 - Backend enforces canApprove/admin permission + order status (pending/approved) for item modifications
 - Auto-recalculates totalEstimated when items are added/removed/updated

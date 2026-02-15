@@ -93,6 +93,7 @@ export interface IStorage {
   deleteTripLocation(id: number): Promise<void>;
 
   getDriverActiveTrips(driverId: string): Promise<Trip[]>;
+  getDriverScheduledTrips(driverId: string): Promise<Trip[]>;
   getDriverActiveOrders(driverId: string): Promise<Order[]>;
 
   getTechnicians(): Promise<Technician[]>;
@@ -464,6 +465,15 @@ export class DatabaseStorage implements IStorage {
       and(
         eq(trips.assignedDriver, driverId),
         inArray(trips.status, ["started", "waiting"])
+      )
+    );
+  }
+
+  async getDriverScheduledTrips(driverId: string): Promise<Trip[]> {
+    return db.select().from(trips).where(
+      and(
+        eq(trips.assignedDriver, driverId),
+        inArray(trips.status, ["pending", "approved", "started", "waiting"])
       )
     );
   }
