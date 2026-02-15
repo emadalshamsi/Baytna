@@ -108,10 +108,11 @@ export default function AdminUsers() {
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
   const roles = ["admin", "household", "maid", "driver"] as const;
+  const sortedUsers = [...(allUsers || [])].sort((a, b) => (a.username || "").localeCompare(b.username || ""));
 
   return (
     <div className="space-y-3">
-        {allUsers?.map(u => (
+        {sortedUsers.map(u => (
           <Card key={u.id} className={u.isSuspended ? "opacity-60" : ""} data-testid={`card-user-${u.id}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
