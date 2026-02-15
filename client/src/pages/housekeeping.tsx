@@ -780,7 +780,7 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setForm(p => ({ ...p, imageUrl: data.url }));
+      setForm(p => ({ ...p, imageUrl: data.imageUrl }));
     } catch {
       toast({ title: t("profile.uploadFailed"), variant: "destructive" });
     } finally {
