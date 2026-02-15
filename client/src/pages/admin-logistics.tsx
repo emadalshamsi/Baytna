@@ -270,13 +270,15 @@ function TripsSection() {
   const [showAdd, setShowAdd] = useState(false);
   const [personName, setPersonName] = useState("");
   const [location, setLocation] = useState("");
-  const [departureTime, setDepartureTime] = useState("");
+  const [departureDate, setDepartureDate] = useState("");
+  const [departureTimeVal, setDepartureTimeVal] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState("30");
   const [vehicleId, setVehicleId] = useState("");
   const [assignedDriver, setAssignedDriver] = useState("");
   const [notes, setNotes] = useState("");
 
-  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureTime(""); setEstimatedDuration("30"); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureDate(""); setDepartureTimeVal(""); setEstimatedDuration("30"); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+  const departureTime = departureDate && departureTimeVal ? `${departureDate}T${departureTimeVal}` : "";
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
@@ -400,7 +402,10 @@ function TripsSection() {
 
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">{t("trips.departureTime")} *</label>
-              <Input type="datetime-local" value={departureTime} onChange={e => setDepartureTime(e.target.value)} data-testid="input-trip-departure" />
+              <div className="flex gap-2">
+                <Input type="date" value={departureDate} onChange={e => setDepartureDate(e.target.value)} data-testid="input-trip-departure-date" className="flex-1" />
+                <Input type="time" value={departureTimeVal} onChange={e => setDepartureTimeVal(e.target.value)} data-testid="input-trip-departure-time" className="flex-1" />
+              </div>
             </div>
 
             <div>
@@ -469,7 +474,7 @@ function TripsSection() {
             )}
 
             <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-trip-notes" />
-            <Button className="w-full" disabled={!personName || !location || !departureTime || createMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
+            <Button className="w-full" disabled={!personName || !location || !departureDate || !departureTimeVal || createMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
               {t("actions.save")}
             </Button>
           </div>
