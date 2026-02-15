@@ -109,7 +109,7 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
                     className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover-elevate"
                     onClick={() => {
                       onChange([...selectedIds, room.id]);
-                      if (unselected.length <= 1) setOpen(false);
+                      setOpen(false);
                     }}
                     data-testid={`option-room-${room.id}`}
                   >
