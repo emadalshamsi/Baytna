@@ -97,7 +97,7 @@ export default function MaidDashboard() {
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(i => i.productId === product.id);
-      if (existing) return prev;
+      if (existing) return prev.filter(i => i.productId !== product.id);
       return [...prev, { productId: product.id, quantity: 1, product }];
     });
   };
