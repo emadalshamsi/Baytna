@@ -279,8 +279,11 @@ function ProfilePhotoSection() {
     setUploading(true);
     try {
       const croppedBlob = await getCroppedBlob(imageSrc, croppedAreaPixels);
+      const { compressImage } = await import("@/lib/image-compress");
+      const croppedFile = new File([croppedBlob], "profile.webp", { type: croppedBlob.type });
+      const compressed = await compressImage(croppedFile);
       const formData = new FormData();
-      formData.append("image", croppedBlob, "profile.jpg");
+      formData.append("image", compressed, "profile.webp");
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (data.imageUrl) {

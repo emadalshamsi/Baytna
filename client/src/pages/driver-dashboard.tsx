@@ -100,8 +100,10 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     if (!file) return;
     setUploading(true);
     try {
+      const { compressImage } = await import("@/lib/image-compress");
+      const compressed = await compressImage(file);
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", compressed);
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (res.ok) {

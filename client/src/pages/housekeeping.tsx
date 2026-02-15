@@ -775,8 +775,10 @@ function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   async function handleImageUpload(file: File) {
     setUploading(true);
     try {
+      const { compressImage } = await import("@/lib/image-compress");
+      const compressed = await compressImage(file);
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", compressed);
       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error();
       const data = await res.json();
