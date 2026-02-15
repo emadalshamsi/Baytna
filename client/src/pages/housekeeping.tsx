@@ -94,7 +94,7 @@ function DateStrip({ selectedDate, onSelect }: { selectedDate: Date; onSelect: (
   );
 }
 
-function DaysOfWeekSelector({ selectedDays, onChange }: { selectedDays: number[]; onChange: (days: number[]) => void }) {
+function DaysOfWeekSelector({ selectedDays, onChange, frequency, onFrequencyChange }: { selectedDays: number[]; onChange: (days: number[]) => void; frequency: string; onFrequencyChange: (f: string) => void }) {
   const toggle = (day: number) => {
     if (selectedDays.includes(day)) {
       onChange(selectedDays.filter(d => d !== day));
@@ -103,39 +103,65 @@ function DaysOfWeekSelector({ selectedDays, onChange }: { selectedDays: number[]
     }
   };
   const allSelected = selectedDays.length === 7;
-  const toggleAll = () => {
-    onChange(allSelected ? [] : [0, 1, 2, 3, 4, 5, 6]);
+
+  const selectPreset = (preset: "daily" | "weekly" | "monthly") => {
+    onFrequencyChange(preset);
+    if (preset === "daily") {
+      onChange([0, 1, 2, 3, 4, 5, 6]);
+    }
   };
 
   return (
     <div className="space-y-1.5" data-testid="days-of-week-selector">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <Button
           type="button"
-          variant={allSelected ? "default" : "outline"}
+          variant={frequency === "daily" && allSelected ? "default" : "outline"}
           size="sm"
           className="text-xs"
-          onClick={toggleAll}
+          onClick={() => selectPreset("daily")}
           data-testid="button-toggle-all-days"
         >
           {t("housekeepingSection.everyDay")}
         </Button>
+        <Button
+          type="button"
+          variant={frequency === "weekly" ? "default" : "outline"}
+          size="sm"
+          className="text-xs"
+          onClick={() => selectPreset("weekly")}
+          data-testid="button-every-week"
+        >
+          {t("housekeepingSection.everyWeek")}
+        </Button>
+        <Button
+          type="button"
+          variant={frequency === "monthly" ? "default" : "outline"}
+          size="sm"
+          className="text-xs"
+          onClick={() => selectPreset("monthly")}
+          data-testid="button-every-month"
+        >
+          {t("housekeepingSection.everyMonth")}
+        </Button>
       </div>
-      <div className="grid grid-cols-7 gap-1">
-        {dayAbbrevKeys.map((key, i) => (
-          <Button
-            key={i}
-            type="button"
-            variant={selectedDays.includes(i) ? "default" : "outline"}
-            size="sm"
-            className="text-xs p-1"
-            onClick={() => toggle(i)}
-            data-testid={`button-day-${i}`}
-          >
-            {t(`housekeepingSection.${key}`)}
-          </Button>
-        ))}
-      </div>
+      {frequency !== "daily" && (
+        <div className="grid grid-cols-7 gap-1">
+          {dayAbbrevKeys.map((key, i) => (
+            <Button
+              key={i}
+              type="button"
+              variant={selectedDays.includes(i) ? "default" : "outline"}
+              size="sm"
+              className="text-xs p-1"
+              onClick={() => toggle(i)}
+              data-testid={`button-day-${i}`}
+            >
+              {t(`housekeepingSection.${key}`)}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -347,7 +373,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
           <CardContent className="p-3 space-y-3">
             <Input placeholder={t("housekeepingSection.taskTitle") + " (عربي)"} value={newTask.titleAr} onChange={e => setNewTask(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-task-title-ar" />
             <Input placeholder={t("housekeepingSection.taskTitle") + " (EN)"} value={newTask.titleEn} onChange={e => setNewTask(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-task-title-en" />
-            <DaysOfWeekSelector selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek} />
+            <DaysOfWeekSelector selectedDays={selectedDaysOfWeek} onChange={setSelectedDaysOfWeek} frequency={newTask.frequency} onFrequencyChange={f => setNewTask(p => ({ ...p, frequency: f }))} />
             <MultiRoomSelect
               rooms={activeRooms}
               selectedIds={selectedRoomIds}
