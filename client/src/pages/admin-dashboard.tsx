@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock } from "lucide-react";
 import { t, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useState } from "react";
-import type { Order, User as UserType } from "@shared/schema";
+import type { Order, Trip, User as UserType } from "@shared/schema";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
@@ -30,23 +30,32 @@ export default function AdminDashboard() {
   useLang();
   const [activeFilter, setActiveFilter] = useState<StatFilter>(null);
 
-  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; approved: number; inProgress: number; completed: number; total: number; totalSpent: number }>({
+  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSpent: number; weekStart: string; weekEnd: string }>({
     queryKey: ["/api/stats"],
   });
 
   const { data: orders } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
+  const { data: trips } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
   const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
 
   const userMap = new Map((users || []).map(u => [u.id, u]));
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const weekRange = stats ? { start: new Date(stats.weekStart as any), end: new Date(stats.weekEnd as any) } : null;
 
   const filteredOrders = orders?.filter(o => {
     if (activeFilter === "total") return true;
     if (activeFilter === "pending") return o.status === "pending";
     if (activeFilter === "completed") return o.status === "completed";
     if (activeFilter === "spent") return o.status === "completed" && o.createdAt && new Date(o.createdAt) >= monthStart;
+    return false;
+  }) || [];
+
+  const filteredTrips = trips?.filter(tr => {
+    if (activeFilter === "total") return true;
+    if (activeFilter === "pending") return tr.status === "pending";
+    if (activeFilter === "completed") return tr.status === "completed" && tr.completedAt && weekRange && new Date(tr.completedAt) >= weekRange.start && new Date(tr.completedAt) <= weekRange.end;
     return false;
   }) || [];
 
@@ -99,19 +108,20 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeFilter && filteredOrders.length > 0 && (
+      {activeFilter && (filteredOrders.length > 0 || filteredTrips.length > 0) && (
         <div className="space-y-3" data-testid="filtered-orders-list">
           <h3 className="text-sm font-semibold text-muted-foreground">
-            {filterTitle(activeFilter)} ({filteredOrders.length})
+            {filterTitle(activeFilter)} ({filteredOrders.length + filteredTrips.length})
           </h3>
           {filteredOrders.map(order => {
             const creator = userMap.get(order.createdBy);
             const orderTotal = order.totalActual || order.totalEstimated || 0;
             return (
-              <Card key={order.id} data-testid={`card-dashboard-order-${order.id}`}>
+              <Card key={`order-${order.id}`} data-testid={`card-dashboard-order-${order.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
                     <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">{t("nav.groceries")}</Badge>
                       <span className="font-medium text-sm">#{order.id}</span>
                       <StatusBadge status={order.status} />
                     </div>
@@ -142,6 +152,36 @@ export default function AdminDashboard() {
               </Card>
             );
           })}
+          {filteredTrips.map(trip => {
+            const creator = userMap.get(trip.createdBy);
+            return (
+              <Card key={`trip-${trip.id}`} data-testid={`card-dashboard-trip-${trip.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">{t("trips.title")}</Badge>
+                      <span className="font-medium text-sm">#{trip.id}</span>
+                      <StatusBadge status={trip.status} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
+                    <span className="flex items-center gap-1">
+                      <User className="w-3 h-3" /> {trip.personName}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {trip.location}
+                    </span>
+                    {trip.departureTime && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {new Date(trip.departureTime).toLocaleString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
+                  {trip.notes && <p className="text-xs text-muted-foreground mt-1">{trip.notes}</p>}
+                </CardContent>
+              </Card>
+            );
+          })}
           {activeFilter === "spent" && (
             <Card data-testid="card-spending-total">
               <CardContent className="p-4 flex items-center justify-between gap-2">
@@ -153,7 +193,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeFilter && filteredOrders.length === 0 && (
+      {activeFilter && filteredOrders.length === 0 && filteredTrips.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-4">{t("messages.noOrders")}</p>
       )}
     </div>
