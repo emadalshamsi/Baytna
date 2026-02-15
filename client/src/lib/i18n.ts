@@ -309,3 +309,17 @@ export function displayName(user: { firstName?: string | null; lastName?: string
 export function formatPrice(amount: number): string {
   return currentLang === "ar" ? `${amount} ر.س` : `${amount} SAR`;
 }
+
+export function formatDate(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString(currentLang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function formatTime(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleTimeString(currentLang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatDateTime(date: string | Date): string {
+  return `${formatDate(date)} ${formatTime(date)}`;
+}

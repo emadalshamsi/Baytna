@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
-import { t, formatPrice, getLang } from "@/lib/i18n";
+import { t, formatPrice, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -328,7 +328,6 @@ function WaitingTimer({ startedAt }: { startedAt: string }) {
 
 function TripsSection() {
   useLang();
-  const lang = getLang();
   const { toast } = useToast();
   const { data: currentUser } = useQuery<{ id: string }>({ queryKey: ["/api/auth/user"] });
   const { data: trips, isLoading } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
@@ -406,7 +405,7 @@ function TripsSection() {
                   <div>{t("trips.location")}: {trip.location}</div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-3 h-3" />
-                    <span>{new Date(trip.departureTime).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })} {new Date(trip.departureTime).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="text-foreground/60">{formatDateTime(trip.departureTime)}</span>
                   </div>
                   {trip.vehicleId && (
                     <div className="flex items-center gap-2 flex-wrap">
@@ -460,7 +459,7 @@ function TripsSection() {
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
-                  <span>{new Date(trip.departureTime).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })} {new Date(trip.departureTime).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="text-foreground/60">{formatDateTime(trip.departureTime)}</span>
                   {trip.vehicleId && (
                     <>
                       <Car className="w-3 h-3" />

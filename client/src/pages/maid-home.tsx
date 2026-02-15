@@ -7,7 +7,7 @@ import {
   AlertCircle, Clock, Users, StickyNote,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t } from "@/lib/i18n";
+import { t, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -160,7 +160,7 @@ export default function MaidHomePage() {
                       <p className="text-sm font-bold">{room ? (lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)) : "?"}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {req.createdAt ? new Date(req.createdAt).toLocaleTimeString(lang === "ar" ? "ar" : "en", { hour: "2-digit", minute: "2-digit" }) : ""}
+                        {req.createdAt ? formatTime(req.createdAt) : ""}
                       </p>
                     </div>
                   </div>

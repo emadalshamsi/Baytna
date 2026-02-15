@@ -13,14 +13,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock } from "lucide-react";
 import { useState } from "react";
 import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
-import { t, getLang, displayName } from "@/lib/i18n";
+import { t, getLang, displayName, formatDate, formatTime, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
 
 const specialties = ["plumber", "farmer", "acTech", "electrician", "carpenter", "painter", "other"] as const;
 
 function VehiclesSection() {
-  useLang();
+  const { lang } = useLang();
   const { toast } = useToast();
   const { data: allVehicles, isLoading } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
   const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
@@ -130,7 +130,7 @@ function VehiclesSection() {
                 <div className="text-sm text-muted-foreground mt-1 flex gap-3 flex-wrap">
                   <span>{t("vehicles.odometer")}: {v.odometerReading || 0} {t("vehicles.km")}</span>
                   {v.lastMaintenanceDate && (
-                    <span>{t("vehicles.lastMaintenance")}: {new Date(v.lastMaintenanceDate).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                    <span>{t("vehicles.lastMaintenance")}: {formatDate(v.lastMaintenanceDate)}</span>
                   )}
                   {v.isPrivate && v.assignedUserId && (
                     <span>{t("vehicles.owner")}: {getUserName(v.assignedUserId)}</span>
@@ -453,7 +453,7 @@ function TripsSection() {
                     <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
                   ))}
                   {driverAvailability.timeConflicts?.map(tc => (
-                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {new Date(tc.departureTime).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })} {t("conflict.toLocation")} {new Date(new Date(tc.departureTime).getTime() + tc.estimatedDuration * 60000).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })}</div>
+                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {formatTime(tc.departureTime)} {t("conflict.toLocation")} {formatTime(new Date(tc.departureTime).getTime() + tc.estimatedDuration * 60000)}</div>
                   ))}
                 </div>
               </div>
@@ -502,7 +502,7 @@ function TripsSection() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
-                  <span>{t("trips.departureTime")}: {new Date(trip.departureTime).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })} {new Date(trip.departureTime).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="text-foreground/60">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>
                 </div>
                 {trip.estimatedDuration && (
                   <div className="flex items-center gap-2 flex-wrap">

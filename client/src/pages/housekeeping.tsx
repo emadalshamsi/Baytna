@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, getLang } from "@/lib/i18n";
+import { t, getLang, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -679,7 +679,7 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
                     <div>
                       <p className="text-sm font-medium">{room ? (lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)) : "?"}</p>
                       <p className="text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3 inline" /> {req.createdAt ? new Date(req.createdAt).toLocaleTimeString(lang === "ar" ? "ar" : "en", { hour: "2-digit", minute: "2-digit" }) : ""}
+                        <Clock className="w-3 h-3 inline" /> {req.createdAt ? formatTime(req.createdAt) : ""}
                       </p>
                     </div>
                   </div>

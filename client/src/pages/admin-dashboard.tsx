@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock } from "lucide-react";
-import { t, formatPrice, displayName, getLang } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useState } from "react";
 import type { Order, Trip, User as UserType } from "@shared/schema";
@@ -28,7 +28,6 @@ type StatFilter = "total" | "pending" | "completed" | "spent" | null;
 
 export default function AdminDashboard() {
   useLang();
-  const lang = getLang();
   const [activeFilter, setActiveFilter] = useState<StatFilter>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSpent: number; weekStart: string; weekEnd: string }>({
@@ -141,7 +140,7 @@ export default function AdminDashboard() {
                         <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                       </span>
                     )}
-                    <span>{new Date(order.createdAt!).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                    <span className="text-foreground/60">{formatDate(order.createdAt!)}</span>
                   </div>
                   {order.notes && <p className="text-xs text-muted-foreground mt-1">{order.notes}</p>}
                   {order.receiptImageUrl && (
@@ -174,7 +173,7 @@ export default function AdminDashboard() {
                     </span>
                     {trip.departureTime && (
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {new Date(trip.departureTime).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })} {new Date(trip.departureTime).toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" })}
+                        <Clock className="w-3 h-3" /> <span className="text-foreground/60">{formatDateTime(trip.departureTime)}</span>
                       </span>
                     )}
                   </div>

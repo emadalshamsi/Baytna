@@ -12,7 +12,7 @@ import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { t, getLang, setLang, type Lang } from "@/lib/i18n";
+import { t, getLang, setLang, formatDateTime, type Lang } from "@/lib/i18n";
 import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminShopping from "@/pages/admin-shopping";
@@ -172,7 +172,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
                         </p>
                       )}
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date(notif.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
+                        {formatDateTime(notif.createdAt)}
                       </p>
                     </div>
                     {!notif.isRead && (

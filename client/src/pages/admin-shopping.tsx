@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, getLang } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 
@@ -199,7 +199,6 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
 
 function OrdersSection() {
   useLang();
-  const lang = getLang();
   const { toast } = useToast();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
   const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
@@ -253,7 +252,7 @@ function OrdersSection() {
                       <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
                     </span>
                   )}
-                  <span>{new Date(order.createdAt!).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                  <span className="text-foreground/60">{formatDate(order.createdAt!)}</span>
                 </div>
                 {approver && (
                   <div className="text-xs text-muted-foreground mt-1">
