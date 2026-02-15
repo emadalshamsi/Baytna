@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Home, LogIn, UserPlus, Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { t } from "@/lib/i18n";
@@ -11,6 +12,7 @@ import { useLang } from "@/App";
 export default function LoginPage() {
   const { lang, toggleLang } = useLang();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +72,7 @@ export default function LoginPage() {
 
       queryClient.setQueryData(["/api/auth/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
     } catch (error) {
       toast({ title: "Connection error", variant: "destructive" });
     } finally {
