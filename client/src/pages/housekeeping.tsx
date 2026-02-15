@@ -21,7 +21,7 @@ import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundrySch
 
 const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 const dayAbbrevKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-const mealTypes = ["breakfast", "lunch", "dinner"] as const;
+const mealTypes = ["breakfast", "lunch", "snack", "dinner"] as const;
 
 function formatDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -771,7 +771,7 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
   onEdit?: (meal: Meal) => void;
   onDelete?: (id: number) => void;
 }) {
-  const mealOrder: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2 };
+  const mealOrder: Record<string, number> = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 };
   const sorted = [...meals].sort((a, b) => (mealOrder[a.mealType] ?? 9) - (mealOrder[b.mealType] ?? 9));
 
   if (sorted.length === 0) {
