@@ -124,13 +124,14 @@ export default function MaidHomePage() {
           </div>
           {totalCount > 0 && (
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-full border-4 border-primary/20 flex items-center justify-center relative">
-                <span className="text-sm font-bold">{totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0}%</span>
-                <svg className="absolute inset-0 w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                  <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--primary))" strokeWidth="4"
-                    strokeDasharray={`${(doneCount / totalCount) * 125.6} 125.6`}
+              <div className="w-14 h-14 relative flex items-center justify-center">
+                <svg className="absolute inset-0 w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="hsl(var(--primary) / 0.2)" strokeWidth="4" />
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="hsl(var(--primary))" strokeWidth="4"
+                    strokeDasharray={`${(doneCount / totalCount) * 150.8} 150.8`}
                     strokeLinecap="round" />
                 </svg>
+                <span className="text-sm font-bold relative">{Math.round((doneCount / totalCount) * 100)}%</span>
               </div>
             </div>
           )}
