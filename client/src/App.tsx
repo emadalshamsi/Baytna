@@ -8,8 +8,8 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X } from "lucide-react";
-import { useState, useEffect, createContext, useContext, useCallback } from "react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw } from "lucide-react";
+import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { t, getLang, setLang, type Lang } from "@/lib/i18n";
@@ -257,6 +257,72 @@ function AppHeader() {
   );
 }
 
+function PullToRefresh({ children }: { children: React.ReactNode }) {
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const startY = useRef(0);
+  const pulling = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const threshold = 80;
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const el = containerRef.current;
+    if (!el || refreshing) return;
+    if (el.scrollTop <= 0) {
+      startY.current = e.touches[0].clientY;
+      pulling.current = true;
+    }
+  }, [refreshing]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!pulling.current || refreshing) return;
+    const el = containerRef.current;
+    if (!el || el.scrollTop > 0) {
+      pulling.current = false;
+      setPullDistance(0);
+      return;
+    }
+    const diff = e.touches[0].clientY - startY.current;
+    if (diff > 0) {
+      setPullDistance(Math.min(diff * 0.4, 120));
+    }
+  }, [refreshing]);
+
+  const onTouchEnd = useCallback(async () => {
+    if (!pulling.current) return;
+    pulling.current = false;
+    if (pullDistance >= threshold && !refreshing) {
+      setRefreshing(true);
+      setPullDistance(threshold * 0.5);
+      await queryClient.invalidateQueries();
+      await new Promise(r => setTimeout(r, 400));
+      setRefreshing(false);
+    }
+    setPullDistance(0);
+  }, [pullDistance, refreshing]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <div
+        className="flex items-center justify-center transition-all duration-200 overflow-hidden"
+        style={{ height: pullDistance > 0 ? `${pullDistance}px` : "0px" }}
+      >
+        <RefreshCw
+          className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${refreshing ? "animate-spin" : ""}`}
+          style={{ transform: refreshing ? undefined : `rotate(${(pullDistance / threshold) * 360}deg)`, opacity: Math.min(pullDistance / (threshold * 0.5), 1) }}
+        />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function MainLayout() {
   useLang();
   const { user } = useAuth();
@@ -265,16 +331,18 @@ function MainLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
-      <main className="flex-1 p-3 pb-28 max-w-2xl mx-auto w-full">
-        <Switch>
-          <Route path="/" component={HomeContent} />
-          <Route path="/groceries" component={GroceriesContent} />
-          <Route path="/logistics" component={LogisticsContent} />
-          <Route path="/housekeeping" component={HousekeepingPage} />
-          <Route path="/settings" component={SettingsPage} />
-          <Route component={NotFound} />
-        </Switch>
-      </main>
+      <PullToRefresh>
+        <main className="flex-1 p-3 pb-28 max-w-2xl mx-auto w-full">
+          <Switch>
+            <Route path="/" component={HomeContent} />
+            <Route path="/groceries" component={GroceriesContent} />
+            <Route path="/logistics" component={LogisticsContent} />
+            <Route path="/housekeeping" component={HousekeepingPage} />
+            <Route path="/settings" component={SettingsPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </main>
+      </PullToRefresh>
       <BottomNavBar />
     </div>
   );
