@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, inArray } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
@@ -126,6 +126,8 @@ export interface IStorage {
   getPendingLaundryRequests(): Promise<LaundryRequest[]>;
   createLaundryRequest(req: InsertLaundryRequest): Promise<LaundryRequest>;
   completeLaundryRequest(id: number, completedBy: string): Promise<LaundryRequest | undefined>;
+  cancelLaundryRequest(id: number): Promise<LaundryRequest | undefined>;
+  hasPendingLaundryRequestToday(roomId: number): Promise<boolean>;
 
   getLaundrySchedule(): Promise<LaundryScheduleEntry[]>;
   setLaundrySchedule(days: number[]): Promise<void>;
@@ -607,6 +609,29 @@ export class DatabaseStorage implements IStorage {
       completedAt: new Date(),
     }).where(eq(laundryRequests.id, id)).returning();
     return result;
+  }
+
+  async cancelLaundryRequest(id: number): Promise<LaundryRequest | undefined> {
+    const [result] = await db.update(laundryRequests).set({
+      status: "cancelled",
+    }).where(and(eq(laundryRequests.id, id), eq(laundryRequests.status, "pending"))).returning();
+    return result;
+  }
+
+  async hasPendingLaundryRequestToday(roomId: number): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const results = await db.select().from(laundryRequests).where(
+      and(
+        eq(laundryRequests.roomId, roomId),
+        eq(laundryRequests.status, "pending"),
+        gte(laundryRequests.createdAt, today),
+        lt(laundryRequests.createdAt, tomorrow),
+      )
+    );
+    return results.length > 0;
   }
 
   async getLaundrySchedule(): Promise<LaundryScheduleEntry[]> {

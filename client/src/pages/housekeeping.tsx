@@ -605,6 +605,20 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
     },
   });
 
+  const cancelRequest = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/laundry-requests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/laundry-requests"] });
+      toast({ title: t("housekeepingSection.laundryCancelled") });
+    },
+  });
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const roomsWithPendingToday = new Set(
+    requests.filter(r => r.status === "pending" && r.createdAt && new Date(r.createdAt).toISOString().split("T")[0] === todayStr).map(r => r.roomId)
+  );
+  const availableRooms = activeRooms.filter(r => !roomsWithPendingToday.has(r.id));
+
   const updateSchedule = useMutation({
     mutationFn: (days: number[]) => apiRequest("PUT", "/api/laundry-schedule", { days }),
     onSuccess: () => {
@@ -645,7 +659,7 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
             <Select value={selectedRoom} onValueChange={setSelectedRoom}>
               <SelectTrigger data-testid="select-laundry-room"><SelectValue placeholder={t("housekeepingSection.selectRoom")} /></SelectTrigger>
               <SelectContent>
-                {activeRooms.map(r => <SelectItem key={r.id} value={String(r.id)}>{lang === "ar" ? r.nameAr : (r.nameEn || r.nameAr)}</SelectItem>)}
+                {availableRooms.map(r => <SelectItem key={r.id} value={String(r.id)}>{lang === "ar" ? r.nameAr : (r.nameEn || r.nameAr)}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button
@@ -683,18 +697,30 @@ function LaundryTab({ isAdmin, isMaid, isHousehold }: { isAdmin: boolean; isMaid
                       </p>
                     </div>
                   </div>
-                  {(isMaid || isAdmin) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1"
-                      onClick={() => completeRequest.mutate(req.id)}
-                      data-testid={`button-complete-laundry-${req.id}`}
-                    >
-                      <Check className="w-4 h-4" />
-                      {t("housekeepingSection.laundryDone")}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {(req.requestedBy === user?.id || isAdmin) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => cancelRequest.mutate(req.id)}
+                        data-testid={`button-cancel-laundry-${req.id}`}
+                      >
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                    {(isMaid || isAdmin) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => completeRequest.mutate(req.id)}
+                        data-testid={`button-complete-laundry-${req.id}`}
+                      >
+                        <Check className="w-4 h-4" />
+                        {t("housekeepingSection.laundryDone")}
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );

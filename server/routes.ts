@@ -1411,6 +1411,10 @@ export async function registerRoutes(
   app.post("/api/laundry-requests", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
+      const hasPending = await storage.hasPendingLaundryRequestToday(req.body.roomId);
+      if (hasPending) {
+        return res.status(400).json({ message: "A pending laundry request already exists for this room today" });
+      }
       const request = await storage.createLaundryRequest({
         ...req.body,
         requestedBy: userId,
@@ -1433,6 +1437,24 @@ export async function registerRoutes(
       res.json(request);
     } catch (error) {
       res.status(500).json({ message: "Failed to create laundry request" });
+    }
+  });
+
+  app.delete("/api/laundry-requests/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      const requests = await storage.getLaundryRequests();
+      const request = requests.find(r => r.id === parseInt(req.params.id));
+      if (!request) return res.status(404).json({ message: "Request not found" });
+      if (request.status !== "pending") return res.status(400).json({ message: "Can only cancel pending requests" });
+      if (request.requestedBy !== userId && user?.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const result = await storage.cancelLaundryRequest(parseInt(req.params.id));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to cancel laundry request" });
     }
   });
 
