@@ -969,11 +969,24 @@ export async function registerRoutes(
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
       const allTrips = await storage.getTrips();
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      const filterOldCompleted = (trips: typeof allTrips) =>
+        trips.filter(trip => {
+          if (trip.status !== "completed") return true;
+          const completedDate = trip.completedAt ? new Date(trip.completedAt) : (trip.createdAt ? new Date(trip.createdAt) : new Date());
+          return completedDate >= twoDaysAgo;
+        });
+
       if (currentUser.role === "driver") {
         const driverTrips = allTrips.filter(t => t.status === "approved" || t.status === "started" || t.status === "waiting" || t.status === "completed" || t.assignedDriver === currentUser.id);
-        return res.json(driverTrips);
+        return res.json(filterOldCompleted(driverTrips));
       }
-      res.json(allTrips);
+      if (currentUser.role === "admin") {
+        return res.json(allTrips);
+      }
+      res.json(filterOldCompleted(allTrips));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch trips" });
     }
