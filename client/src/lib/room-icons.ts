@@ -1,5 +1,5 @@
 import {
-  DoorOpen, Sofa, CookingPot, Car, TreePalm, Flower2, Package, Home, type LucideIcon,
+  DoorOpen, Sofa, CookingPot, Car, Tent, Flower2, Package, Home, type LucideIcon,
   Fence, GripVertical,
 } from "lucide-react";
 
@@ -8,7 +8,7 @@ export const ROOM_ICON_OPTIONS = [
   { key: "sofa", Icon: Sofa },
   { key: "kitchen", Icon: CookingPot },
   { key: "garage", Icon: Car },
-  { key: "outdoor", Icon: TreePalm },
+  { key: "outdoor", Icon: Tent },
   { key: "garden", Icon: Flower2 },
   { key: "storage", Icon: Package },
   { key: "courtyard", Icon: Fence },
