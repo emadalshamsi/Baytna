@@ -82,10 +82,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const filteredTasks = tasks.filter(task => {
     if (task.frequency !== filter) return false;
-    if (task.roomId) {
-      const room = rooms.find(r => r.id === task.roomId);
-      if (room?.isExcluded) return false;
-    }
+    const room = rooms.find(r => r.id === task.roomId);
+    if (room?.isExcluded) return false;
     if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
     return true;
   });
@@ -189,15 +187,14 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                 <SelectItem value="monthly">{t("housekeepingSection.monthly")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={newTask.roomId || "none"} onValueChange={v => setNewTask(p => ({ ...p, roomId: v === "none" ? "" : v }))}>
+            <Select value={newTask.roomId} onValueChange={v => setNewTask(p => ({ ...p, roomId: v }))}>
               <SelectTrigger data-testid="select-task-room"><SelectValue placeholder={t("housekeepingSection.selectRoom")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">{t("housekeepingSection.allRooms")}</SelectItem>
                 {activeRooms.map(r => <SelectItem key={r.id} value={String(r.id)}>{lang === "ar" ? r.nameAr : (r.nameEn || r.nameAr)}</SelectItem>)}
               </SelectContent>
             </Select>
             <div className="flex gap-2">
-              <Button size="sm" disabled={!newTask.titleAr || createTask.isPending} onClick={() => createTask.mutate({ ...newTask, roomId: newTask.roomId ? parseInt(newTask.roomId) : null })} data-testid="button-save-task">{t("actions.save")}</Button>
+              <Button size="sm" disabled={!newTask.titleAr || !newTask.roomId || createTask.isPending} onClick={() => createTask.mutate({ ...newTask, roomId: parseInt(newTask.roomId) })} data-testid="button-save-task">{t("actions.save")}</Button>
               <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>{t("actions.cancel")}</Button>
             </div>
           </CardContent>

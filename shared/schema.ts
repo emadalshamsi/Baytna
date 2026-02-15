@@ -152,7 +152,7 @@ export const housekeepingTasks = pgTable("housekeeping_tasks", {
   titleAr: varchar("title_ar", { length: 200 }).notNull(),
   titleEn: varchar("title_en", { length: 200 }),
   frequency: varchar("frequency", { length: 20 }).notNull().default("daily"),
-  roomId: integer("room_id").references(() => rooms.id),
+  roomId: integer("room_id").notNull().references(() => rooms.id),
   icon: varchar("icon", { length: 50 }),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").default(0),

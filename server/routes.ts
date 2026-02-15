@@ -949,6 +949,12 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
+      if (!req.body.roomId) {
+        return res.status(400).json({ message: "Room is required" });
+      }
+      if (!req.body.titleAr) {
+        return res.status(400).json({ message: "Task title is required" });
+      }
       const task = await storage.createHousekeepingTask(req.body);
       res.json(task);
     } catch (error) {
