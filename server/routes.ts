@@ -36,14 +36,12 @@ async function sendPushToUser(userId: string, payload: { title: string; body: st
   } catch {}
 }
 
-async function sendPushToAllUsers(payload: { title: string; body: string; icon?: string; url?: string; tag?: string }, excludeUserId?: string) {
-  try {
-    const allUsers = await storage.getAllUsers();
-    for (const user of allUsers) {
-      if (excludeUserId && user.id === excludeUserId) continue;
-      await sendPushToUser(user.id, payload);
-    }
-  } catch {}
+function filterNotificationForUser(notif: any, user: { role: string; canApprove: boolean }) {
+  if (user.role === "admin") return true;
+  if (notif.type === "order_created" || notif.type === "trip_created") return false;
+  if (notif.type === "order_ready_driver") return user.role === "driver";
+  if (notif.type === "laundry_request") return user.role === "maid";
+  return true;
 }
 
 async function notifyAndPush(userId: string, data: { titleAr: string; titleEn?: string; bodyAr?: string; bodyEn?: string; type: string; url?: string }) {
@@ -464,9 +462,9 @@ export async function registerRoutes(
       const userId = (req.session as any).userId;
       const order = await storage.createOrder({ ...req.body, createdBy: userId, status: "pending" });
       const allUsers = await storage.getAllUsers();
-      const approvers = allUsers.filter(u => (u.canApprove || u.role === "admin") && u.id !== userId);
-      for (const approver of approvers) {
-        notifyAndPush(approver.id, {
+      const admins = allUsers.filter(u => u.role === "admin" && u.id !== userId);
+      for (const admin of admins) {
+        notifyAndPush(admin.id, {
           titleAr: "طلب جديد",
           titleEn: "New Order",
           bodyAr: `طلب جديد #${order.id} بحاجة لاعتماد`,
@@ -512,7 +510,7 @@ export async function registerRoutes(
                 titleEn: "Approved order ready for shopping",
                 bodyAr: `الطلب #${order.id} جاهز للتسوق`,
                 bodyEn: `Order #${order.id} is ready`,
-                type: "order_approved",
+                type: "order_ready_driver",
                 url: "/groceries",
               });
             }
@@ -875,9 +873,9 @@ export async function registerRoutes(
       };
       const trip = await storage.createTrip(tripData);
       const allUsers = await storage.getAllUsers();
-      const approvers = allUsers.filter(u => (u.canApprove || u.role === "admin") && u.id !== currentUser.id);
-      for (const approver of approvers) {
-        notifyAndPush(approver.id, {
+      const admins = allUsers.filter(u => u.role === "admin" && u.id !== currentUser.id);
+      for (const admin of admins) {
+        notifyAndPush(admin.id, {
           titleAr: "مشوار جديد",
           titleEn: "New Trip",
           bodyAr: `مشوار جديد لـ ${trip.personName} إلى ${trip.location}`,
@@ -1440,8 +1438,11 @@ export async function registerRoutes(
   app.get("/api/notifications", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
       const notifs = await storage.getNotifications(userId);
-      res.json(notifs);
+      const filtered = notifs.filter((n: any) => filterNotificationForUser(n, currentUser));
+      res.json(filtered);
     } catch (error) {
       res.status(500).json({ message: "Failed to get notifications" });
     }
@@ -1450,7 +1451,11 @@ export async function registerRoutes(
   app.get("/api/notifications/unread-count", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const count = await storage.getUnreadNotificationCount(userId);
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      const notifs = await storage.getNotifications(userId);
+      const filtered = notifs.filter((n: any) => filterNotificationForUser(n, currentUser));
+      const count = filtered.filter((n: any) => !n.isRead).length;
       res.json({ count });
     } catch (error) {
       res.status(500).json({ message: "Failed to get count" });
