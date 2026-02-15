@@ -222,6 +222,8 @@ function TripsSection() {
   useLang();
   const lang = getLang();
   const { toast } = useToast();
+  const { data: currentUser } = useQuery<AuthUser>({ queryKey: ["/api/auth/user"] });
+  const canCreateTrip = currentUser?.role === "admin" || currentUser?.canApprove;
   const { data: allTrips, isLoading } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
   const { data: allVehicles } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
   const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
@@ -247,6 +249,7 @@ function TripsSection() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/trips", data); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trips"] }); setShowAdd(false); resetForm(); toast({ title: t("trips.tripAdded") }); },
+    onError: (error: Error) => { toast({ title: error.message || t("trips.saveFailed"), variant: "destructive" }); },
   });
 
   const statusMutation = useMutation({
@@ -311,7 +314,7 @@ function TripsSection() {
 
   return (
     <div className="space-y-3">
-      <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
+      {canCreateTrip && <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
         <DialogTrigger asChild>
           <Button className="gap-2" data-testid="button-add-trip"><Plus className="w-4 h-4" /> {t("trips.addTrip")}</Button>
         </DialogTrigger>
@@ -401,7 +404,7 @@ function TripsSection() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {!allTrips?.length ? (
         <p className="text-center text-muted-foreground py-8">{t("trips.noTrips")}</p>
