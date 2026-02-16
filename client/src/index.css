@@ -178,6 +178,15 @@ input, textarea {
     @apply hidden;
   }
 
+  .dark .stairs-icon {
+    filter: invert(1);
+  }
+
+  :not(.dark) .text-primary-foreground > .stairs-icon,
+  :not(.dark) .text-primary-foreground .stairs-icon {
+    filter: invert(1);
+  }
+
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));

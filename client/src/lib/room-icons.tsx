@@ -9,7 +9,7 @@ function StairsIcon({ className }: { className?: string }) {
     <img
       src={stairsImagePath}
       alt="stairs"
-      className={`${className || ""} dark:invert`}
+      className={`stairs-icon ${className || ""}`}
       style={{ display: "inline-block" }}
     />
   ) as unknown as React.ReactSVGElement;
