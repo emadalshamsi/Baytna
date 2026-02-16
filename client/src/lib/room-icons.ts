@@ -1,6 +1,6 @@
 import {
   DoorOpen, Sofa, CookingPot, Car, Tent, Flower2, Package, Home, type LucideIcon,
-  Fence, GripVertical, Armchair, Bath, Footprints,
+  Fence, GripVertical, Armchair, Bath, ChartNoAxesGantt,
 } from "lucide-react";
 
 export const ROOM_ICON_OPTIONS = [
@@ -15,7 +15,7 @@ export const ROOM_ICON_OPTIONS = [
   { key: "home", Icon: Home },
   { key: "bathroom", Icon: Bath },
   { key: "armchair", Icon: Armchair },
-  { key: "stairs", Icon: Footprints },
+  { key: "stairs", Icon: ChartNoAxesGantt },
 ] as const;
 
 const iconMap: Record<string, LucideIcon> = Object.fromEntries(
