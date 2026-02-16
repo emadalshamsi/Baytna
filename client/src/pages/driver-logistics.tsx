@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Clock, Car, Play, Square, AlertTriangle, ListChecks, Wrench, Phone } from "lucide-react";
+import { MapPin, Clock, Car, Play, Square, AlertTriangle, ListChecks, Wrench, Phone, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import type { Trip, Vehicle, Technician } from "@shared/schema";
 import { t, formatDateTime } from "@/lib/i18n";
@@ -46,7 +46,7 @@ function DriverTripsSection() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
       if (currentUser?.id) queryClient.invalidateQueries({ queryKey: ["/api/drivers", currentUser.id, "availability"] });
-      const msgKey = vars.status === "started" ? "driver.tripStarted" : vars.status === "waiting" ? "driver.tripWaiting" : "driver.tripCompleted";
+      const msgKey = vars.status === "cancelled" ? "trips.tripCancelled" : vars.status === "started" ? "driver.tripStarted" : vars.status === "waiting" ? "driver.tripWaiting" : "driver.tripCompleted";
       toast({ title: t(msgKey) });
     },
   });
@@ -75,6 +75,7 @@ function DriverTripsSection() {
     started: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
     waiting: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
     completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
   };
 
   if (!approvedTrips.length && !activeTrips.length && !completedTrips.length) {
@@ -160,9 +161,16 @@ function DriverTripsSection() {
                     </div>
                     {!trip.isPersonal && <div className="text-sm text-muted-foreground">{trip.location}</div>}
                   </div>
-                  <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants.approved}`}>
-                    {t("status.approved")}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants.approved}`}>
+                      {t("status.approved")}
+                    </Badge>
+                    {trip.createdBy === currentUser?.id && (
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(t("messages.confirmDelete"))) statusMutation.mutate({ id: trip.id, status: "cancelled" }); }} data-testid={`button-cancel-trip-${trip.id}`}>
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />

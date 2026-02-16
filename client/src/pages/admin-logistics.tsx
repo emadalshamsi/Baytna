@@ -389,6 +389,7 @@ function TripsSection() {
     started: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
     waiting: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
     completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -526,9 +527,16 @@ function TripsSection() {
                     </Badge>
                   )}
                 </div>
-                <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants[trip.status] || ""}`}>
-                  {t(`status.${trip.status}`)}
-                </Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants[trip.status] || ""}`}>
+                    {t(`status.${trip.status}`)}
+                  </Badge>
+                  {(trip.createdBy === currentUser?.id || currentUser?.role === "admin") && ["pending", "approved"].includes(trip.status) && (
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(t("messages.confirmDelete"))) statusMutation.mutate({ id: trip.id, status: "cancelled" }); }} data-testid={`button-cancel-trip-${trip.id}`}>
+                      <X className="w-4 h-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
                 {!trip.isPersonal && (

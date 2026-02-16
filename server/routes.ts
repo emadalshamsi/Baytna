@@ -1165,6 +1165,17 @@ export async function registerRoutes(
         return res.json(updated);
       }
 
+      if (status === "cancelled") {
+        if (trip.createdBy !== currentUser.id && currentUser.role !== "admin") {
+          return res.status(403).json({ message: "Only the trip creator or admin can cancel" });
+        }
+        if (!["pending", "approved"].includes(trip.status)) {
+          return res.status(400).json({ message: "Can only cancel pending or approved trips" });
+        }
+        const updated = await storage.updateTripStatus(tripId, status);
+        return res.json(updated);
+      }
+
       if (status === "started") {
         if (currentUser.role !== "driver" && currentUser.role !== "admin") {
           return res.status(403).json({ message: "Forbidden" });

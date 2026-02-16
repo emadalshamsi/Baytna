@@ -377,6 +377,7 @@ function TripsSection() {
     started: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
     waiting: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
     completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
   };
 
   if (!approvedTrips.length && !activeTrips.length && !completedTrips.length) {

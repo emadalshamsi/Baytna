@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart, Pencil,
+  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart, Pencil, X,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -236,6 +236,16 @@ export default function DriverHomePage() {
     },
   });
 
+  const cancelTripMutation = useMutation({
+    mutationFn: async (tripId: number) => {
+      await apiRequest("PATCH", `/api/trips/${tripId}/status`, { status: "cancelled" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      toast({ title: t("trips.tripCancelled") });
+    },
+  });
+
   const dayTrips = trips.filter(tr => {
     if (!tr.departureTime) return false;
     const tripDate = new Date(tr.departureTime);
@@ -413,6 +423,11 @@ export default function DriverHomePage() {
                         {trip.status === "pending" && trip.createdBy === user?.id && (
                           <Button size="icon" variant="ghost" data-testid={`button-edit-trip-${trip.id}`} onClick={() => openEditDialog(trip)}>
                             <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {trip.createdBy === user?.id && ["pending", "approved"].includes(trip.status) && (
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(t("messages.confirmDelete"))) cancelTripMutation.mutate(trip.id); }} data-testid={`button-cancel-trip-${trip.id}`}>
+                            <X className="w-4 h-4 text-destructive" />
                           </Button>
                         )}
                         <StatusBadge status={trip.status} />
