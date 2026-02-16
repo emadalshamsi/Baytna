@@ -453,7 +453,7 @@ function TripsSection() {
                     <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
                   ))}
                   {driverAvailability.timeConflicts?.map(tc => (
-                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {formatTime(tc.departureTime)} {t("conflict.toLocation")} {formatTime(new Date(tc.departureTime).getTime() + tc.estimatedDuration * 60000)}</div>
+                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {formatTime(tc.departureTime)} {t("conflict.toLocation")} {formatTime(new Date(new Date(tc.departureTime).getTime() + (tc.estimatedDuration || 30) * 60000))}</div>
                   ))}
                 </div>
               </div>
