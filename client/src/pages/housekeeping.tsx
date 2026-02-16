@@ -506,7 +506,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
             return (
               <Card
                 key={room.id}
-                className={`cursor-pointer transition-all bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/30 ${activeRooms.length > 1 ? "hover-elevate" : ""} ${isSelected && activeRooms.length > 1 ? "ring-2 ring-primary" : ""}`}
+                className={`cursor-pointer transition-all bg-amber-50 dark:bg-muted/50 border-amber-200/50 dark:border-border ${activeRooms.length > 1 ? "hover-elevate" : ""} ${isSelected && activeRooms.length > 1 ? "ring-2 ring-primary" : ""}`}
                 onClick={() => { if (activeRooms.length > 1) setRoomFilter(isSelected ? "all" : String(room.id)); }}
                 data-testid={`card-progress-room-${room.id}`}
               >
