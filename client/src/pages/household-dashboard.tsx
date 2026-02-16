@@ -16,7 +16,8 @@ import {
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
   Send, Package, Plus, Minus, X, Check, ClipboardList,
   Image as ImageIcon, RefreshCw, Upload, Pencil, LayoutGrid,
-  Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp
+  Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp,
+  Clock, CalendarDays, Zap
 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
@@ -580,11 +581,23 @@ export default function HouseholdDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("shopping");
+  const [scheduledFor, setScheduledFor] = useState<string>("today");
+
+  const getScheduledDate = (val: string) => {
+    const now = new Date();
+    if (val === "now") return now.toISOString().split("T")[0];
+    if (val === "tomorrow") {
+      const tmr = new Date(now);
+      tmr.setDate(tmr.getDate() + 1);
+      return tmr.toISOString().split("T")[0];
+    }
+    return now.toISOString().split("T")[0];
+  };
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       const totalEstimated = cart.reduce((sum, item) => sum + (item.product.estimatedPrice || 0) * item.quantity, 0);
-      const res = await apiRequest("POST", "/api/orders", { notes, totalEstimated });
+      const res = await apiRequest("POST", "/api/orders", { notes, totalEstimated, scheduledFor: getScheduledDate(scheduledFor) });
       const order = await res.json();
       for (const item of cart) {
         await apiRequest("POST", `/api/orders/${order.id}/items`, {
@@ -600,6 +613,7 @@ export default function HouseholdDashboard() {
       setCart([]);
       setShowCart(false);
       setNotes("");
+      setScheduledFor("today");
       toast({ title: t("messages.orderCreated") });
     },
   });
@@ -936,6 +950,28 @@ export default function HouseholdDashboard() {
                 <span className="text-sm text-muted-foreground">{cart.reduce((s, i) => s + i.quantity, 0)} {t("fields.items")}</span>
               </div>
               <Textarea placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} className="text-sm" data-testid="input-order-notes" />
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{t("schedule.deliverySchedule")}</span>
+                <div className="flex gap-1">
+                  {[
+                    { value: "today", label: t("schedule.today"), icon: CalendarDays },
+                    { value: "now", label: t("schedule.now"), icon: Zap },
+                    { value: "tomorrow", label: t("schedule.tomorrow"), icon: Clock },
+                  ].map(opt => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={scheduledFor === opt.value ? "default" : "outline"}
+                      className="flex-1 gap-1"
+                      onClick={() => setScheduledFor(opt.value)}
+                      data-testid={`button-schedule-${opt.value}`}
+                    >
+                      <opt.icon className="w-3.5 h-3.5" />
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <Button className="w-full gap-2" onClick={() => createOrderMutation.mutate()} disabled={createOrderMutation.isPending} data-testid="button-submit-order">
                 <Send className="w-4 h-4" /> {t("maid.sendOrder")}
               </Button>

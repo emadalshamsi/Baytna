@@ -483,7 +483,14 @@ export async function registerRoutes(
         const approved = await storage.getOrdersByStatus("approved");
         const inProgress = await storage.getOrdersByStatus("in_progress");
         const completed = await storage.getOrdersByStatus("completed");
-        res.json([...approved, ...inProgress, ...completed]);
+        const today = new Date().toISOString().split("T")[0];
+        const allDriverOrders = [...approved, ...inProgress, ...completed];
+        const filtered = allDriverOrders.filter(o => {
+          if (o.status === "in_progress" || o.status === "completed") return true;
+          if (!o.scheduledFor) return true;
+          return o.scheduledFor <= today;
+        });
+        res.json(filtered);
       } else {
         const userOrders = await storage.getOrdersByUser(currentUser.id);
         res.json(userOrders);
@@ -609,6 +616,26 @@ export async function registerRoutes(
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order total" });
+    }
+  });
+
+  app.patch("/api/orders/:id/scheduled", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "admin" && !currentUser.canApprove) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const order = await storage.getOrder(parseInt(req.params.id));
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      if (order.status !== "pending" && order.status !== "approved") {
+        return res.status(400).json({ message: "Cannot edit this order" });
+      }
+      const { scheduledFor } = req.body;
+      const updated = await storage.updateOrderScheduledFor(parseInt(req.params.id), scheduledFor || null);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update schedule" });
     }
   });
 

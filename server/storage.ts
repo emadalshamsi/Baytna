@@ -75,6 +75,7 @@ export interface IStorage {
   updateOrderItem(id: number, item: Partial<InsertOrderItem>): Promise<OrderItem | undefined>;
   deleteOrderItem(id: number): Promise<void>;
   updateOrderEstimatedTotal(id: number, total: number): Promise<Order | undefined>;
+  updateOrderScheduledFor(id: number, scheduledFor: string | null): Promise<Order | undefined>;
 
   getVehicles(): Promise<Vehicle[]>;
   getVehicle(id: number): Promise<Vehicle | undefined>;
@@ -384,6 +385,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrderEstimatedTotal(id: number, total: number): Promise<Order | undefined> {
     const [result] = await db.update(orders).set({ totalEstimated: total, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+    return result;
+  }
+
+  async updateOrderScheduledFor(id: number, scheduledFor: string | null): Promise<Order | undefined> {
+    const [result] = await db.update(orders).set({ scheduledFor, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
     return result;
   }
 
