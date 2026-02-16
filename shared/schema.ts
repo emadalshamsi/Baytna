@@ -169,7 +169,7 @@ export const housekeepingTasks = pgTable("housekeeping_tasks", {
   daysOfWeek: integer("days_of_week").array(),
   weeksOfMonth: integer("weeks_of_month").array(),
   specificDate: varchar("specific_date", { length: 10 }),
-  roomId: integer("room_id").notNull().references(() => rooms.id),
+  roomId: integer("room_id").references(() => rooms.id),
   icon: varchar("icon", { length: 50 }),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").default(0),

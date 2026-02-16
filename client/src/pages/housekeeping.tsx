@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Brush, WashingMachine, ChefHat, Check, Plus, X,
   Users, StickyNote, Clock, CalendarDays,
-  Shirt, AlertCircle, ImageIcon,
+  Shirt, AlertCircle, ImageIcon, Home,
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect } from "react";
@@ -247,15 +247,31 @@ function TabButton({ active, icon: Icon, label, onClick, testId }: { active: boo
   );
 }
 
-function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]; selectedIds: number[]; onChange: (ids: number[]) => void; lang: string }) {
+function MultiRoomSelect({ rooms, selectedIds, onChange, lang, showAllRooms }: { rooms: Room[]; selectedIds: number[]; onChange: (ids: number[]) => void; lang: string; showAllRooms?: boolean }) {
   const [open, setOpen] = useState(false);
-  const unselected = rooms.filter(r => !selectedIds.includes(r.id));
+  const isAllSelected = selectedIds.includes(-1);
+  const unselected = isAllSelected ? [] : rooms.filter(r => !selectedIds.includes(r.id));
 
   return (
     <div className="space-y-1.5" data-testid="multi-select-rooms">
       {selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedIds.map(id => {
+            if (id === -1) {
+              return (
+                <Badge
+                  key={id}
+                  variant="secondary"
+                  className="gap-1 cursor-pointer"
+                  onClick={() => onChange(selectedIds.filter(rid => rid !== id))}
+                  data-testid="chip-room-all"
+                >
+                  <Home className="w-3 h-3" />
+                  {t("housekeepingSection.allRooms")}
+                  <X className="w-3 h-3" />
+                </Badge>
+              );
+            }
             const room = rooms.find(r => r.id === id);
             if (!room) return null;
             const ChipIcon = getRoomIcon(room.icon);
@@ -275,7 +291,7 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
           })}
         </div>
       )}
-      {unselected.length > 0 && (
+      {!isAllSelected && (unselected.length > 0 || showAllRooms) && (
         <div className="relative">
           <Button
             type="button"
@@ -291,6 +307,19 @@ function MultiRoomSelect({ rooms, selectedIds, onChange, lang }: { rooms: Room[]
           {open && (
             <Card className="absolute z-50 mt-1 w-full shadow-md" data-testid="room-picker-dropdown">
               <CardContent className="p-1">
+                {showAllRooms && !isAllSelected && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover-elevate"
+                    onClick={() => {
+                      onChange([-1]);
+                      setOpen(false);
+                    }}
+                    data-testid="option-room-all"
+                  >
+                    <Home className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{t("housekeepingSection.allRooms")}</span>
+                  </div>
+                )}
                 {unselected.map(room => (
                   <div
                     key={room.id}
@@ -351,10 +380,13 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const filteredTasks = tasks.filter(task => {
     if (!task.isActive) return false;
-    const room = rooms.find(r => r.id === task.roomId);
-    if (room?.isExcluded) return false;
-    if (hasRoomFilter && !myRoomIds.includes(task.roomId)) return false;
-    if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
+    if (task.roomId !== null) {
+      const room = rooms.find(r => r.id === task.roomId);
+      if (room?.isExcluded) return false;
+    }
+    if (hasRoomFilter && task.roomId !== null && !myRoomIds.includes(task.roomId)) return false;
+    if (roomFilter === "global" && task.roomId !== null) return false;
+    if (roomFilter !== "all" && roomFilter !== "global" && task.roomId !== null && task.roomId !== parseInt(roomFilter)) return false;
 
     if (task.frequency === "once") {
       return task.specificDate === dateStr;
@@ -377,8 +409,10 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const completedTaskIds = new Set(completions.map(c => c.taskId));
 
+  const isAllRoomsSelected = selectedRoomIds.includes(-1);
+
   const canSave = () => {
-    if (!newTask.titleAr || selectedRoomIds.length === 0) return false;
+    if (!newTask.titleAr || (selectedRoomIds.length === 0 && !isAllRoomsSelected)) return false;
     if (newTask.frequency === "once") return !!selectedSpecificDate;
     if (newTask.frequency === "monthly") return selectedDaysOfWeek.length > 0 && selectedWeeksOfMonth.length > 0;
     if (newTask.frequency === "weekly") return selectedDaysOfWeek.length > 0;
@@ -389,16 +423,21 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     if (!canSave()) return;
     setIsSaving(true);
     try {
-      for (const roomId of selectedRoomIds) {
-        await apiRequest("POST", "/api/housekeeping-tasks", {
-          titleAr: newTask.titleAr,
-          titleEn: newTask.titleEn,
-          frequency: newTask.frequency,
-          daysOfWeek: newTask.frequency === "once" ? [] : selectedDaysOfWeek,
-          weeksOfMonth: newTask.frequency === "monthly" ? selectedWeeksOfMonth : null,
-          specificDate: newTask.frequency === "once" ? selectedSpecificDate : null,
-          roomId,
-        });
+      const taskPayload = {
+        titleAr: newTask.titleAr,
+        titleEn: newTask.titleEn,
+        frequency: newTask.frequency,
+        daysOfWeek: newTask.frequency === "once" ? [] : selectedDaysOfWeek,
+        weeksOfMonth: newTask.frequency === "monthly" ? selectedWeeksOfMonth : null,
+        specificDate: newTask.frequency === "once" ? selectedSpecificDate : null,
+      };
+
+      if (isAllRoomsSelected) {
+        await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId: null });
+      } else {
+        for (const roomId of selectedRoomIds) {
+          await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId });
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/housekeeping-tasks"] });
       toast({ title: t("housekeepingSection.taskCompleted") });
@@ -450,8 +489,20 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
             onClick={() => setRoomFilter("all")}
             data-testid="button-filter-all-rooms"
           >
-            {t("housekeepingSection.allRooms")}
+            {t("housekeepingSection.today")}
           </Button>
+          {tasks.some(t => t.roomId === null && t.isActive) && (
+            <Button
+              variant={roomFilter === "global" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setRoomFilter("global")}
+              className="gap-1"
+              data-testid="button-filter-global-tasks"
+            >
+              <Home className="w-3.5 h-3.5" />
+              {t("housekeepingSection.allRooms")}
+            </Button>
+          )}
           {activeRooms.map(room => (
             <Button
               key={room.id}
@@ -489,6 +540,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
               selectedIds={selectedRoomIds}
               onChange={setSelectedRoomIds}
               lang={lang}
+              showAllRooms
             />
             <div className="flex gap-2">
               <Button size="sm" disabled={!canSave() || isSaving} onClick={saveTasks} data-testid="button-save-task">
@@ -531,7 +583,12 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                     <p className={`text-sm font-bold ${isDone ? "line-through" : ""}`}>
                       {lang === "ar" ? task.titleAr : (task.titleEn || task.titleAr)}
                     </p>
-                    {room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
+                    {task.roomId === null ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Home className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{t("housekeepingSection.allRooms")}</span>
+                      </div>
+                    ) : room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
                       <div className="flex items-center gap-1 mt-0.5">
                         <TaskRoomIcon className="w-3 h-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>

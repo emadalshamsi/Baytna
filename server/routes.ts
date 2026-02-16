@@ -1430,9 +1430,6 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      if (!req.body.roomId) {
-        return res.status(400).json({ message: "Room is required" });
-      }
       if (!req.body.titleAr) {
         return res.status(400).json({ message: "Task title is required" });
       }
@@ -1806,7 +1803,7 @@ export async function registerRoutes(
         const tasks = await storage.getHousekeepingTasks();
         let activeTasks = tasks.filter((t: any) => t.isActive && t.daysOfWeek && t.daysOfWeek.includes(dayOfWeek));
         if (hasRoomFilter) {
-          activeTasks = activeTasks.filter((t: any) => userRoomIds.includes(t.roomId));
+          activeTasks = activeTasks.filter((t: any) => t.roomId === null || userRoomIds.includes(t.roomId));
         }
         const completions = await storage.getTaskCompletions(dateStr);
         const completedTaskIds = new Set(completions.map((c: any) => c.taskId));
