@@ -318,16 +318,21 @@ export function formatPrice(amount: number): string {
   return currentLang === "ar" ? `${amount} ر.س` : `${amount} SAR`;
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
   return d.toLocaleDateString(currentLang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function formatTime(date: string | Date): string {
+export function formatTime(date: string | Date | null | undefined): string {
+  if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
   return d.toLocaleTimeString(currentLang === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return "";
   return `${formatDate(date)} ${formatTime(date)}`;
 }
