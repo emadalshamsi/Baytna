@@ -268,6 +268,7 @@ function TripsSection() {
   const { data: allUsers } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
   const { data: allLocations } = useQuery<TripLocation[]>({ queryKey: ["/api/trip-locations"] });
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [personName, setPersonName] = useState("");
   const [location, setLocation] = useState("");
   const [departureDate, setDepartureDate] = useState("");
@@ -277,7 +278,21 @@ function TripsSection() {
   const [assignedDriver, setAssignedDriver] = useState("");
   const [notes, setNotes] = useState("");
 
-  const resetForm = () => { setPersonName(""); setLocation(""); setDepartureDate(""); setDepartureTimeVal(""); setEstimatedDuration("30"); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+  const resetForm = () => { setEditingTrip(null); setPersonName(""); setLocation(""); setDepartureDate(""); setDepartureTimeVal(""); setEstimatedDuration("30"); setVehicleId(""); setAssignedDriver(""); setNotes(""); };
+
+  const openEditTrip = (trip: Trip) => {
+    setEditingTrip(trip);
+    setPersonName(trip.personName || "");
+    setLocation(trip.location || "");
+    const dt = new Date(trip.departureTime);
+    setDepartureDate(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`);
+    setDepartureTimeVal(`${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`);
+    setEstimatedDuration(String(trip.estimatedDuration || 30));
+    setVehicleId(trip.vehicleId ? String(trip.vehicleId) : "");
+    setAssignedDriver(trip.assignedDriver || "");
+    setNotes(trip.notes || "");
+    setShowAdd(true);
+  };
   const departureTime = departureDate && departureTimeVal ? `${departureDate}T${departureTimeVal}` : "";
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
@@ -304,6 +319,12 @@ function TripsSection() {
     onError: (error: Error) => { toast({ title: error.message || t("trips.saveFailed"), variant: "destructive" }); },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("PATCH", `/api/trips/${editingTrip!.id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/trips"] }); setShowAdd(false); resetForm(); toast({ title: t("trips.tripUpdated") }); },
+    onError: () => { toast({ title: t("trips.saveFailed"), variant: "destructive" }); },
+  });
+
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
       await apiRequest("PATCH", `/api/trips/${id}/status`, { status });
@@ -316,14 +337,19 @@ function TripsSection() {
       toast({ title: t("trips.departureRequired"), variant: "destructive" });
       return;
     }
-    createMutation.mutate({
+    const data = {
       personName, location,
-      departureTime: new Date(departureTime),
+      departureTime: new Date(departureTime).toISOString(),
       estimatedDuration: parseInt(estimatedDuration),
       vehicleId: vehicleId ? parseInt(vehicleId) : null,
       assignedDriver: assignedDriver || null,
       notes: notes || null,
-    });
+    };
+    if (editingTrip) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const handleLocationSelect = (val: string) => {
@@ -367,14 +393,12 @@ function TripsSection() {
 
   return (
     <div className="space-y-3">
-      {canCreateTrip && <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
-        <DialogTrigger asChild>
-          <Button className="gap-2" data-testid="button-add-trip"><Plus className="w-4 h-4" /> {t("trips.addTrip")}</Button>
-        </DialogTrigger>
+      {canCreateTrip && <Button className="gap-2" data-testid="button-add-trip" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="w-4 h-4" /> {t("trips.addTrip")}</Button>}
+      <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("trips.addTrip")}</DialogTitle>
-            <DialogDescription className="sr-only">{t("trips.addTrip")}</DialogDescription>
+            <DialogTitle>{editingTrip ? t("trips.editTrip") : t("trips.addTrip")}</DialogTitle>
+            <DialogDescription className="sr-only">{editingTrip ? t("trips.editTrip") : t("trips.addTrip")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input placeholder={t("trips.personName")} value={personName} onChange={e => setPersonName(e.target.value)} data-testid="input-trip-person" />
@@ -477,12 +501,12 @@ function TripsSection() {
             )}
 
             <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-trip-notes" />
-            <Button className="w-full" disabled={!personName || !location || !departureDate || !departureTimeVal || createMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
+            <Button className="w-full" disabled={!personName || !location || !departureDate || !departureTimeVal || createMutation.isPending || updateMutation.isPending} data-testid="button-save-trip" onClick={handleSave}>
               {t("actions.save")}
             </Button>
           </div>
         </DialogContent>
-      </Dialog>}
+      </Dialog>
 
       {!allTrips?.length ? (
         <p className="text-center text-muted-foreground py-8">{t("trips.noTrips")}</p>
@@ -532,14 +556,23 @@ function TripsSection() {
                 )}
                 {trip.notes && <p>{t("fields.notes")}: {trip.notes}</p>}
               </div>
-              {trip.status === "pending" && canApproveTrip && (
+              {trip.status === "pending" && (
                 <div className="flex gap-2 mt-3 flex-wrap">
-                  <Button size="sm" onClick={() => statusMutation.mutate({ id: trip.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-trip-${trip.id}`}>
-                    <Check className="w-4 h-4 ml-1" /> {t("actions.approve")}
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate({ id: trip.id, status: "rejected" })} disabled={statusMutation.isPending} data-testid={`button-reject-trip-${trip.id}`}>
-                    <X className="w-4 h-4 ml-1" /> {t("actions.reject")}
-                  </Button>
+                  {(trip.createdBy === currentUser?.id || currentUser?.role === "admin") && (
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openEditTrip(trip)} data-testid={`button-edit-trip-${trip.id}`}>
+                      <Pencil className="w-4 h-4" /> {t("trips.editTrip")}
+                    </Button>
+                  )}
+                  {canApproveTrip && (
+                    <>
+                      <Button size="sm" onClick={() => statusMutation.mutate({ id: trip.id, status: "approved" })} disabled={statusMutation.isPending} data-testid={`button-approve-trip-${trip.id}`}>
+                        <Check className="w-4 h-4 ml-1" /> {t("actions.approve")}
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate({ id: trip.id, status: "rejected" })} disabled={statusMutation.isPending} data-testid={`button-reject-trip-${trip.id}`}>
+                        <X className="w-4 h-4 ml-1" /> {t("actions.reject")}
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </CardContent>
