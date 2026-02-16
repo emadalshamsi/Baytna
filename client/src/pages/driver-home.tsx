@@ -184,7 +184,7 @@ export default function DriverHomePage() {
         location: t("trips.personal"),
         departureTime: departureTime.toISOString(),
         estimatedDuration: parseInt(estimatedDuration),
-        vehicleId: tripVehicleId ? parseInt(tripVehicleId) : null,
+        vehicleId: tripVehicleId && tripVehicleId !== "none" ? parseInt(tripVehicleId) : null,
         notes: tripNotes || null,
         isPersonal: true,
       });
@@ -318,18 +318,17 @@ export default function DriverHomePage() {
                   </Select>
                 </div>
 
-                {availableVehicles.length > 0 && (
-                  <Select value={tripVehicleId} onValueChange={setTripVehicleId}>
-                    <SelectTrigger data-testid="select-trip-vehicle">
-                      <SelectValue placeholder={t("trips.selectVehicle")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableVehicles.map(v => (
-                        <SelectItem key={v.id} value={String(v.id)}>{v.name}{v.isPrivate ? ` (${t("vehicles.private")})` : ""}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={tripVehicleId || "none"} onValueChange={setTripVehicleId}>
+                  <SelectTrigger data-testid="select-trip-vehicle">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("trips.noVehicle")}</SelectItem>
+                    {availableVehicles.map(v => (
+                      <SelectItem key={v.id} value={String(v.id)}>{v.name}{v.isPrivate ? ` (${t("vehicles.private")})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
                 <Input placeholder={t("fields.notes")} value={tripNotes} onChange={e => setTripNotes(e.target.value)} data-testid="input-trip-notes" />
                 <Button className="w-full" disabled={!departureTimeVal || createPersonalTrip.isPending} data-testid="button-submit-personal-trip" onClick={() => createPersonalTrip.mutate()}>
