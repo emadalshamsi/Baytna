@@ -469,7 +469,87 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     },
   });
 
+  const tasksByRoom: Record<number, HousekeepingTask[]> = {};
+  for (const task of filteredTasks) {
+    if (!tasksByRoom[task.roomId]) tasksByRoom[task.roomId] = [];
+    tasksByRoom[task.roomId].push(task);
+  }
+
+  const sortedRoomEntries = activeRooms
+    .filter(r => tasksByRoom[r.id] && tasksByRoom[r.id].length > 0)
+    .map(room => {
+      const roomTasks = tasksByRoom[room.id];
+      const doneCount = roomTasks.filter(t => completedTaskIds.has(t.id)).length;
+      const allDone = doneCount === roomTasks.length;
+      return { room, roomTasks, doneCount, allDone };
+    })
+    .sort((a, b) => {
+      if (a.allDone !== b.allDone) return a.allDone ? 1 : -1;
+      return (a.room.sortOrder ?? 0) - (b.room.sortOrder ?? 0);
+    });
+
   if (tasksLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>;
+
+  if (isHousehold) {
+    return (
+      <div className="space-y-4">
+        <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
+
+        {sortedRoomEntries.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Brush className="w-12 h-12 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">{t("housekeepingSection.noTasks")}</p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {sortedRoomEntries.map(({ room, roomTasks, doneCount, allDone }) => {
+              const RoomIcon = getRoomIcon(room.icon);
+              const total = roomTasks.length;
+              const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+              return (
+                <Card
+                  key={room.id}
+                  className={`transition-opacity ${allDone ? "opacity-60" : ""}`}
+                  data-testid={`card-household-room-${room.id}`}
+                >
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      allDone ? "bg-green-500/20" : "bg-muted"
+                    }`}>
+                      {allDone ? (
+                        <Check className="w-7 h-7 text-green-600 dark:text-green-400" strokeWidth={3} />
+                      ) : (
+                        <RoomIcon className="w-7 h-7 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {doneCount}/{total} {t("maidHome.completed")}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {total > 0 && (
+                        <div className="w-12 h-12 relative flex items-center justify-center">
+                          <svg className="absolute inset-0 w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                            <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--primary) / 0.2)" strokeWidth="3" />
+                            <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--primary))" strokeWidth="3"
+                              strokeDasharray={`${(doneCount / total) * 125.7} 125.7`}
+                              strokeLinecap="round" />
+                          </svg>
+                          <span className="text-xs font-bold relative">{pct}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
