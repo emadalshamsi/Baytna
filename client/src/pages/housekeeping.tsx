@@ -495,6 +495,32 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       <div className="space-y-4">
         <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
 
+        {activeRooms.length === 1 && (() => {
+          const singleRoom = activeRooms[0];
+          const SingleRoomIcon = getRoomIcon(singleRoom.icon);
+          const totalTasks = filteredTasks.length;
+          const doneTasks = filteredTasks.filter(t => completedTaskIds.has(t.id)).length;
+          const pct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+          return (
+            <Card data-testid={`card-progress-room-${singleRoom.id}`}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
+                  <SingleRoomIcon className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold">{lang === "ar" ? singleRoom.nameAr : (singleRoom.nameEn || singleRoom.nameAr)}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{doneTasks}/{totalTasks}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {activeRooms.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             <Button
