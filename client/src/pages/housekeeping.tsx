@@ -1025,7 +1025,7 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
   );
 }
 
-function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
+export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   const { lang } = useLang();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

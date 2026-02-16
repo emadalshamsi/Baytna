@@ -17,7 +17,7 @@ import {
   Send, Package, Plus, Minus, X, Check, ClipboardList,
   Image as ImageIcon, RefreshCw, Upload, Pencil, LayoutGrid,
   Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp,
-  Clock, CalendarDays, Zap
+  Clock, CalendarDays, Zap, ChefHat
 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
@@ -25,6 +25,7 @@ import { t, formatPrice } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
+import { KitchenTab } from "@/pages/housekeeping";
 
 const categoryIcons: Record<string, any> = {
   milk: Milk, dairy: Milk, apple: Apple, fruit: Apple, fruits: Apple,
@@ -733,6 +734,10 @@ export default function HouseholdDashboard() {
     tabItems.push({ value: "shortages", icon: AlertTriangle, label: t("shortages.title") });
   }
 
+  if (user?.canApprove) {
+    tabItems.push({ value: "meals", icon: ChefHat, label: t("housekeepingSection.kitchen") });
+  }
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -980,6 +985,10 @@ export default function HouseholdDashboard() {
 
         {user?.canAddShortages && (
           <TabsContent value="shortages"><ShortagesSection /></TabsContent>
+        )}
+
+        {user?.canApprove && (
+          <TabsContent value="meals"><KitchenTab isAdmin={true} /></TabsContent>
         )}
       </Tabs>
 
