@@ -1745,24 +1745,27 @@ export async function registerRoutes(
 
       const role = currentUser.role;
 
-      const completedGroceryTypes = ["order_completed"];
-      const completedLogisticsTypes = ["trip_completed"];
-
       let groceriesNotifs = unread.filter((n: any) => ["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update"].includes(n.type));
       let logisticsNotifs = unread.filter((n: any) => ["trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled"].includes(n.type));
       const housekeepingNotifs = unread.filter((n: any) => ["laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type));
 
+      let groceries = groceriesNotifs.length;
+      let logistics = logisticsNotifs.length;
+
       if (role === "driver") {
-        groceriesNotifs = groceriesNotifs.filter((n: any) => !completedGroceryTypes.includes(n.type));
-        logisticsNotifs = logisticsNotifs.filter((n: any) => !completedLogisticsTypes.includes(n.type));
+        const allOrders = await storage.getOrders();
+        const activeDriverOrders = allOrders.filter((o: any) => o.assignedDriver === userId && ["approved", "in_progress"].includes(o.status));
+        groceries = activeDriverOrders.length;
+
+        const allTrips = await storage.getTrips();
+        const activeDriverTrips = allTrips.filter((t: any) => t.assignedDriver === userId && ["approved", "started", "waiting"].includes(t.status));
+        logistics = activeDriverTrips.length;
       }
 
       if (role === "maid") {
-        groceriesNotifs = groceriesNotifs.filter((n: any) => !completedGroceryTypes.includes(n.type));
+        groceriesNotifs = groceriesNotifs.filter((n: any) => n.type !== "order_completed");
+        groceries = groceriesNotifs.length;
       }
-
-      const groceries = groceriesNotifs.length;
-      const logistics = logisticsNotifs.length;
 
       let housekeeping = housekeepingNotifs.length;
       if (role === "household") {
