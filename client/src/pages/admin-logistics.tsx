@@ -564,11 +564,15 @@ function TripsSection() {
                     <span>{t("trips.vehicle")}: {getVehicleName(trip.vehicleId)}</span>
                   </div>
                 )}
-                {!trip.isPersonal && trip.assignedDriver && <span>{t("roles.driver")}: {getUserName(trip.assignedDriver)}</span>}
-                {!trip.isPersonal && trip.waitingDuration && trip.waitingDuration > 0 && (
-                  <span>{t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}</span>
+                {!trip.isPersonal && trip.assignedDriver && (
+                  <div>{t("roles.driver")}: {getUserName(trip.assignedDriver)}</div>
                 )}
-                {trip.notes && <p>{t("fields.notes")}: {trip.notes}</p>}
+                {!trip.isPersonal && trip.waitingDuration != null && trip.waitingDuration > 0 && (
+                  <div>{t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}</div>
+                )}
+                {trip.notes && (
+                  <div>{t("fields.notes")}: {trip.notes}</div>
+                )}
               </div>
               {trip.status === "pending" && (
                 <div className="flex gap-2 mt-3 flex-wrap">
