@@ -1770,14 +1770,25 @@ export async function registerRoutes(
         const dayOfWeek = today.getDay();
         const dateStr = today.toISOString().split("T")[0];
 
+        const userRoomsList = await storage.getUserRooms(userId);
+        const userRoomIds = userRoomsList.map((ur: any) => ur.roomId);
+        const hasRoomFilter = userRoomIds.length > 0;
+
         const tasks = await storage.getHousekeepingTasks();
-        const activeTasks = tasks.filter((t: any) => t.isActive && t.daysOfWeek && t.daysOfWeek.includes(dayOfWeek));
+        let activeTasks = tasks.filter((t: any) => t.isActive && t.daysOfWeek && t.daysOfWeek.includes(dayOfWeek));
+        if (hasRoomFilter) {
+          activeTasks = activeTasks.filter((t: any) => userRoomIds.includes(t.roomId));
+        }
         const completions = await storage.getTaskCompletions(dateStr);
         const completedTaskIds = new Set(completions.map((c: any) => c.taskId));
         const incompleteTasks = activeTasks.filter((t: any) => !completedTaskIds.has(t.id)).length;
 
         const laundryReqs = await storage.getLaundryRequests();
-        const pendingLaundry = laundryReqs.filter((l: any) => l.status === "pending").length;
+        let pendingLaundryList = laundryReqs.filter((l: any) => l.status === "pending");
+        if (hasRoomFilter) {
+          pendingLaundryList = pendingLaundryList.filter((l: any) => userRoomIds.includes(l.roomId));
+        }
+        const pendingLaundry = pendingLaundryList.length;
 
         const mealsData = await storage.getMeals();
         const todayMeals = mealsData.filter((m: any) => m.dayOfWeek === dayOfWeek).length;
