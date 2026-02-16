@@ -212,7 +212,14 @@ export default function DriverHomePage() {
   const scheduleItems: ScheduleItem[] = [
     ...dayTrips.map(tr => ({ type: "trip" as const, data: tr, time: new Date(tr.departureTime) })),
     ...dayOrders.map(o => ({ type: "order" as const, data: o, time: new Date(o.createdAt!) })),
-  ].sort((a, b) => a.time.getTime() - b.time.getTime());
+  ].sort((a, b) => {
+    const statusA = a.type === "trip" ? a.data.status : a.data.status;
+    const statusB = b.type === "trip" ? b.data.status : b.data.status;
+    const isCompletedA = statusA === "completed" ? 1 : 0;
+    const isCompletedB = statusB === "completed" ? 1 : 0;
+    if (isCompletedA !== isCompletedB) return isCompletedA - isCompletedB;
+    return a.time.getTime() - b.time.getTime();
+  });
 
   const isLoading = tripsLoading || ordersLoading || timeLoading;
 
