@@ -53,7 +53,7 @@ function BottomNavBar() {
         {navItems.map((item) => {
           const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);
           const Icon = item.icon;
-          const showBadge = item.key === "home" && unreadCount > 0;
+          const showBadge = false;
           return (
             <Link key={item.key} href={item.path}>
               <button
