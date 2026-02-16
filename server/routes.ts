@@ -1825,8 +1825,8 @@ export async function registerRoutes(
         housekeeping = incompleteTasks + pendingLaundry + todayMeals;
       }
 
-      const home = 0;
-      const count = groceries + logistics + housekeeping;
+      const home = groceries + logistics + housekeeping;
+      const count = home;
 
       res.json({ count, home, groceries, logistics, housekeeping });
     } catch (error) {
