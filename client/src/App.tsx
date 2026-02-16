@@ -32,7 +32,7 @@ const allNavItems = [
   { key: "home", path: "/", icon: Home, labelKey: "nav.dashboard", hideFor: [] as string[] },
   { key: "groceries", path: "/groceries", icon: ShoppingCart, labelKey: "nav.groceries", hideFor: [] as string[] },
   { key: "logistics", path: "/logistics", icon: Truck, labelKey: "nav.logistics", hideFor: ["maid"] },
-  { key: "housekeeping", path: "/housekeeping", icon: Sparkles, labelKey: "nav.housekeeping", hideFor: [] as string[] },
+  { key: "housekeeping", path: "/housekeeping", icon: Sparkles, labelKey: "nav.housekeeping", hideFor: ["driver"] },
   { key: "settings", path: "/settings", icon: Settings, labelKey: "nav.settings", hideFor: [] as string[] },
 ];
 
