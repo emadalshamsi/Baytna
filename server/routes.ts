@@ -922,6 +922,7 @@ export async function registerRoutes(
 
       const departureTime = req.query.departureTime ? new Date(req.query.departureTime as string) : null;
       const duration = req.query.duration ? parseInt(req.query.duration as string) : 30;
+      const excludeTripId = req.query.excludeTripId ? parseInt(req.query.excludeTripId as string) : null;
 
       let timeConflicts: { id: number; personName: string; location: string; departureTime: Date; estimatedDuration: number | null }[] = [];
       if (departureTime) {
@@ -929,6 +930,7 @@ export async function registerRoutes(
         const newStart = departureTime.getTime();
         const newEnd = newStart + duration * 60 * 1000;
         timeConflicts = scheduledTrips.filter(t => {
+          if (excludeTripId && t.id === excludeTripId) return false;
           const tripStart = new Date(t.departureTime).getTime();
           const tripEnd = tripStart + (t.estimatedDuration || 30) * 60 * 1000;
           return newStart < tripEnd && newEnd > tripStart;

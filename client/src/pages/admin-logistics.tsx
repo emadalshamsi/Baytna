@@ -301,8 +301,9 @@ function TripsSection() {
   const availabilityParams = new URLSearchParams();
   if (departureTime) availabilityParams.set("departureTime", new Date(departureTime).toISOString());
   if (estimatedDuration) availabilityParams.set("duration", estimatedDuration);
+  if (editingTrip) availabilityParams.set("excludeTripId", String(editingTrip.id));
   const { data: driverAvailability } = useQuery<DriverAvailability>({
-    queryKey: ["/api/drivers", assignedDriver, "availability", departureTime, estimatedDuration],
+    queryKey: ["/api/drivers", assignedDriver, "availability", departureTime, estimatedDuration, editingTrip?.id],
     queryFn: async () => {
       const res = await fetch(`/api/drivers/${assignedDriver}/availability?${availabilityParams.toString()}`);
       if (!res.ok) throw new Error("Failed to check");
