@@ -933,11 +933,12 @@ export async function registerRoutes(
 
       res.json({
         busy: activeTrips.length > 0 || activeOrders.length > 0 || timeConflicts.length > 0,
-        activeTrips: activeTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status })),
+        activeTrips: activeTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status, isPersonal: (t as any).isPersonal || false })),
         activeOrders: activeOrders.map(o => ({ id: o.id, status: o.status })),
         timeConflicts: timeConflicts.map(t => ({
           id: t.id, personName: t.personName, location: t.location,
           departureTime: t.departureTime, estimatedDuration: t.estimatedDuration,
+          isPersonal: (t as any).isPersonal || false,
         })),
       });
     } catch (error) {
@@ -1028,8 +1029,13 @@ export async function registerRoutes(
   app.post("/api/trips", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "household")) {
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      const isPersonalTrip = req.body.isPersonal === true;
+      if (!isPersonalTrip && currentUser.role !== "admin" && currentUser.role !== "household") {
         return res.status(403).json({ message: "Forbidden" });
+      }
+      if (isPersonalTrip && currentUser.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can create personal trips" });
       }
       const depTime = req.body.departureTime ? new Date(req.body.departureTime) : new Date();
       const now = new Date();
@@ -1044,7 +1050,8 @@ export async function registerRoutes(
         departureTime: depTime,
         estimatedDuration: req.body.estimatedDuration ? parseInt(req.body.estimatedDuration) : 30,
         vehicleId: req.body.vehicleId ? parseInt(req.body.vehicleId) : null,
-        assignedDriver: req.body.assignedDriver || null,
+        assignedDriver: isPersonalTrip ? currentUser.id : (req.body.assignedDriver || null),
+        isPersonal: isPersonalTrip,
         approvedBy: null,
         startedAt: null,
         waitingStartedAt: null,
@@ -1054,12 +1061,16 @@ export async function registerRoutes(
       const trip = await storage.createTrip(tripData);
       const allUsers = await storage.getAllUsers();
       const admins = allUsers.filter(u => u.role === "admin" && u.id !== currentUser.id);
-      for (const admin of admins) {
-        notifyAndPush(admin.id, {
+      const approvers = allUsers.filter(u => u.canApproveTrips && u.id !== currentUser.id);
+      const notifyUsers = [...new Map([...admins, ...approvers].map(u => [u.id, u])).values()];
+      const personalLabel = isPersonalTrip ? " (خاص)" : "";
+      const personalLabelEn = isPersonalTrip ? " (Personal)" : "";
+      for (const u of notifyUsers) {
+        notifyAndPush(u.id, {
           titleAr: "مشوار جديد",
           titleEn: "New Trip",
-          bodyAr: `مشوار جديد لـ ${trip.personName} إلى ${trip.location}`,
-          bodyEn: `New trip for ${trip.personName} to ${trip.location}`,
+          bodyAr: `مشوار جديد لـ ${trip.personName} إلى ${trip.location}${personalLabel}`,
+          bodyEn: `New trip for ${trip.personName} to ${trip.location}${personalLabelEn}`,
           type: "trip_created",
           url: "/logistics",
         });

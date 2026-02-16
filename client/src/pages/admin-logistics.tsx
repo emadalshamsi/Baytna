@@ -282,7 +282,7 @@ function TripsSection() {
 
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
-  type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[]; timeConflicts?: { id: number; personName: string; location: string; departureTime: string; estimatedDuration: number }[] };
+  type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string; isPersonal?: boolean }[]; activeOrders: { id: number; status: string }[]; timeConflicts?: { id: number; personName: string; location: string; departureTime: string; estimatedDuration: number; isPersonal?: boolean }[] };
   const availabilityParams = new URLSearchParams();
   if (departureTime) availabilityParams.set("departureTime", new Date(departureTime).toISOString());
   if (estimatedDuration) availabilityParams.set("duration", estimatedDuration);
@@ -447,14 +447,17 @@ function TripsSection() {
                 </div>
                 <div className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 mr-6">
                   {driverAvailability.activeTrips.map(tr => (
-                    <div key={tr.id}>{t("conflict.tripTo")} {tr.location} ({t(`status.${tr.status}`)})</div>
+                    <div key={tr.id}>{t("conflict.tripTo")} {tr.location} ({t(`status.${tr.status}`)}) {tr.isPersonal ? `- ${t("trips.personal")}` : ""}</div>
                   ))}
                   {driverAvailability.activeOrders.map(o => (
                     <div key={o.id}>{t("conflict.orderNum")}{o.id} ({t("conflict.activeShopping")})</div>
                   ))}
-                  {driverAvailability.timeConflicts?.map(tc => (
-                    <div key={tc.id}>{t("conflict.timeConflict")}: {t("conflict.tripLabel")} {tc.personName} {t("conflict.toLocation")} {tc.location} - {formatTime(tc.departureTime)} {t("conflict.toLocation")} {formatTime(new Date(new Date(tc.departureTime).getTime() + (tc.estimatedDuration || 30) * 60000))}</div>
-                  ))}
+                  {driverAvailability.timeConflicts?.map(tc => {
+                    const startTime = formatTime(tc.departureTime);
+                    const endTime = formatTime(new Date(new Date(tc.departureTime).getTime() + (tc.estimatedDuration || 30) * 60000));
+                    const label = tc.isPersonal ? `${t("conflict.tripLabel")} "${tc.personName}" ${t("trips.personal")}` : `${t("conflict.tripLabel")} ${tc.personName} ${t("conflict.toLocation")} ${tc.location}`;
+                    return <div key={tc.id}>{t("conflict.timeConflict")}: {label} - {startTime} {t("conflict.toLocation")} {endTime}</div>;
+                  })}
                 </div>
               </div>
             )}
@@ -488,18 +491,25 @@ function TripsSection() {
           <Card key={trip.id} data-testid={`card-trip-${trip.id}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <MapPin className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{trip.personName}</span>
+                  {trip.isPersonal && (
+                    <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                      {t("trips.personal")}
+                    </Badge>
+                  )}
                 </div>
                 <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants[trip.status] || ""}`}>
                   {t(`status.${trip.status}`)}
                 </Badge>
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span>{t("trips.location")}: {trip.location}</span>
-                </div>
+                {!trip.isPersonal && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span>{t("trips.location")}: {trip.location}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
                   <span className="text-foreground/80 font-medium">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>

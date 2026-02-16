@@ -92,16 +92,21 @@ function DriverTripsSection() {
         <Card key={trip.id} data-testid={`card-trip-${trip.id}`}>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{trip.personName}</span>
+                {trip.isPersonal && (
+                  <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                    {t("trips.personal")}
+                  </Badge>
+                )}
               </div>
               <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants[trip.status] || ""}`}>
                 {t(`status.${trip.status}`)}
               </Badge>
             </div>
             <div className="text-sm text-muted-foreground space-y-1">
-              <div>{t("trips.location")}: {trip.location}</div>
+              {!trip.isPersonal && <div>{t("trips.location")}: {trip.location}</div>}
               <div className="flex items-center gap-2 flex-wrap">
                 <Clock className="w-3 h-3" />
                 <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
@@ -145,8 +150,15 @@ function DriverTripsSection() {
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <span className="font-medium">{trip.personName}</span>
-                    <div className="text-sm text-muted-foreground">{trip.location}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium">{trip.personName}</span>
+                      {trip.isPersonal && (
+                        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                          {t("trips.personal")}
+                        </Badge>
+                      )}
+                    </div>
+                    {!trip.isPersonal && <div className="text-sm text-muted-foreground">{trip.location}</div>}
                   </div>
                   <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants.approved}`}>
                     {t("status.approved")}
@@ -190,8 +202,15 @@ function DriverTripsSection() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <span className="font-medium">{trip.personName}</span>
-                    <div className="text-sm text-muted-foreground">{trip.location}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium">{trip.personName}</span>
+                      {trip.isPersonal && (
+                        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                          {t("trips.personal")}
+                        </Badge>
+                      )}
+                    </div>
+                    {!trip.isPersonal && <div className="text-sm text-muted-foreground">{trip.location}</div>}
                   </div>
                   <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants.completed}`}>
                     {t("status.completed")}

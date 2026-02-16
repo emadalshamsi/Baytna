@@ -19,7 +19,7 @@ import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Trip, Order, DriverTimeRequest } from "@shared/schema";
+import type { Trip, Order, Vehicle } from "@shared/schema";
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -143,11 +143,12 @@ export default function DriverHomePage() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [reqDate, setReqDate] = useState("");
-  const [reqStartHour, setReqStartHour] = useState("09");
-  const [reqStartMinute, setReqStartMinute] = useState("00");
-  const [reqDuration, setReqDuration] = useState("60");
-  const [reqNotes, setReqNotes] = useState("");
+  const [tripDate, setTripDate] = useState("");
+  const [tripHour, setTripHour] = useState("09");
+  const [tripMinute, setTripMinute] = useState("00");
+  const [tripDuration, setTripDuration] = useState("30");
+  const [tripVehicleId, setTripVehicleId] = useState("");
+  const [tripNotes, setTripNotes] = useState("");
 
   const dateStr = getDateStr(selectedDate);
 
@@ -159,32 +160,39 @@ export default function DriverHomePage() {
     queryKey: ["/api/orders"],
     refetchInterval: 15000,
   });
-  const { data: timeRequests = [], isLoading: timeLoading } = useQuery<DriverTimeRequest[]>({
-    queryKey: ["/api/driver-time-requests"],
-    refetchInterval: 15000,
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({
+    queryKey: ["/api/vehicles"],
   });
 
-  const createTimeRequest = useMutation({
+  const driverName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username : "";
+
+  const createPersonalTrip = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/driver-time-requests", {
-        requestDate: reqDate || dateStr,
-        startTime: `${reqStartHour}:${reqStartMinute}`,
-        estimatedReturnMinutes: parseInt(reqDuration),
-        notes: reqNotes || null,
+      const selectedDateStr = tripDate || dateStr;
+      const departureTime = new Date(`${selectedDateStr}T${tripHour}:${tripMinute}:00`);
+      await apiRequest("POST", "/api/trips", {
+        personName: driverName,
+        location: t("trips.personal"),
+        departureTime: departureTime.toISOString(),
+        estimatedDuration: parseInt(tripDuration),
+        vehicleId: tripVehicleId && tripVehicleId !== "none" ? parseInt(tripVehicleId) : null,
+        notes: tripNotes || null,
+        isPersonal: true,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/driver-time-requests"] });
-      toast({ title: t("driverHome.requestSent") });
+      queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      toast({ title: t("trips.tripAdded") });
       setDialogOpen(false);
-      setReqDate("");
-      setReqStartHour("09");
-      setReqStartMinute("00");
-      setReqDuration("60");
-      setReqNotes("");
+      setTripDate("");
+      setTripHour("09");
+      setTripMinute("00");
+      setTripDuration("30");
+      setTripVehicleId("");
+      setTripNotes("");
     },
     onError: () => {
-      toast({ title: t("driverHome.requestFailed"), variant: "destructive" });
+      toast({ title: t("trips.saveFailed"), variant: "destructive" });
     },
   });
 
@@ -200,8 +208,6 @@ export default function DriverHomePage() {
     const orderDate = new Date(o.createdAt);
     return getDateStr(orderDate) === dateStr;
   });
-
-  const dayTimeRequests = timeRequests.filter(r => r.requestDate === dateStr);
 
   const completedTrips = dayTrips.filter(tr => tr.status === "completed").length;
   const completedOrders = dayOrders.filter(o => o.status === "completed").length;
@@ -221,7 +227,7 @@ export default function DriverHomePage() {
     return a.time.getTime() - b.time.getTime();
   });
 
-  const isLoading = tripsLoading || ordersLoading || timeLoading;
+  const isLoading = tripsLoading || ordersLoading;
 
   if (isLoading) {
     return (
@@ -275,40 +281,21 @@ export default function DriverHomePage() {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-request-personal-time">
+              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-add-personal-trip">
                 <Plus className="w-4 h-4" />
-                {t("driverHome.requestPersonalTime")}
+                {t("trips.addPersonalTrip")}
               </Button>
             </DialogTrigger>
-            <DialogContent data-testid="dialog-personal-time">
+            <DialogContent data-testid="dialog-personal-trip">
               <DialogHeader>
-                <DialogTitle>{t("driverHome.requestPersonalTime")}</DialogTitle>
+                <DialogTitle>{t("trips.addPersonalTrip")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("driverHome.requestDate")}</label>
-                  <Select value={reqDate || dateStr} onValueChange={setReqDate}>
-                    <SelectTrigger data-testid="select-request-date">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getDateRange(new Date(), 30).map(d => {
-                        const ds = getDateStr(d);
-                        const dayKey = dayAbbrevKeys[d.getDay()];
-                        return (
-                          <SelectItem key={ds} value={ds} data-testid={`option-date-${ds}`}>
-                            {ds} ({t(`housekeepingSection.${dayKey}`)})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("driverHome.startTime")}</label>
+                  <label className="text-sm font-medium">{t("trips.departureTime")} *</label>
                   <div className="flex items-center gap-2">
-                    <Select value={reqStartHour} onValueChange={setReqStartHour}>
-                      <SelectTrigger className="flex-1" data-testid="select-start-hour">
+                    <Select value={tripHour} onValueChange={setTripHour}>
+                      <SelectTrigger className="flex-1" data-testid="select-trip-hour">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -318,8 +305,8 @@ export default function DriverHomePage() {
                       </SelectContent>
                     </Select>
                     <span className="text-lg font-bold">:</span>
-                    <Select value={reqStartMinute} onValueChange={setReqStartMinute}>
-                      <SelectTrigger className="flex-1" data-testid="select-start-minute">
+                    <Select value={tripMinute} onValueChange={setTripMinute}>
+                      <SelectTrigger className="flex-1" data-testid="select-trip-minute">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -329,18 +316,48 @@ export default function DriverHomePage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("driverHome.estimatedReturn")}</label>
-                  <Select value={reqDuration} onValueChange={setReqDuration}>
-                    <SelectTrigger data-testid="select-duration">
+                  <Select value={tripDate || dateStr} onValueChange={setTripDate}>
+                    <SelectTrigger data-testid="select-trip-date">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {durationOptions.map(min => (
-                        <SelectItem key={min} value={String(min)} data-testid={`option-duration-${min}`}>
-                          {min} {t("driverHome.min")}
+                      {getDateRange(new Date(), 30).map(d => {
+                        const ds = getDateStr(d);
+                        const dayKey = dayAbbrevKeys[d.getDay()];
+                        return (
+                          <SelectItem key={ds} value={ds}>
+                            {ds} ({t(`housekeepingSection.${dayKey}`)})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t("trips.estimatedDuration")}</label>
+                  <Select value={tripDuration} onValueChange={setTripDuration}>
+                    <SelectTrigger data-testid="select-trip-duration">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[15, 30, 45, 60, 75, 90, 105, 120].map(min => (
+                        <SelectItem key={min} value={String(min)}>
+                          {min} {t("trips.minutes")}
                         </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t("trips.vehicle")}</label>
+                  <Select value={tripVehicleId} onValueChange={setTripVehicleId}>
+                    <SelectTrigger data-testid="select-trip-vehicle">
+                      <SelectValue placeholder={t("trips.noVehicle")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t("trips.noVehicle")}</SelectItem>
+                      {vehicles.filter(v => !v.isPrivate || v.assignedUserId === user?.id).map(v => (
+                        <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -348,18 +365,18 @@ export default function DriverHomePage() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("fields.notes")}</label>
                   <Input
-                    value={reqNotes}
-                    onChange={e => setReqNotes(e.target.value)}
+                    value={tripNotes}
+                    onChange={e => setTripNotes(e.target.value)}
                     placeholder={t("fields.notes")}
-                    data-testid="input-request-notes"
+                    data-testid="input-trip-notes"
                   />
                 </div>
                 <div className="flex gap-2">
                   <Button
                     className="flex-1"
-                    onClick={() => createTimeRequest.mutate()}
-                    disabled={createTimeRequest.isPending}
-                    data-testid="button-submit-time-request"
+                    onClick={() => createPersonalTrip.mutate()}
+                    disabled={createPersonalTrip.isPending}
+                    data-testid="button-submit-personal-trip"
                   >
                     {t("actions.submit")}
                   </Button>
@@ -367,7 +384,7 @@ export default function DriverHomePage() {
                     variant="outline"
                     className="flex-1"
                     onClick={() => setDialogOpen(false)}
-                    data-testid="button-cancel-time-request"
+                    data-testid="button-cancel-personal-trip"
                   >
                     {t("actions.cancel")}
                   </Button>
@@ -396,11 +413,21 @@ export default function DriverHomePage() {
                         <MapPin className={`w-6 h-6 ${trip.status === "completed" ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold">{trip.personName}</p>
-                        <p className="text-xs text-muted-foreground">{trip.location}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-bold">{trip.personName}</p>
+                          {trip.isPersonal && (
+                            <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                              {t("trips.personal")}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{trip.isPersonal ? "" : trip.location}</p>
                         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
                           <span>{formatDateTime(trip.departureTime)}</span>
+                          {trip.estimatedDuration && (
+                            <span> - {trip.estimatedDuration} {t("trips.minutes")}</span>
+                          )}
                         </div>
                       </div>
                       <StatusBadge status={trip.status} />
@@ -435,36 +462,6 @@ export default function DriverHomePage() {
         )}
       </div>
 
-      {dayTimeRequests.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-muted-foreground" />
-            <h3 className="text-base font-bold">{t("driverHome.timeRequests")}</h3>
-          </div>
-          {dayTimeRequests.map(req => (
-            <Card key={req.id} data-testid={`card-time-request-${req.id}`}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  req.status === "approved" ? "bg-green-500/20" : req.status === "rejected" ? "bg-red-500/20" : "bg-amber-500/20"
-                }`}>
-                  <Clock className={`w-6 h-6 ${
-                    req.status === "approved" ? "text-green-600 dark:text-green-400" : req.status === "rejected" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
-                  }`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold">{t("driverHome.personalTime")}</p>
-                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mt-0.5">
-                    <span>{req.startTime}</span>
-                    <span>{req.estimatedReturnMinutes} {t("driverHome.min")}</span>
-                  </div>
-                  {req.notes && <p className="text-xs text-muted-foreground truncate mt-0.5">{req.notes}</p>}
-                </div>
-                <StatusBadge status={req.status} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

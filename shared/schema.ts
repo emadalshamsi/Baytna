@@ -120,6 +120,7 @@ export const trips = pgTable("trips", {
   waitingDuration: integer("waiting_duration").default(0),
   completedAt: timestamp("completed_at"),
   notes: text("notes"),
+  isPersonal: boolean("is_personal").notNull().default(false),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });

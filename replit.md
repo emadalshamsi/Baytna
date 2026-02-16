@@ -4,13 +4,15 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 16, 2026)
-- Driver interface restructured into three distinct pages: Home (daily schedule + time-off), Groceries (orders), Logistics (trips + technicians)
-- DriverHomePage: circular progress indicator, 30-day date strip, daily schedule (trips + orders sorted by time), personal time-off request dialog
+- Driver interface restructured into three distinct pages: Home (daily schedule + personal trips), Groceries (orders), Logistics (trips + technicians)
+- DriverHomePage: circular progress indicator, 30-day date strip, daily schedule (trips + orders sorted by time), personal trip creation dialog
+- Personal trips: isPersonal boolean on trips table, drivers create personal trips via Home page dialog
+- Personal trips use existing trips workflow (pending → approved → started → waiting → completed)
+- Personal trips: personName=driver name, location="خاص", assignedDriver=driver ID, goes through canApproveTrips approval
+- Personal trip badge shown on trip cards in driver home, driver logistics, and admin logistics views
 - DriverLogisticsPage: trips management with start/wait/complete actions + read-only technicians directory
-- driverTimeRequests table: requestDate, startTime, estimatedReturnMinutes, notes, status (pending/approved/rejected), approval by canApproveTrips users
-- API routes: GET/POST /api/driver-time-requests, PATCH /api/driver-time-requests/:id/status
-- Notifications: time request created notifies admins, approval/rejection notifies driver
-- i18n: driverHome.* keys for Arabic and English
+- Old driverTimeRequests system replaced by isPersonal trips (legacy API routes still exist)
+- i18n: driverHome.* keys for Arabic and English, trips.personal/addPersonalTrip/noVehicle keys
 - Order delivery scheduling: scheduledFor column (varchar) on orders, 3 options (Today/Now/Tomorrow)
 - Today = default, Now = immediate (same as today for driver visibility), Tomorrow = hidden from driver until next day
 - Scheduling selector UI in both maid and household cart dialogs before submit button
