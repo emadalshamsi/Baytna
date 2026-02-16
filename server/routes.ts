@@ -1082,6 +1082,46 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/trips/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      const tripId = parseInt(req.params.id);
+      const trip = await storage.getTrip(tripId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+      if (trip.status !== "pending") {
+        return res.status(400).json({ message: "Only pending trips can be edited" });
+      }
+      if (trip.createdBy !== currentUser.id && currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Only the creator or admin can edit this trip" });
+      }
+      const updates: any = {};
+      if (req.body.departureTime && typeof req.body.departureTime === "string") {
+        const dt = new Date(req.body.departureTime);
+        if (!isNaN(dt.getTime())) updates.departureTime = dt;
+      }
+      if (req.body.estimatedDuration !== undefined) {
+        const dur = parseInt(req.body.estimatedDuration);
+        if (!isNaN(dur) && dur >= 15 && dur <= 120) updates.estimatedDuration = dur;
+      }
+      if (req.body.vehicleId !== undefined) updates.vehicleId = req.body.vehicleId ? parseInt(req.body.vehicleId) : null;
+      if (req.body.notes !== undefined) updates.notes = typeof req.body.notes === "string" ? req.body.notes || null : null;
+      if (currentUser.role === "admin") {
+        if (req.body.personName !== undefined) updates.personName = req.body.personName;
+        if (req.body.location !== undefined) updates.location = req.body.location;
+        if (req.body.assignedDriver !== undefined) updates.assignedDriver = req.body.assignedDriver || null;
+      }
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+      const updated = await storage.updateTrip(tripId, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update trip:", error);
+      res.status(500).json({ message: "Failed to update trip" });
+    }
+  });
+
   app.patch("/api/trips/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);

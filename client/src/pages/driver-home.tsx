@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart,
+  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart, Pencil,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -143,6 +143,7 @@ export default function DriverHomePage() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [departureDate, setDepartureDate] = useState("");
   const [departureTimeVal, setDepartureTimeVal] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState("30");
@@ -166,11 +167,23 @@ export default function DriverHomePage() {
   const driverName = user ? displayName(user) : "";
 
   const resetForm = () => {
+    setEditingTrip(null);
     setDepartureDate("");
     setDepartureTimeVal("");
     setEstimatedDuration("30");
     setTripVehicleId("");
     setTripNotes("");
+  };
+
+  const openEditDialog = (trip: Trip) => {
+    setEditingTrip(trip);
+    const dt = new Date(trip.departureTime);
+    setDepartureDate(getDateStr(dt));
+    setDepartureTimeVal(`${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`);
+    setEstimatedDuration(String(trip.estimatedDuration || 30));
+    setTripVehicleId(trip.vehicleId ? String(trip.vehicleId) : "none");
+    setTripNotes(trip.notes || "");
+    setDialogOpen(true);
   };
 
   const availableVehicles = vehicles.filter(v => !v.isPrivate || v.assignedUserId === user?.id);
@@ -192,6 +205,29 @@ export default function DriverHomePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
       toast({ title: t("trips.tripAdded") });
+      setDialogOpen(false);
+      resetForm();
+    },
+    onError: () => {
+      toast({ title: t("trips.saveFailed"), variant: "destructive" });
+    },
+  });
+
+  const updatePersonalTrip = useMutation({
+    mutationFn: async () => {
+      if (!editingTrip) return;
+      const depDate = departureDate || dateStr;
+      const departureTime = new Date(`${depDate}T${departureTimeVal}:00`);
+      await apiRequest("PATCH", `/api/trips/${editingTrip.id}`, {
+        departureTime: departureTime.toISOString(),
+        estimatedDuration: parseInt(estimatedDuration),
+        vehicleId: tripVehicleId && tripVehicleId !== "none" ? parseInt(tripVehicleId) : null,
+        notes: tripNotes || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      toast({ title: t("trips.tripUpdated") });
       setDialogOpen(false);
       resetForm();
     },
@@ -281,17 +317,15 @@ export default function DriverHomePage() {
             <CalendarDays className="w-5 h-5 text-muted-foreground" />
             <h3 className="text-base font-bold">{t("driverHome.todaySchedule")}</h3>
           </div>
+          <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-add-personal-trip" onClick={() => { resetForm(); setDialogOpen(true); }}>
+            <Plus className="w-4 h-4" />
+            {t("trips.addPersonalTrip")}
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-add-personal-trip">
-                <Plus className="w-4 h-4" />
-                {t("trips.addPersonalTrip")}
-              </Button>
-            </DialogTrigger>
             <DialogContent data-testid="dialog-personal-trip">
               <DialogHeader>
-                <DialogTitle>{t("trips.addPersonalTrip")}</DialogTitle>
-                <DialogDescription className="sr-only">{t("trips.addPersonalTrip")}</DialogDescription>
+                <DialogTitle>{editingTrip ? t("trips.editTrip") : t("trips.addPersonalTrip")}</DialogTitle>
+                <DialogDescription className="sr-only">{editingTrip ? t("trips.editTrip") : t("trips.addPersonalTrip")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <div>
@@ -331,7 +365,7 @@ export default function DriverHomePage() {
                 </Select>
 
                 <Input placeholder={t("fields.notes")} value={tripNotes} onChange={e => setTripNotes(e.target.value)} data-testid="input-trip-notes" />
-                <Button className="w-full" disabled={!departureTimeVal || createPersonalTrip.isPending} data-testid="button-submit-personal-trip" onClick={() => createPersonalTrip.mutate()}>
+                <Button className="w-full" disabled={!departureTimeVal || createPersonalTrip.isPending || updatePersonalTrip.isPending} data-testid="button-submit-personal-trip" onClick={() => editingTrip ? updatePersonalTrip.mutate() : createPersonalTrip.mutate()}>
                   {t("actions.save")}
                 </Button>
               </div>
@@ -375,7 +409,14 @@ export default function DriverHomePage() {
                           )}
                         </div>
                       </div>
-                      <StatusBadge status={trip.status} />
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {trip.status === "pending" && trip.createdBy === user?.id && (
+                          <Button size="icon" variant="ghost" data-testid={`button-edit-trip-${trip.id}`} onClick={() => openEditDialog(trip)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <StatusBadge status={trip.status} />
+                      </div>
                     </CardContent>
                   </Card>
                 );

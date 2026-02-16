@@ -86,6 +86,7 @@ export interface IStorage {
   getTrips(): Promise<Trip[]>;
   getTrip(id: number): Promise<Trip | undefined>;
   createTrip(trip: InsertTrip): Promise<Trip>;
+  updateTrip(id: number, updates: Partial<Trip>): Promise<Trip | undefined>;
   updateTripStatus(id: number, status: string, updates?: Partial<Trip>): Promise<Trip | undefined>;
 
   getTripLocations(): Promise<TripLocation[]>;
@@ -442,6 +443,11 @@ export class DatabaseStorage implements IStorage {
 
   async createTrip(trip: InsertTrip): Promise<Trip> {
     const [result] = await db.insert(trips).values(trip).returning();
+    return result;
+  }
+
+  async updateTrip(id: number, updates: Partial<Trip>): Promise<Trip | undefined> {
+    const [result] = await db.update(trips).set(updates).where(eq(trips.id, id)).returning();
     return result;
   }
 
