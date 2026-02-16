@@ -319,7 +319,7 @@ function RoomManagement() {
         </Button>
       </div>
 
-      {showAdd && (
+      {showAdd && !editingId && (
         <Card>
           <CardContent className="p-3 space-y-3">
             <Input
@@ -345,7 +345,7 @@ function RoomManagement() {
                 disabled={!nameAr || createRoom.isPending || updateRoom.isPending}
                 data-testid="button-save-room"
               >
-                {editingId ? t("actions.update") : t("actions.save")}
+                {t("actions.save")}
               </Button>
               <Button size="sm" variant="outline" onClick={resetForm}>
                 {t("actions.cancel")}
@@ -362,6 +362,7 @@ function RoomManagement() {
           {localRooms.map((room, index) => {
             const RoomIconComp = getRoomIcon(room.icon);
             const isTouchDragged = touchDrag.active && touchDrag.index === index;
+            const isEditing = editingId === room.id;
             return (
               <div
                 key={room.id}
@@ -376,6 +377,41 @@ function RoomManagement() {
                   transform: "translateY(0)",
                 }}
               >
+                {isEditing ? (
+                  <Card className="ring-2 ring-primary" data-testid={`card-room-edit-${room.id}`}>
+                    <CardContent className="p-3 space-y-3">
+                      <Input
+                        placeholder={t("rooms.nameAr")}
+                        value={nameAr}
+                        onChange={(e) => setNameAr(e.target.value)}
+                        data-testid="input-room-name-ar"
+                      />
+                      <Input
+                        placeholder={t("rooms.nameEn")}
+                        value={nameEn}
+                        onChange={(e) => setNameEn(e.target.value)}
+                        data-testid="input-room-name-en"
+                      />
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">{t("rooms.chooseIcon")}</p>
+                        <IconPicker selected={selectedIcon} onSelect={setSelectedIcon} />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={submitForm}
+                          disabled={!nameAr || updateRoom.isPending}
+                          data-testid="button-save-room"
+                        >
+                          {t("actions.update")}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={resetForm}>
+                          {t("actions.cancel")}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
                 <Card
                   draggable={!touchDrag.active}
                   onDragStart={(e) => handleDragStart(e, index)}
@@ -423,6 +459,7 @@ function RoomManagement() {
                     </div>
                   </CardContent>
                 </Card>
+                )}
               </div>
             );
           })}
