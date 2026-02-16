@@ -111,6 +111,18 @@ export default function MaidHomePage() {
     tasksByRoom[task.roomId].push(task);
   }
 
+  const sortedRoomEntries = Object.entries(tasksByRoom)
+    .map(([roomIdStr, roomTasks]) => {
+      const roomId = parseInt(roomIdStr);
+      const room = rooms.find(r => r.id === roomId);
+      const allDone = roomTasks.every(t => completedTaskIds.has(t.id));
+      return { roomId, room, roomTasks, allDone, sortOrder: room?.sortOrder ?? 0 };
+    })
+    .sort((a, b) => {
+      if (a.allDone !== b.allDone) return a.allDone ? 1 : -1;
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+
   return (
     <div className="space-y-5" data-testid="page-maid-home">
       <Card className="border-primary/20 bg-primary/5">
@@ -235,21 +247,22 @@ export default function MaidHomePage() {
         </Card>
       )}
 
-      {Object.keys(tasksByRoom).length > 0 ? (
-        Object.entries(tasksByRoom).map(([roomIdStr, roomTasks]) => {
-          const roomId = parseInt(roomIdStr);
-          const room = rooms.find(r => r.id === roomId);
+      {sortedRoomEntries.length > 0 ? (
+        sortedRoomEntries.map(({ roomId, room, roomTasks, allDone }) => {
           if (!room) return null;
           const RoomHeaderIcon = getRoomIcon(room.icon);
           const roomDone = roomTasks.filter(t => completedTaskIds.has(t.id)).length;
           return (
-            <div key={roomId} className="space-y-2">
+            <div key={roomId} className={`space-y-2 transition-opacity ${allDone ? "opacity-60" : ""}`}>
               <div className="flex items-center gap-2">
                 <RoomHeaderIcon className="w-5 h-5 text-muted-foreground" />
                 <h3 className="text-base font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</h3>
                 <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
                   {roomDone}/{roomTasks.length}
                 </Badge>
+                {allDone && (
+                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                )}
               </div>
               {roomTasks.map(task => {
                 const isDone = completedTaskIds.has(task.id);
