@@ -4,6 +4,14 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 16, 2026)
+- Two-tier meal management: meal catalog (mealItems table) for reusable meal definitions + date-specific meal planning
+- mealItems: mealType, nameAr, nameEn, imageUrl - managed by admin/canApprove users
+- MealItemsSection: catalog UI with type filters, image upload, CRUD for meal item templates
+- KitchenTab redesigned: date-specific meals via dateStr field, 1-week date strip range, MealItemSlider picker
+- MealItemSlider: horizontal scrollable thumbnail picker that auto-fills name/image into meal form
+- DateStrip now supports optional minDate/maxDate props for constrained date ranges
+- Meals now stored per specific date (dateStr) instead of repeating weekly by dayOfWeek
+- API routes: GET/POST/PATCH/DELETE /api/meal-items (admin/canApprove auth)
 - Driver interface restructured into three distinct pages: Home (daily schedule + personal trips), Groceries (orders), Logistics (trips + technicians)
 - DriverHomePage: circular progress indicator, 30-day date strip, daily schedule (trips + orders sorted by time), personal trip creation dialog
 - Personal trips: isPersonal boolean on trips table, drivers create personal trips via Home page dialog
