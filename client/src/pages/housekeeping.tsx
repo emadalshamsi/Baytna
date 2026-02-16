@@ -506,7 +506,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
             return (
               <Card
                 key={room.id}
-                className={`cursor-pointer transition-all bg-sky-50 dark:bg-gradient-to-r dark:from-[#3498DB]/20 dark:to-[#9B59B6]/20 border-sky-200/50 dark:border-[#3498DB]/30 ${activeRooms.length > 1 ? "hover-elevate" : ""} ${isSelected && activeRooms.length > 1 ? "ring-2 ring-primary" : ""}`}
+                className={`cursor-pointer transition-all bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30 ${activeRooms.length > 1 ? "hover-elevate" : ""} ${isSelected && activeRooms.length > 1 ? "ring-2 ring-primary" : ""}`}
                 onClick={() => { if (activeRooms.length > 1) setRoomFilter(isSelected ? "all" : String(room.id)); }}
                 data-testid={`card-progress-room-${room.id}`}
               >
@@ -606,7 +606,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
               return (
                 <Card
                   key={room.id}
-                  className="bg-sky-50 dark:bg-gradient-to-r dark:from-[#3498DB]/20 dark:to-[#9B59B6]/20 border-sky-200/50 dark:border-[#3498DB]/30"
+                  className="bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30"
                   data-testid={`card-progress-room-${room.id}`}
                 >
                   <CardContent className="p-3 flex items-center gap-3">
