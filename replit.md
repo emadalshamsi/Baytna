@@ -4,6 +4,13 @@
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
 ## Recent Changes (Feb 16, 2026)
+- Driver interface restructured into three distinct pages: Home (daily schedule + time-off), Groceries (orders), Logistics (trips + technicians)
+- DriverHomePage: circular progress indicator, 30-day date strip, daily schedule (trips + orders sorted by time), personal time-off request dialog
+- DriverLogisticsPage: trips management with start/wait/complete actions + read-only technicians directory
+- driverTimeRequests table: requestDate, startTime, estimatedReturnMinutes, notes, status (pending/approved/rejected), approval by canApproveTrips users
+- API routes: GET/POST /api/driver-time-requests, PATCH /api/driver-time-requests/:id/status
+- Notifications: time request created notifies admins, approval/rejection notifies driver
+- i18n: driverHome.* keys for Arabic and English
 - Order delivery scheduling: scheduledFor column (varchar) on orders, 3 options (Today/Now/Tomorrow)
 - Today = default, Now = immediate (same as today for driver visibility), Tomorrow = hidden from driver until next day
 - Scheduling selector UI in both maid and household cart dialogs before submit button

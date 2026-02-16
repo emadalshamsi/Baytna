@@ -1784,6 +1784,97 @@ export async function registerRoutes(
     }
   });
 
+  // Driver Time Requests
+  app.get("/api/driver-time-requests", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role === "driver") {
+        const requests = await storage.getDriverTimeRequestsByDriver(currentUser.id);
+        return res.json(requests);
+      }
+      if (currentUser.role === "admin" || currentUser.canApproveTrips) {
+        const requests = await storage.getDriverTimeRequests();
+        return res.json(requests);
+      }
+      res.json([]);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get driver time requests" });
+    }
+  });
+
+  app.post("/api/driver-time-requests", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "driver") return res.status(403).json({ message: "Forbidden" });
+      const request = await storage.createDriverTimeRequest({
+        driverId: currentUser.id,
+        requestDate: req.body.requestDate,
+        startTime: req.body.startTime,
+        estimatedReturnMinutes: req.body.estimatedReturnMinutes || 60,
+        notes: req.body.notes || null,
+        status: "pending",
+      });
+      const allUsers = await storage.getAllUsers();
+      const approvers = allUsers.filter(u => u.canApproveTrips || u.role === "admin");
+      for (const approver of approvers) {
+        await storage.createNotification({
+          userId: approver.id,
+          titleAr: "طلب وقت خاص",
+          titleEn: "Personal Time Request",
+          bodyAr: `السائق ${currentUser.firstName || currentUser.username} يطلب وقت خاص بتاريخ ${request.requestDate}`,
+          bodyEn: `Driver ${currentUser.firstName || currentUser.username} requests personal time on ${request.requestDate}`,
+          type: "driver_time_request",
+          url: "/logistics",
+          isRead: false,
+        });
+        sendPushToUser(approver.id, {
+          title: approver.role === "admin" ? "طلب وقت خاص" : "Personal Time Request",
+          body: `السائق ${currentUser.firstName || currentUser.username} يطلب وقت خاص`,
+        });
+      }
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create driver time request" });
+    }
+  });
+
+  app.patch("/api/driver-time-requests/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+      if (currentUser.role !== "admin" && !currentUser.canApproveTrips) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { status } = req.body;
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      const request = await storage.updateDriverTimeRequestStatus(parseInt(req.params.id), status, currentUser.id);
+      if (!request) return res.status(404).json({ message: "Not found" });
+      const statusAr = status === "approved" ? "تمت الموافقة" : "تم الرفض";
+      const statusEn = status === "approved" ? "Approved" : "Rejected";
+      await storage.createNotification({
+        userId: request.driverId,
+        titleAr: `طلب الوقت الخاص ${statusAr}`,
+        titleEn: `Personal Time ${statusEn}`,
+        bodyAr: `طلب الوقت الخاص بتاريخ ${request.requestDate} ${statusAr}`,
+        bodyEn: `Personal time request for ${request.requestDate} ${statusEn}`,
+        type: status === "approved" ? "driver_time_approved" : "driver_time_rejected",
+        url: "/",
+        isRead: false,
+      });
+      sendPushToUser(request.driverId, {
+        title: `طلب الوقت الخاص ${statusAr}`,
+        body: `طلب الوقت الخاص بتاريخ ${request.requestDate} ${statusAr}`,
+      });
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update driver time request" });
+    }
+  });
+
   async function cleanupOldPendingOrders() {
     try {
       const count = await storage.deleteOldPendingOrders(15);

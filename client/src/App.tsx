@@ -20,6 +20,8 @@ import AdminLogistics from "@/pages/admin-logistics";
 import MaidDashboard from "@/pages/maid-dashboard";
 import MaidHomePage from "@/pages/maid-home";
 import DriverDashboard from "@/pages/driver-dashboard";
+import DriverHomePage from "@/pages/driver-home";
+import DriverLogisticsPage from "@/pages/driver-logistics";
 import HouseholdDashboard from "@/pages/household-dashboard";
 import HousekeepingPage from "@/pages/housekeeping";
 import SettingsPage from "@/pages/settings";
@@ -90,7 +92,7 @@ function HomeContent() {
   switch (user.role) {
     case "admin": return <AdminDashboard />;
     case "maid": return <MaidHomePage />;
-    case "driver": return <DriverDashboard />;
+    case "driver": return <DriverHomePage />;
     default: return <HouseholdDashboard />;
   }
 }
@@ -114,7 +116,7 @@ function LogisticsContent() {
     setLocation("/");
     return null;
   }
-  if (user.role === "driver") return <DriverDashboard />;
+  if (user.role === "driver") return <DriverLogisticsPage />;
   return <AdminLogistics />;
 }
 
