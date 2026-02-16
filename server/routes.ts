@@ -1742,12 +1742,60 @@ export async function registerRoutes(
       const notifs = await storage.getNotifications(userId);
       const filtered = notifs.filter((n: any) => filterNotificationForUser(n, currentUser));
       const unread = filtered.filter((n: any) => !n.isRead);
-      const count = unread.length;
 
-      const groceries = unread.filter((n: any) => ["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update"].includes(n.type)).length;
-      const logistics = unread.filter((n: any) => ["trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled"].includes(n.type)).length;
-      const housekeeping = unread.filter((n: any) => ["laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type)).length;
-      const home = count - groceries - logistics - housekeeping;
+      const role = currentUser.role;
+
+      const completedGroceryTypes = ["order_completed"];
+      const completedLogisticsTypes = ["trip_completed"];
+
+      let groceriesNotifs = unread.filter((n: any) => ["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update"].includes(n.type));
+      let logisticsNotifs = unread.filter((n: any) => ["trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled"].includes(n.type));
+      const housekeepingNotifs = unread.filter((n: any) => ["laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type));
+
+      if (role === "driver") {
+        groceriesNotifs = groceriesNotifs.filter((n: any) => !completedGroceryTypes.includes(n.type));
+        logisticsNotifs = logisticsNotifs.filter((n: any) => !completedLogisticsTypes.includes(n.type));
+      }
+
+      if (role === "maid") {
+        groceriesNotifs = groceriesNotifs.filter((n: any) => !completedGroceryTypes.includes(n.type));
+      }
+
+      const groceries = groceriesNotifs.length;
+      const logistics = logisticsNotifs.length;
+
+      let housekeeping = housekeepingNotifs.length;
+      if (role === "household") {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const dateStr = today.toISOString().split("T")[0];
+
+        const tasks = await storage.getHousekeepingTasks();
+        const activeTasks = tasks.filter((t: any) => t.isActive && t.daysOfWeek && t.daysOfWeek.includes(dayOfWeek));
+        const completions = await storage.getTaskCompletions(dateStr);
+        const completedTaskIds = new Set(completions.map((c: any) => c.taskId));
+        const incompleteTasks = activeTasks.filter((t: any) => !completedTaskIds.has(t.id)).length;
+
+        const laundryReqs = await storage.getLaundryRequests();
+        const pendingLaundry = laundryReqs.filter((l: any) => l.status === "pending").length;
+
+        const mealsData = await storage.getMeals();
+        const todayMeals = mealsData.filter((m: any) => m.dayOfWeek === dayOfWeek).length;
+
+        housekeeping = incompleteTasks + pendingLaundry + todayMeals;
+      }
+
+      let homeNotifs = unread.filter((n: any) =>
+        !["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update",
+          "trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled",
+          "laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type)
+      );
+      if (role === "maid") {
+        homeNotifs = homeNotifs.filter((n: any) => n.type !== "order_completed" && n.type !== "trip_completed");
+      }
+      const home = homeNotifs.length;
+
+      const count = groceries + logistics + housekeeping + home;
 
       res.json({ count, home: Math.max(0, home), groceries, logistics, housekeeping });
     } catch (error) {
