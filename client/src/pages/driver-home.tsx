@@ -425,7 +425,7 @@ export default function DriverHomePage() {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         )}
-                        {trip.createdBy === user?.id && ["pending", "approved"].includes(trip.status) && (
+                        {trip.createdBy === user?.id && ["pending", "approved"].includes(trip.status) && (!trip.departureTime || new Date(trip.departureTime) > new Date()) && (
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(t("messages.confirmDelete"))) cancelTripMutation.mutate(trip.id); }} data-testid={`button-cancel-trip-${trip.id}`}>
                             <X className="w-4 h-4 text-destructive" />
                           </Button>

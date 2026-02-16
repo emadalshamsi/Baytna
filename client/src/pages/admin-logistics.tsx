@@ -531,7 +531,7 @@ function TripsSection() {
                   <Badge className={`no-default-hover-elevate no-default-active-elevate ${tripStatusVariants[trip.status] || ""}`}>
                     {t(`status.${trip.status}`)}
                   </Badge>
-                  {(trip.createdBy === currentUser?.id || currentUser?.role === "admin") && ["pending", "approved"].includes(trip.status) && (
+                  {(trip.createdBy === currentUser?.id || currentUser?.role === "admin") && ["pending", "approved"].includes(trip.status) && (!trip.departureTime || new Date(trip.departureTime) > new Date()) && (
                     <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (confirm(t("messages.confirmDelete"))) statusMutation.mutate({ id: trip.id, status: "cancelled" }); }} data-testid={`button-cancel-trip-${trip.id}`}>
                       <X className="w-4 h-4 text-destructive" />
                     </Button>
