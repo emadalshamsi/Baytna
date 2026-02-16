@@ -1741,8 +1741,15 @@ export async function registerRoutes(
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
       const notifs = await storage.getNotifications(userId);
       const filtered = notifs.filter((n: any) => filterNotificationForUser(n, currentUser));
-      const count = filtered.filter((n: any) => !n.isRead).length;
-      res.json({ count });
+      const unread = filtered.filter((n: any) => !n.isRead);
+      const count = unread.length;
+
+      const groceries = unread.filter((n: any) => ["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update"].includes(n.type)).length;
+      const logistics = unread.filter((n: any) => ["trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled"].includes(n.type)).length;
+      const housekeeping = unread.filter((n: any) => ["laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type)).length;
+      const home = count - groceries - logistics - housekeeping;
+
+      res.json({ count, home: Math.max(0, home), groceries, logistics, housekeeping });
     } catch (error) {
       res.status(500).json({ message: "Failed to get count" });
     }

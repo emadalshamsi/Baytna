@@ -42,10 +42,18 @@ function BottomNavBar() {
   useLang();
   const [location] = useLocation();
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCounts } = useNotifications();
   const role = user?.role || "";
 
   const navItems = allNavItems.filter(item => !item.hideFor.includes(role));
+
+  const tabCounts: Record<string, number> = {
+    home: unreadCounts.home,
+    groceries: unreadCounts.groceries,
+    logistics: unreadCounts.logistics,
+    housekeeping: unreadCounts.housekeeping,
+    settings: 0,
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-md safe-area-bottom" data-testid="bottom-nav">
@@ -53,7 +61,7 @@ function BottomNavBar() {
         {navItems.map((item) => {
           const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);
           const Icon = item.icon;
-          const showBadge = false;
+          const badgeCount = tabCounts[item.key] || 0;
           return (
             <Link key={item.key} href={item.path}>
               <button
@@ -68,9 +76,9 @@ function BottomNavBar() {
                   isActive ? "bg-primary/10" : ""
                 }`}>
                   <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
-                  {showBadge && (
-                    <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-0.5" data-testid="badge-nav-unread">
-                      {unreadCount > 99 ? "99+" : unreadCount}
+                  {badgeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-0.5" data-testid={`badge-nav-${item.key}`}>
+                      {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
                 </div>

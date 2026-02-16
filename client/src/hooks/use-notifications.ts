@@ -7,12 +7,20 @@ export function useNotifications() {
   const { user } = useAuth();
   const subscribed = useRef(false);
 
-  const { data: unreadCount = 0 } = useQuery<number>({
+  const { data: unreadCounts = { count: 0, home: 0, groceries: 0, logistics: 0, housekeeping: 0 } } = useQuery({
     queryKey: ["/api/notifications/unread-count"],
     enabled: !!user,
     refetchInterval: 15000,
-    select: (data: any) => data?.count ?? 0,
+    select: (data: any) => ({
+      count: data?.count ?? 0,
+      home: data?.home ?? 0,
+      groceries: data?.groceries ?? 0,
+      logistics: data?.logistics ?? 0,
+      housekeeping: data?.housekeeping ?? 0,
+    }),
   });
+
+  const unreadCount = unreadCounts.count;
 
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
@@ -90,6 +98,7 @@ export function useNotifications() {
 
   return {
     unreadCount,
+    unreadCounts,
     notifications,
     markRead,
     markAllRead,
