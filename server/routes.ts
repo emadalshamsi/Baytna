@@ -623,11 +623,12 @@ export async function registerRoutes(
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
-      if (currentUser.role !== "admin" && !currentUser.canApprove) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
       const order = await storage.getOrder(parseInt(req.params.id));
       if (!order) return res.status(404).json({ message: "Order not found" });
+      const isCreator = order.createdBy === currentUser.id && order.status === "pending";
+      if (currentUser.role !== "admin" && !currentUser.canApprove && !isCreator) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
       if (order.status !== "pending" && order.status !== "approved") {
         return res.status(400).json({ message: "Cannot edit this order" });
       }
@@ -654,8 +655,9 @@ export async function registerRoutes(
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
       const order = await storage.getOrder(parseInt(req.params.id));
       if (!order) return res.status(404).json({ message: "Order not found" });
-      const isCreator = order.createdBy === currentUser.id;
-      if (currentUser.role !== "admin" && !currentUser.canApprove && !isCreator) {
+      const isAdminOrApprover = currentUser.role === "admin" || currentUser.canApprove;
+      const isCreator = order.createdBy === currentUser.id && order.status === "pending";
+      if (!isAdminOrApprover && !isCreator) {
         return res.status(403).json({ message: "Forbidden" });
       }
       if (order.status !== "pending" && order.status !== "approved") {
@@ -681,10 +683,11 @@ export async function registerRoutes(
       if (!order) return res.status(404).json({ message: "Order not found" });
       const isDriver = currentUser.role === "driver" && order.assignedDriver === currentUser.id && order.status === "in_progress";
       const isAdminOrApprover = currentUser.role === "admin" || currentUser.canApprove;
-      if (!isDriver && !isAdminOrApprover) {
+      const isCreator = order.createdBy === currentUser.id && order.status === "pending";
+      if (!isDriver && !isAdminOrApprover && !isCreator) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      if (isAdminOrApprover && !isDriver) {
+      if ((isAdminOrApprover || isCreator) && !isDriver) {
         if (order.status !== "pending" && order.status !== "approved") {
           return res.status(400).json({ message: "Cannot edit this order" });
         }
@@ -705,14 +708,15 @@ export async function registerRoutes(
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
-      if (currentUser.role !== "admin" && !currentUser.canApprove) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
       const targetItem = await storage.getOrderItem(parseInt(req.params.id));
       if (targetItem) {
         const order = await storage.getOrder(targetItem.orderId);
         if (order && order.status !== "pending" && order.status !== "approved") {
           return res.status(400).json({ message: "Cannot edit this order" });
+        }
+        const isCreator = order && order.createdBy === currentUser.id && order.status === "pending";
+        if (currentUser.role !== "admin" && !currentUser.canApprove && !isCreator) {
+          return res.status(403).json({ message: "Forbidden" });
         }
       }
       await storage.deleteOrderItem(parseInt(req.params.id));

@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,10 +13,11 @@ import {
   ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
   Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
-  Send, Package, Plus, Minus, X, Image as ImageIcon, RefreshCw, Clock, CalendarDays, Zap
+  Send, Package, Plus, Minus, X, Image as ImageIcon, RefreshCw, Clock, CalendarDays, Zap,
+  ChevronDown, ChevronUp, Check
 } from "lucide-react";
 import { useState } from "react";
-import type { Product, Category, Order } from "@shared/schema";
+import type { Product, Category, Order, OrderItem } from "@shared/schema";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +38,198 @@ function getIcon(iconName?: string | null) {
   return categoryIcons[iconName.toLowerCase()] || CircleDot;
 }
 
+function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { orderId: number; editable?: boolean; currentScheduledFor?: string | null }) {
+  useLang();
+  const { toast } = useToast();
+  const { data: items, isLoading } = useQuery<OrderItem[]>({
+    queryKey: ["/api/orders", orderId, "items"],
+    queryFn: () => fetch(`/api/orders/${orderId}/items`, { credentials: "include" }).then(r => r.json()),
+  });
+  const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [addQuantity, setAddQuantity] = useState("1");
+  const [productSearch, setProductSearch] = useState("");
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/order-items/${id}`, data); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/order-items/${id}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+    },
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", `/api/orders/${orderId}/items`, data); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      setShowAddItem(false);
+      setSelectedProductId("");
+      setAddQuantity("1");
+      setProductSearch("");
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async (scheduledFor: string) => {
+      await apiRequest("PATCH", `/api/orders/${orderId}/scheduled`, { scheduledFor });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: t("schedule.scheduleUpdated") });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-16 mt-2" />;
+
+  const productMap = new Map((products || []).map(p => [p.id, p]));
+  const existingProductIds = new Set((items || []).map(i => i.productId));
+  const availableProducts = (products || []).filter(p => !existingProductIds.has(p.id));
+  const filteredAvailable = productSearch
+    ? availableProducts.filter(p => p.nameAr.includes(productSearch) || (p.nameEn && p.nameEn.toLowerCase().includes(productSearch.toLowerCase())))
+    : availableProducts;
+
+  const handleAddItem = () => {
+    if (!selectedProductId) return;
+    const product = products?.find(p => p.id === parseInt(selectedProductId));
+    if (!product) return;
+    addItemMutation.mutate({
+      productId: product.id,
+      quantity: parseInt(addQuantity) || 1,
+      estimatedPrice: product.estimatedPrice || 0,
+    });
+  };
+
+  return (
+    <div className="mt-3 border-t pt-3 space-y-2" data-testid={`maid-order-items-panel-${orderId}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-muted-foreground">{t("fields.orderItems")} ({items?.length || 0})</span>
+        {editable && (
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowAddItem(!showAddItem)} data-testid={`button-maid-add-item-${orderId}`}>
+            <Plus className="w-3 h-3" /> {t("household.addItemToOrder")}
+          </Button>
+        )}
+      </div>
+
+      {editable && showAddItem && (
+        <div className="p-3 rounded-md bg-muted/50 space-y-2">
+          <Input
+            placeholder={t("actions.search")}
+            value={productSearch}
+            onChange={e => setProductSearch(e.target.value)}
+            className="text-sm"
+          />
+          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("admin.addProduct")} />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredAvailable.map(p => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.nameAr}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input type="number" min="1" value={addQuantity} onChange={e => setAddQuantity(e.target.value)} className="w-20 text-sm" />
+            <Button size="sm" onClick={handleAddItem} disabled={!selectedProductId || addItemMutation.isPending}>
+              <Plus className="w-3 h-3 ml-1" /> {t("actions.add")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!items?.length ? (
+        <p className="text-xs text-muted-foreground py-2">{t("fields.noItems")}</p>
+      ) : (
+        items.map(item => {
+          const product = productMap.get(item.productId);
+          return (
+            <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {product?.imageUrl && <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                <div className="min-w-0">
+                  <span className="font-medium text-sm truncate block">{product?.nameAr || `#${item.productId}`}</span>
+                  <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {item.isPurchased && (
+                  <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
+                    <Check className="w-3 h-3" />
+                  </Badge>
+                )}
+                {editable && !item.isPurchased && (
+                  <div className="flex items-center gap-0.5">
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      if (item.quantity > 1) updateItemMutation.mutate({ id: item.id, data: { quantity: item.quantity - 1 } });
+                    }} disabled={item.quantity <= 1 || updateItemMutation.isPending}>
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      updateItemMutation.mutate({ id: item.id, data: { quantity: item.quantity + 1 } });
+                    }} disabled={updateItemMutation.isPending}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => deleteItemMutation.mutate(item.id)} disabled={deleteItemMutation.isPending}>
+                      <X className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+
+      {editable && (
+        <div className="pt-2 border-t space-y-1.5">
+          <span className="text-xs font-medium text-muted-foreground">{t("schedule.deliverySchedule")}</span>
+          <div className="flex gap-1">
+            {[
+              { value: "today", icon: CalendarDays },
+              { value: "tomorrow", icon: Clock },
+            ].map(opt => {
+              const today = new Date().toISOString().split("T")[0];
+              const tmr = new Date();
+              tmr.setDate(tmr.getDate() + 1);
+              const tomorrowDate = tmr.toISOString().split("T")[0];
+              const dateVal = opt.value === "tomorrow" ? tomorrowDate : today;
+              const isActive = opt.value === "today"
+                ? (currentScheduledFor === today || !currentScheduledFor)
+                : currentScheduledFor === tomorrowDate;
+              return (
+                <Button
+                  key={opt.value}
+                  size="sm"
+                  variant={isActive ? "default" : "outline"}
+                  className="flex-1 gap-1"
+                  onClick={() => scheduleMutation.mutate(dateVal)}
+                  disabled={scheduleMutation.isPending}
+                  data-testid={`button-maid-schedule-${opt.value}-${orderId}`}
+                >
+                  <opt.icon className="w-3.5 h-3.5" />
+                  {t(`schedule.${opt.value}` as any)}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MaidDashboard() {
   useLang();
   const { user } = useAuth();
@@ -51,6 +245,7 @@ export default function MaidDashboard() {
   const [selectedOrderForUpdate, setSelectedOrderForUpdate] = useState<string>("");
   const [updateCart, setUpdateCart] = useState<{ productId: number; quantity: number; product: Product }[]>([]);
   const [scheduledFor, setScheduledFor] = useState<string>("today");
+  const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
 
   const getScheduledDate = (val: string) => {
     const now = new Date();
@@ -174,11 +369,39 @@ export default function MaidDashboard() {
           <h3 className="text-sm font-medium text-muted-foreground">{t("driver.yourOrders")}</h3>
           {pendingOrders.map(o => (
             <Card key={o.id} data-testid={`card-maid-order-${o.id}`}>
-              <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
-                <span>#{o.id}</span>
-                <Badge className={`no-default-hover-elevate no-default-active-elevate ${o.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"}`}>
-                  {t(`status.${o.status}`)}
-                </Badge>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">#{o.id}</span>
+                    {(() => {
+                      const today = new Date().toISOString().split("T")[0];
+                      const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+                      const isTomorrow = o.scheduledFor === tmr.toISOString().split("T")[0];
+                      const isToday = !o.scheduledFor || o.scheduledFor === today;
+                      return (
+                        <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-[10px] gap-0.5">
+                          {isTomorrow ? <Clock className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
+                          {isTomorrow ? t("schedule.tomorrow") : isToday ? t("schedule.today") : o.scheduledFor}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`no-default-hover-elevate no-default-active-elevate ${o.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"}`}>
+                      {t(`status.${o.status}`)}
+                    </Badge>
+                    <Button size="icon" variant="ghost" onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} data-testid={`button-expand-maid-order-${o.id}`}>
+                      {expandedOrder === o.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                {expandedOrder === o.id && (
+                  <MaidOrderDetailPanel
+                    orderId={o.id}
+                    editable={o.status === "pending" && o.createdBy === user?.id}
+                    currentScheduledFor={o.scheduledFor}
+                  />
+                )}
               </CardContent>
             </Card>
           ))}

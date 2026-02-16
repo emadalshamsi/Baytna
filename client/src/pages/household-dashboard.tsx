@@ -902,7 +902,7 @@ export default function HouseholdDashboard() {
                           </Button>
                         </div>
                       )}
-                      {expandedOrder === order.id && <OrderDetailPanel orderId={order.id} editable={!!user?.canApprove && order.status === "pending"} currentScheduledFor={order.scheduledFor} />}
+                      {expandedOrder === order.id && <OrderDetailPanel orderId={order.id} editable={(!!user?.canApprove || order.createdBy === user?.id) && order.status === "pending"} currentScheduledFor={order.scheduledFor} />}
                     </CardContent>
                   </Card>
                 ))}
