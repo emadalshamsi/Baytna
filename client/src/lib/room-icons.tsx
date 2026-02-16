@@ -2,30 +2,17 @@ import {
   DoorOpen, Sofa, CookingPot, Car, Tent, Flower2, Package, Home, type LucideIcon,
   Fence, GripVertical, Armchair, Bath,
 } from "lucide-react";
+import stairsImagePath from "@assets/image_1771201557923.png";
 
-function StairsIcon(props: React.SVGProps<SVGSVGElement>) {
+function StairsIcon({ className }: { className?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <text
-        x="12"
-        y="18"
-        textAnchor="middle"
-        fontSize="20"
-        fill="currentColor"
-        stroke="none"
-        fontFamily="serif"
-      >𓊍</text>
-    </svg>
-  );
+    <img
+      src={stairsImagePath}
+      alt="stairs"
+      className={`${className || ""} dark:invert`}
+      style={{ display: "inline-block" }}
+    />
+  ) as unknown as React.ReactSVGElement;
 }
 
 export const ROOM_ICON_OPTIONS: { key: string; Icon: LucideIcon | typeof StairsIcon }[] = [
