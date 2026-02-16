@@ -583,6 +583,55 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     );
   }
 
+  const isMaid = user?.role === "maid";
+
+  if (isMaid) {
+    return (
+      <div className="space-y-4">
+        <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
+
+        {allActiveRooms.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Brush className="w-12 h-12 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">{t("housekeepingSection.noTasks")}</p>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {allActiveRooms.map(room => {
+              const RIcon = getRoomIcon(room.icon);
+              const roomTasks = tasks.filter((t: any) => t.roomId === room.id && (t.daysOfWeek?.includes(selectedDate.getDay()) ?? true));
+              const totalT = roomTasks.length;
+              const doneT = roomTasks.filter((t: any) => completedTaskIds.has(t.id)).length;
+              const pctR = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
+              return (
+                <Card
+                  key={room.id}
+                  className="bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30"
+                  data-testid={`card-progress-room-${room.id}`}
+                >
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
+                      <RIcon className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctR}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
