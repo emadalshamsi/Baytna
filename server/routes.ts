@@ -480,7 +480,7 @@ export async function registerRoutes(
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
-      if (currentUser.role === "admin" || currentUser.canApprove) {
+      if (currentUser.role === "admin" || currentUser.canApprove || currentUser.role === "maid") {
         const allOrders = await storage.getOrders();
         res.json(allOrders);
       } else if (currentUser.role === "driver") {
