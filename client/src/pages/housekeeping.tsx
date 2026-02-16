@@ -495,55 +495,39 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       <div className="space-y-4">
         <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
 
-        {activeRooms.length === 1 && (() => {
-          const singleRoom = activeRooms[0];
-          const SingleRoomIcon = getRoomIcon(singleRoom.icon);
-          const totalTasks = filteredTasks.length;
-          const doneTasks = filteredTasks.filter(t => completedTaskIds.has(t.id)).length;
-          const pct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-          return (
-            <Card data-testid={`card-progress-room-${singleRoom.id}`}>
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
-                  <SingleRoomIcon className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold">{lang === "ar" ? singleRoom.nameAr : (singleRoom.nameEn || singleRoom.nameAr)}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">{doneTasks}/{totalTasks}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })()}
-
-        {activeRooms.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-            <Button
-              variant={roomFilter === "all" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setRoomFilter("all")}
-              data-testid="button-filter-all-rooms"
-            >
-              {t("housekeepingSection.allRooms")}
-            </Button>
-            {activeRooms.map(room => (
-              <Button
+        <div className="grid gap-2">
+          {activeRooms.map(room => {
+            const RIcon = getRoomIcon(room.icon);
+            const roomTasks = tasks.filter((t: any) => t.roomId === room.id && (t.daysOfWeek?.includes(selectedDate.getDay()) ?? true));
+            const totalT = roomTasks.length;
+            const doneT = roomTasks.filter((t: any) => completedTaskIds.has(t.id)).length;
+            const pctR = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
+            const isSelected = roomFilter === String(room.id);
+            return (
+              <Card
                 key={room.id}
-                variant={roomFilter === String(room.id) ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setRoomFilter(String(room.id))}
-                data-testid={`button-filter-room-${room.id}`}
+                className={`cursor-pointer transition-all ${activeRooms.length > 1 ? "hover-elevate" : ""} ${isSelected && activeRooms.length > 1 ? "ring-2 ring-primary" : ""}`}
+                onClick={() => { if (activeRooms.length > 1) setRoomFilter(isSelected ? "all" : String(room.id)); }}
+                data-testid={`card-progress-room-${room.id}`}
               >
-                {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
-              </Button>
-            ))}
-          </div>
-        )}
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
+                    <RIcon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctR}%` }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
         {filteredTasks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
