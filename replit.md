@@ -3,7 +3,16 @@
 ## Overview
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
-## Recent Changes (Feb 15, 2026)
+## Recent Changes (Feb 16, 2026)
+- Order delivery scheduling: scheduledFor column (varchar) on orders, 3 options (Today/Now/Tomorrow)
+- Today = default, Now = immediate (same as today for driver visibility), Tomorrow = hidden from driver until next day
+- Scheduling selector UI in both maid and household cart dialogs before submit button
+- canApprove users can edit order schedule via OrderDetailPanel (Today/Tomorrow toggle)
+- Schedule badge shown on pending order cards in household dashboard
+- Backend filters driver orders: only shows orders where scheduledFor <= today or null
+- PATCH /api/orders/:id/scheduled endpoint for schedule updates (canApprove/admin only)
+
+## Previous Changes (Feb 15, 2026)
 - Trip time overlap detection: availability check now considers departureTime + estimatedDuration range, shows time conflicts
 - Private vehicles: isPrivate + assignedUserId fields on vehicles, private vehicles only available to assigned user and driver
 - Vehicle form: checkbox for private + user selector, vehicle card shows private badge and owner

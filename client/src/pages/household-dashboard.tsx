@@ -57,7 +57,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function OrderDetailPanel({ orderId, editable = false }: { orderId: number; editable?: boolean }) {
+function OrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { orderId: number; editable?: boolean; currentScheduledFor?: string | null }) {
   useLang();
   const { toast } = useToast();
   const { data: items, isLoading } = useQuery<OrderItem[]>({
@@ -69,6 +69,27 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
   const [selectedProductId, setSelectedProductId] = useState("");
   const [addQuantity, setAddQuantity] = useState("1");
   const [productSearch, setProductSearch] = useState("");
+
+  const getScheduleLabel = (sf: string | null | undefined) => {
+    if (!sf) return t("schedule.today");
+    const today = new Date().toISOString().split("T")[0];
+    const tmr = new Date();
+    tmr.setDate(tmr.getDate() + 1);
+    const tomorrow = tmr.toISOString().split("T")[0];
+    if (sf === today) return t("schedule.today");
+    if (sf === tomorrow) return t("schedule.tomorrow");
+    return sf;
+  };
+
+  const scheduleMutation = useMutation({
+    mutationFn: async (scheduledFor: string) => {
+      await apiRequest("PATCH", `/api/orders/${orderId}/scheduled`, { scheduledFor });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: t("schedule.scheduleUpdated") });
+    },
+  });
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/order-items/${id}`, data); },
@@ -219,6 +240,41 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
             </div>
           );
         })
+      )}
+
+      {editable && (
+        <div className="pt-2 border-t space-y-1.5">
+          <span className="text-xs font-medium text-muted-foreground">{t("schedule.deliverySchedule")}: {getScheduleLabel(currentScheduledFor)}</span>
+          <div className="flex gap-1">
+            {[
+              { value: "today", icon: CalendarDays },
+              { value: "tomorrow", icon: Clock },
+            ].map(opt => {
+              const today = new Date().toISOString().split("T")[0];
+              const tmr = new Date();
+              tmr.setDate(tmr.getDate() + 1);
+              const tomorrowDate = tmr.toISOString().split("T")[0];
+              const dateVal = opt.value === "tomorrow" ? tomorrowDate : today;
+              const isActive = opt.value === "today"
+                ? (currentScheduledFor === today || !currentScheduledFor)
+                : currentScheduledFor === tomorrowDate;
+              return (
+                <Button
+                  key={opt.value}
+                  size="sm"
+                  variant={isActive ? "default" : "outline"}
+                  className="flex-1 gap-1"
+                  onClick={() => scheduleMutation.mutate(dateVal)}
+                  disabled={scheduleMutation.isPending}
+                  data-testid={`button-edit-schedule-${opt.value}-${orderId}`}
+                >
+                  <opt.icon className="w-3.5 h-3.5" />
+                  {t(`schedule.${opt.value}` as any)}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -815,6 +871,18 @@ export default function HouseholdDashboard() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">#{order.id}</span>
                           <span className="text-sm text-muted-foreground">{formatPrice(order.totalEstimated || 0)}</span>
+                          {(() => {
+                            const today = new Date().toISOString().split("T")[0];
+                            const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+                            const isTomorrow = order.scheduledFor === tmr.toISOString().split("T")[0];
+                            const isToday = !order.scheduledFor || order.scheduledFor === today;
+                            return (
+                              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-[10px] gap-0.5">
+                                {isTomorrow ? <Clock className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
+                                {isTomorrow ? t("schedule.tomorrow") : isToday ? t("schedule.today") : order.scheduledFor}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={order.status} />
@@ -834,7 +902,7 @@ export default function HouseholdDashboard() {
                           </Button>
                         </div>
                       )}
-                      {expandedOrder === order.id && <OrderDetailPanel orderId={order.id} editable={!!user?.canApprove && order.status === "pending"} />}
+                      {expandedOrder === order.id && <OrderDetailPanel orderId={order.id} editable={!!user?.canApprove && order.status === "pending"} currentScheduledFor={order.scheduledFor} />}
                     </CardContent>
                   </Card>
                 ))}
