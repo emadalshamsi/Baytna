@@ -541,8 +541,6 @@ export default function DriverDashboard() {
 
   return (
     <div className="space-y-4">
-      <TripsSection />
-
       {inProgress.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-medium flex items-center gap-2 text-sm">
