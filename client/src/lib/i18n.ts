@@ -63,7 +63,7 @@ const ar = {
     addMeal: "إضافة وجبة",
     addMealItem: "إضافة صنف",
     editMealItem: "تعديل صنف",
-    mealCatalog: "أصناف الوجبات",
+    mealCatalog: "الوجبات",
     selectMealItem: "اختر صنف",
     noMealItems: "لا يوجد أصناف",
     deleteMealItem: "حذف الصنف",
