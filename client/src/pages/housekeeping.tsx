@@ -42,7 +42,7 @@ function getDateRange(centerDate: Date, range: number): Date[] {
   return dates;
 }
 
-function DateStrip({ selectedDate, onSelect, daysWithData, minDate, maxDate }: { selectedDate: Date; onSelect: (d: Date) => void; daysWithData?: Set<number>; minDate?: Date; maxDate?: Date }) {
+function DateStrip({ selectedDate, onSelect, daysWithData, datesWithData, minDate, maxDate }: { selectedDate: Date; onSelect: (d: Date) => void; daysWithData?: Set<number>; datesWithData?: Set<string>; minDate?: Date; maxDate?: Date }) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -118,7 +118,7 @@ function DateStrip({ selectedDate, onSelect, daysWithData, minDate, maxDate }: {
             <span className="text-base font-bold leading-none">{dateNum}</span>
             <div className="h-1.5 mt-0.5 flex items-center justify-center">
               {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-primary" />}
-              {!isToday && !isSelected && daysWithData?.has(dayOfWeek) && <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />}
+              {!isToday && !isSelected && (daysWithData?.has(dayOfWeek) || datesWithData?.has(formatDateStr(d))) && <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />}
             </div>
           </button>
         );
@@ -1376,7 +1376,7 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-4">
-      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} minDate={weekBack} maxDate={weekForward} />
+      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} datesWithData={datesWithMeals} minDate={weekBack} maxDate={weekForward} />
 
       <MealCardsGrid
         meals={selectedMeals}
