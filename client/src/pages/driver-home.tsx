@@ -143,7 +143,9 @@ export default function DriverHomePage() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [reqStartTime, setReqStartTime] = useState("09:00");
+  const [reqDate, setReqDate] = useState("");
+  const [reqStartHour, setReqStartHour] = useState("09");
+  const [reqStartMinute, setReqStartMinute] = useState("00");
   const [reqDuration, setReqDuration] = useState("60");
   const [reqNotes, setReqNotes] = useState("");
 
@@ -165,8 +167,8 @@ export default function DriverHomePage() {
   const createTimeRequest = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/driver-time-requests", {
-        requestDate: dateStr,
-        startTime: reqStartTime,
+        requestDate: reqDate || dateStr,
+        startTime: `${reqStartHour}:${reqStartMinute}`,
         estimatedReturnMinutes: parseInt(reqDuration),
         notes: reqNotes || null,
       });
@@ -175,7 +177,9 @@ export default function DriverHomePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/driver-time-requests"] });
       toast({ title: t("driverHome.requestSent") });
       setDialogOpen(false);
-      setReqStartTime("09:00");
+      setReqDate("");
+      setReqStartHour("09");
+      setReqStartMinute("00");
       setReqDuration("60");
       setReqNotes("");
     },
@@ -276,16 +280,48 @@ export default function DriverHomePage() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("driverHome.requestDate")}</label>
-                  <Input type="date" value={dateStr} readOnly data-testid="input-request-date" />
+                  <Select value={reqDate || dateStr} onValueChange={setReqDate}>
+                    <SelectTrigger data-testid="select-request-date">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getDateRange(new Date(), 30).map(d => {
+                        const ds = getDateStr(d);
+                        const dayKey = dayAbbrevKeys[d.getDay()];
+                        return (
+                          <SelectItem key={ds} value={ds} data-testid={`option-date-${ds}`}>
+                            {ds} ({t(`housekeepingSection.${dayKey}`)})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("driverHome.startTime")}</label>
-                  <Input
-                    type="time"
-                    value={reqStartTime}
-                    onChange={e => setReqStartTime(e.target.value)}
-                    data-testid="input-start-time"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Select value={reqStartHour} onValueChange={setReqStartHour}>
+                      <SelectTrigger className="flex-1" data-testid="select-start-hour">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-lg font-bold">:</span>
+                    <Select value={reqStartMinute} onValueChange={setReqStartMinute}>
+                      <SelectTrigger className="flex-1" data-testid="select-start-minute">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["00", "15", "30", "45"].map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("driverHome.estimatedReturn")}</label>
@@ -315,7 +351,7 @@ export default function DriverHomePage() {
                   <Button
                     className="flex-1"
                     onClick={() => createTimeRequest.mutate()}
-                    disabled={createTimeRequest.isPending || !reqStartTime}
+                    disabled={createTimeRequest.isPending}
                     data-testid="button-submit-time-request"
                   >
                     {t("actions.submit")}
