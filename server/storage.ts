@@ -4,7 +4,7 @@ import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
   rooms, userRooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
-  shortages, pushSubscriptions, notifications, driverTimeRequests,
+  shortages, pushSubscriptions, notifications,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
@@ -22,7 +22,6 @@ import {
   type Shortage, type InsertShortage,
   type PushSubscription, type InsertPushSubscription,
   type Notification, type InsertNotification,
-  type DriverTimeRequest, type InsertDriverTimeRequest,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -159,10 +158,6 @@ export interface IStorage {
   markNotificationRead(id: number): Promise<void>;
   markAllNotificationsRead(userId: string): Promise<void>;
 
-  getDriverTimeRequests(): Promise<DriverTimeRequest[]>;
-  getDriverTimeRequestsByDriver(driverId: string): Promise<DriverTimeRequest[]>;
-  createDriverTimeRequest(req: InsertDriverTimeRequest): Promise<DriverTimeRequest>;
-  updateDriverTimeRequestStatus(id: number, status: string, approvedBy?: string): Promise<DriverTimeRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -753,23 +748,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
   }
 
-  async getDriverTimeRequests(): Promise<DriverTimeRequest[]> {
-    return db.select().from(driverTimeRequests).orderBy(desc(driverTimeRequests.createdAt));
-  }
-
-  async getDriverTimeRequestsByDriver(driverId: string): Promise<DriverTimeRequest[]> {
-    return db.select().from(driverTimeRequests).where(eq(driverTimeRequests.driverId, driverId)).orderBy(desc(driverTimeRequests.createdAt));
-  }
-
-  async createDriverTimeRequest(req: InsertDriverTimeRequest): Promise<DriverTimeRequest> {
-    const [result] = await db.insert(driverTimeRequests).values(req).returning();
-    return result;
-  }
-
-  async updateDriverTimeRequestStatus(id: number, status: string, approvedBy?: string): Promise<DriverTimeRequest | undefined> {
-    const [result] = await db.update(driverTimeRequests).set({ status, approvedBy: approvedBy || null }).where(eq(driverTimeRequests.id, id)).returning();
-    return result;
-  }
 }
 
 export const storage = new DatabaseStorage();

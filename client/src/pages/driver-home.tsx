@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -143,10 +143,9 @@ export default function DriverHomePage() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [tripDate, setTripDate] = useState("");
-  const [tripHour, setTripHour] = useState("09");
-  const [tripMinute, setTripMinute] = useState("00");
-  const [tripDuration, setTripDuration] = useState("30");
+  const [departureDate, setDepartureDate] = useState("");
+  const [departureTimeVal, setDepartureTimeVal] = useState("");
+  const [estimatedDuration, setEstimatedDuration] = useState("30");
   const [tripVehicleId, setTripVehicleId] = useState("");
   const [tripNotes, setTripNotes] = useState("");
 
@@ -166,16 +165,26 @@ export default function DriverHomePage() {
 
   const driverName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username : "";
 
+  const resetForm = () => {
+    setDepartureDate("");
+    setDepartureTimeVal("");
+    setEstimatedDuration("30");
+    setTripVehicleId("");
+    setTripNotes("");
+  };
+
+  const availableVehicles = vehicles.filter(v => !v.isPrivate || v.assignedUserId === user?.id);
+
   const createPersonalTrip = useMutation({
     mutationFn: async () => {
-      const selectedDateStr = tripDate || dateStr;
-      const departureTime = new Date(`${selectedDateStr}T${tripHour}:${tripMinute}:00`);
+      const depDate = departureDate || dateStr;
+      const departureTime = new Date(`${depDate}T${departureTimeVal}:00`);
       await apiRequest("POST", "/api/trips", {
         personName: driverName,
         location: t("trips.personal"),
         departureTime: departureTime.toISOString(),
-        estimatedDuration: parseInt(tripDuration),
-        vehicleId: tripVehicleId && tripVehicleId !== "none" ? parseInt(tripVehicleId) : null,
+        estimatedDuration: parseInt(estimatedDuration),
+        vehicleId: tripVehicleId ? parseInt(tripVehicleId) : null,
         notes: tripNotes || null,
         isPersonal: true,
       });
@@ -184,12 +193,7 @@ export default function DriverHomePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
       toast({ title: t("trips.tripAdded") });
       setDialogOpen(false);
-      setTripDate("");
-      setTripHour("09");
-      setTripMinute("00");
-      setTripDuration("30");
-      setTripVehicleId("");
-      setTripNotes("");
+      resetForm();
     },
     onError: () => {
       toast({ title: t("trips.saveFailed"), variant: "destructive" });
@@ -240,8 +244,6 @@ export default function DriverHomePage() {
     );
   }
 
-  const durationOptions = [15, 30, 45, 60, 75, 90, 105, 120];
-
   return (
     <div className="space-y-5" data-testid="page-driver-home">
       <Card className="border-primary/20 bg-primary/5">
@@ -279,7 +281,7 @@ export default function DriverHomePage() {
             <CalendarDays className="w-5 h-5 text-muted-foreground" />
             <h3 className="text-base font-bold">{t("driverHome.todaySchedule")}</h3>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-add-personal-trip">
                 <Plus className="w-4 h-4" />
@@ -289,53 +291,20 @@ export default function DriverHomePage() {
             <DialogContent data-testid="dialog-personal-trip">
               <DialogHeader>
                 <DialogTitle>{t("trips.addPersonalTrip")}</DialogTitle>
+                <DialogDescription className="sr-only">{t("trips.addPersonalTrip")}</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("trips.departureTime")} *</label>
-                  <div className="flex items-center gap-2">
-                    <Select value={tripHour} onValueChange={setTripHour}>
-                      <SelectTrigger className="flex-1" data-testid="select-trip-hour">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-lg font-bold">:</span>
-                    <Select value={tripMinute} onValueChange={setTripMinute}>
-                      <SelectTrigger className="flex-1" data-testid="select-trip-minute">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["00", "15", "30", "45"].map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">{t("trips.departureTime")} *</label>
+                  <div className="flex gap-2">
+                    <Input type="date" value={departureDate || dateStr} min={new Date().toISOString().split("T")[0]} onChange={e => setDepartureDate(e.target.value)} data-testid="input-trip-departure-date" className="flex-1" />
+                    <Input type="time" value={departureTimeVal} onChange={e => setDepartureTimeVal(e.target.value)} data-testid="input-trip-departure-time" className="flex-1" />
                   </div>
-                  <Select value={tripDate || dateStr} onValueChange={setTripDate}>
-                    <SelectTrigger data-testid="select-trip-date">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getDateRange(new Date(), 30).map(d => {
-                        const ds = getDateStr(d);
-                        const dayKey = dayAbbrevKeys[d.getDay()];
-                        return (
-                          <SelectItem key={ds} value={ds}>
-                            {ds} ({t(`housekeepingSection.${dayKey}`)})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("trips.estimatedDuration")}</label>
-                  <Select value={tripDuration} onValueChange={setTripDuration}>
+
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">{t("trips.estimatedDuration")}</label>
+                  <Select value={estimatedDuration} onValueChange={setEstimatedDuration}>
                     <SelectTrigger data-testid="select-trip-duration">
                       <SelectValue />
                     </SelectTrigger>
@@ -348,47 +317,24 @@ export default function DriverHomePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("trips.vehicle")}</label>
+
+                {availableVehicles.length > 0 && (
                   <Select value={tripVehicleId} onValueChange={setTripVehicleId}>
                     <SelectTrigger data-testid="select-trip-vehicle">
-                      <SelectValue placeholder={t("trips.noVehicle")} />
+                      <SelectValue placeholder={t("trips.selectVehicle")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">{t("trips.noVehicle")}</SelectItem>
-                      {vehicles.filter(v => !v.isPrivate || v.assignedUserId === user?.id).map(v => (
-                        <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                      {availableVehicles.map(v => (
+                        <SelectItem key={v.id} value={String(v.id)}>{v.name}{v.isPrivate ? ` (${t("vehicles.private")})` : ""}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">{t("fields.notes")}</label>
-                  <Input
-                    value={tripNotes}
-                    onChange={e => setTripNotes(e.target.value)}
-                    placeholder={t("fields.notes")}
-                    data-testid="input-trip-notes"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => createPersonalTrip.mutate()}
-                    disabled={createPersonalTrip.isPending}
-                    data-testid="button-submit-personal-trip"
-                  >
-                    {t("actions.submit")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setDialogOpen(false)}
-                    data-testid="button-cancel-personal-trip"
-                  >
-                    {t("actions.cancel")}
-                  </Button>
-                </div>
+                )}
+
+                <Input placeholder={t("fields.notes")} value={tripNotes} onChange={e => setTripNotes(e.target.value)} data-testid="input-trip-notes" />
+                <Button className="w-full" disabled={!departureTimeVal || createPersonalTrip.isPending} data-testid="button-submit-personal-trip" onClick={() => createPersonalTrip.mutate()}>
+                  {t("actions.save")}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

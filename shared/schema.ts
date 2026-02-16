@@ -258,17 +258,6 @@ export const loginSchema = z.object({
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
-export const driverTimeRequests = pgTable("driver_time_requests", {
-  id: serial("id").primaryKey(),
-  driverId: varchar("driver_id").notNull(),
-  requestDate: varchar("request_date", { length: 20 }).notNull(),
-  startTime: varchar("start_time", { length: 10 }).notNull(),
-  estimatedReturnMinutes: integer("estimated_return_minutes").notNull().default(60),
-  notes: text("notes"),
-  status: varchar("status", { length: 20 }).notNull().default("pending"),
-  approvedBy: varchar("approved_by"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 export const insertStoreSchema = createInsertSchema(stores).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
@@ -288,7 +277,7 @@ export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
 export const insertShortageSchema = createInsertSchema(shortages).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
-export const insertDriverTimeRequestSchema = createInsertSchema(driverTimeRequests).omit({ id: true, createdAt: true });
+
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -331,5 +320,3 @@ export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type DriverTimeRequest = typeof driverTimeRequests.$inferSelect;
-export type InsertDriverTimeRequest = z.infer<typeof insertDriverTimeRequestSchema>;
