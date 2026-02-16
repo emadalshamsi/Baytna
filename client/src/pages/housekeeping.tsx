@@ -616,7 +616,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                       <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-2 rounded-full overflow-hidden bg-[#fcfeff]">
-                          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctR}%` }} />
+                          <div className="h-full rounded-full transition-all bg-[#87b3fa]" style={{ width: `${pctR}%` }} />
                         </div>
                         <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
                       </div>
