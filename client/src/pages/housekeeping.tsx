@@ -1243,12 +1243,12 @@ function MealItemSlider({ items, lang, selectedId, onSelect }: {
 
   return (
     <div className="relative" data-testid="meal-item-slider">
-      <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+      <div ref={scrollRef} className="flex gap-2 overflow-x-auto py-1 px-1 scrollbar-hide" style={{ scrollbarWidth: "none" }}>
         {items.map(item => (
           <button
             key={item.id}
             onClick={() => onSelect(item)}
-            className={`flex-shrink-0 w-20 rounded-md transition-all ${selectedId === item.id ? "ring-2 ring-primary" : ""}`}
+            className={`flex-shrink-0 w-20 rounded-md transition-all ${selectedId === item.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
             data-testid={`slider-item-${item.id}`}
           >
             <div className="aspect-square bg-muted rounded-md overflow-hidden">
