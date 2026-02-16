@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, formatTime, formatDateTime } from "@/lib/i18n";
+import { t, formatTime, formatDateTime, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -163,7 +163,7 @@ export default function DriverHomePage() {
     queryKey: ["/api/vehicles"],
   });
 
-  const driverName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username : "";
+  const driverName = user ? displayName(user) : "";
 
   const resetForm = () => {
     setDepartureDate("");
