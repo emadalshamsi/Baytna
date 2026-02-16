@@ -199,9 +199,18 @@ export const laundrySchedule = pgTable("laundry_schedule", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+export const mealItems = pgTable("meal_items", {
+  id: serial("id").primaryKey(),
+  mealType: varchar("meal_type", { length: 20 }).notNull(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  imageUrl: varchar("image_url", { length: 500 }),
+});
+
 export const meals = pgTable("meals", {
   id: serial("id").primaryKey(),
   dayOfWeek: integer("day_of_week").notNull(),
+  dateStr: varchar("date_str", { length: 10 }),
   mealType: varchar("meal_type", { length: 20 }).notNull(),
   titleAr: varchar("title_ar", { length: 200 }).notNull(),
   titleEn: varchar("title_en", { length: 200 }),
@@ -274,6 +283,7 @@ export const insertHousekeepingTaskSchema = createInsertSchema(housekeepingTasks
 export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).omit({ id: true, completedAt: true });
 export const insertLaundryRequestSchema = createInsertSchema(laundryRequests).omit({ id: true, createdAt: true, completedAt: true });
 export const insertLaundryScheduleSchema = createInsertSchema(laundrySchedule).omit({ id: true });
+export const insertMealItemSchema = createInsertSchema(mealItems).omit({ id: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
 export const insertShortageSchema = createInsertSchema(shortages).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
@@ -313,6 +323,8 @@ export type LaundryRequest = typeof laundryRequests.$inferSelect;
 export type InsertLaundryRequest = z.infer<typeof insertLaundryRequestSchema>;
 export type LaundryScheduleEntry = typeof laundrySchedule.$inferSelect;
 export type InsertLaundrySchedule = z.infer<typeof insertLaundryScheduleSchema>;
+export type MealItem = typeof mealItems.$inferSelect;
+export type InsertMealItem = z.infer<typeof insertMealItemSchema>;
 export type Meal = typeof meals.$inferSelect;
 export type InsertMeal = z.infer<typeof insertMealSchema>;
 export type Shortage = typeof shortages.$inferSelect;

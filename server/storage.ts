@@ -3,7 +3,7 @@ import { eq, desc, and, gte, lte, lt, inArray } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
-  rooms, userRooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals,
+  rooms, userRooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, mealItems, meals,
   shortages, pushSubscriptions, notifications,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
@@ -18,6 +18,7 @@ import {
   type TaskCompletion, type InsertTaskCompletion,
   type LaundryRequest, type InsertLaundryRequest,
   type LaundryScheduleEntry, type InsertLaundrySchedule,
+  type MealItem, type InsertMealItem,
   type Meal, type InsertMeal,
   type Shortage, type InsertShortage,
   type PushSubscription, type InsertPushSubscription,
@@ -133,6 +134,11 @@ export interface IStorage {
 
   getLaundrySchedule(): Promise<LaundryScheduleEntry[]>;
   setLaundrySchedule(days: number[]): Promise<void>;
+
+  getMealItems(): Promise<MealItem[]>;
+  createMealItem(item: InsertMealItem): Promise<MealItem>;
+  updateMealItem(id: number, item: Partial<InsertMealItem>): Promise<MealItem | undefined>;
+  deleteMealItem(id: number): Promise<void>;
 
   getMeals(): Promise<Meal[]>;
   getMeal(id: number): Promise<Meal | undefined>;
@@ -656,6 +662,24 @@ export class DatabaseStorage implements IStorage {
     for (const day of days) {
       await db.insert(laundrySchedule).values({ dayOfWeek: day, isActive: true });
     }
+  }
+
+  async getMealItems(): Promise<MealItem[]> {
+    return db.select().from(mealItems).orderBy(mealItems.mealType);
+  }
+
+  async createMealItem(item: InsertMealItem): Promise<MealItem> {
+    const [result] = await db.insert(mealItems).values(item).returning();
+    return result;
+  }
+
+  async updateMealItem(id: number, item: Partial<InsertMealItem>): Promise<MealItem | undefined> {
+    const [result] = await db.update(mealItems).set(item).where(eq(mealItems.id, id)).returning();
+    return result;
+  }
+
+  async deleteMealItem(id: number): Promise<void> {
+    await db.delete(mealItems).where(eq(mealItems.id, id));
   }
 
   async getMeals(): Promise<Meal[]> {

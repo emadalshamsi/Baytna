@@ -1607,6 +1607,49 @@ export async function registerRoutes(
   });
 
   // Meals CRUD
+  app.get("/api/meal-items", isAuthenticated, async (_req, res) => {
+    try {
+      const items = await storage.getMealItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meal items" });
+    }
+  });
+
+  app.post("/api/meal-items", isAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user as User;
+    if (user.role !== "admin" && !user.canApprove) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const item = await storage.createMealItem(req.body);
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create meal item" });
+    }
+  });
+
+  app.patch("/api/meal-items/:id", isAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user as User;
+    if (user.role !== "admin" && !user.canApprove) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const item = await storage.updateMealItem(parseInt(req.params.id), req.body);
+      if (!item) return res.status(404).json({ message: "Not found" });
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update meal item" });
+    }
+  });
+
+  app.delete("/api/meal-items/:id", isAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user as User;
+    if (user.role !== "admin" && !user.canApprove) return res.status(403).json({ message: "Forbidden" });
+    try {
+      await storage.deleteMealItem(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete meal item" });
+    }
+  });
+
   app.get("/api/meals", isAuthenticated, async (_req, res) => {
     try {
       const allMeals = await storage.getMeals();

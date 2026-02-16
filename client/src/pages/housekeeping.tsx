@@ -18,7 +18,7 @@ import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundryScheduleEntry, Meal } from "@shared/schema";
+import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundryScheduleEntry, Meal, MealItem } from "@shared/schema";
 
 const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 const dayAbbrevKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -42,7 +42,7 @@ function getDateRange(centerDate: Date, range: number): Date[] {
   return dates;
 }
 
-function DateStrip({ selectedDate, onSelect, daysWithData }: { selectedDate: Date; onSelect: (d: Date) => void; daysWithData?: Set<number> }) {
+function DateStrip({ selectedDate, onSelect, daysWithData, minDate, maxDate }: { selectedDate: Date; onSelect: (d: Date) => void; daysWithData?: Set<number>; minDate?: Date; maxDate?: Date }) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -50,7 +50,12 @@ function DateStrip({ selectedDate, onSelect, daysWithData }: { selectedDate: Dat
   const scrollLeft = useRef(0);
   const hasMoved = useRef(false);
   const today = new Date();
-  const dates = getDateRange(today, 30);
+  const range = (minDate && maxDate) ? Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24) / 2) : 30;
+  const dates = getDateRange(today, range).filter(d => {
+    if (minDate && d < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate())) return false;
+    if (maxDate && d > new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate() + 1)) return false;
+    return true;
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -1025,15 +1030,18 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
   );
 }
 
-export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
-  const { lang } = useLang();
+function MealItemsSection({ lang }: { lang: string }) {
   const { toast } = useToast();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ dayOfWeek: "0", mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+  const [form, setForm] = useState({ mealType: "breakfast", nameAr: "", nameEn: "", imageUrl: "" });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filterType, setFilterType] = useState<string>("all");
+
+  const { data: items = [], isLoading } = useQuery<MealItem[]>({ queryKey: ["/api/meal-items"] });
+
+  const filteredItems = filterType === "all" ? items : items.filter(i => i.mealType === filterType);
 
   async function handleImageUpload(file: File) {
     setUploading(true);
@@ -1053,11 +1061,247 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
+  const createItem = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/meal-items", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-items"] });
+      toast({ title: t("housekeepingSection.addMealItem") });
+      setShowAdd(false);
+      resetForm();
+    },
+  });
+
+  const updateItem = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiRequest("PATCH", `/api/meal-items/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-items"] });
+      setEditingId(null);
+      setShowAdd(false);
+      resetForm();
+    },
+  });
+
+  const deleteItem = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/meal-items/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-items"] });
+    },
+  });
+
+  function resetForm() {
+    setForm({ mealType: "breakfast", nameAr: "", nameEn: "", imageUrl: "" });
+  }
+
+  function startEdit(item: MealItem) {
+    setEditingId(item.id);
+    setShowAdd(true);
+    setForm({
+      mealType: item.mealType,
+      nameAr: item.nameAr,
+      nameEn: item.nameEn || "",
+      imageUrl: item.imageUrl || "",
+    });
+  }
+
+  function submitForm() {
+    if (editingId) {
+      updateItem.mutate({ id: editingId, data: form });
+    } else {
+      createItem.mutate(form);
+    }
+  }
+
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>;
+
+  return (
+    <div className="space-y-3" data-testid="section-meal-items">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h3 className="text-sm font-semibold">{t("housekeepingSection.mealCatalog")}</h3>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1"
+          onClick={() => { setShowAdd(!showAdd); if (showAdd) { setEditingId(null); resetForm(); } }}
+          data-testid="button-add-meal-item"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {t("housekeepingSection.addMealItem")}
+        </Button>
+      </div>
+
+      <div className="flex gap-1.5 flex-wrap">
+        <Badge
+          variant={filterType === "all" ? "default" : "secondary"}
+          className="cursor-pointer text-xs"
+          onClick={() => setFilterType("all")}
+          data-testid="filter-meal-all"
+        >
+          {lang === "ar" ? "الكل" : "All"}
+        </Badge>
+        {mealTypes.map(mt => (
+          <Badge
+            key={mt}
+            variant={filterType === mt ? "default" : "secondary"}
+            className="cursor-pointer text-xs"
+            onClick={() => setFilterType(mt)}
+            data-testid={`filter-meal-${mt}`}
+          >
+            {t(`housekeepingSection.${mt}`)}
+          </Badge>
+        ))}
+      </div>
+
+      {(showAdd || editingId !== null) && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <Select value={form.mealType} onValueChange={v => setForm(p => ({ ...p, mealType: v }))}>
+              <SelectTrigger data-testid="select-item-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {mealTypes.map(mt => <SelectItem key={mt} value={mt}>{t(`housekeepingSection.${mt}`)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input placeholder={t("housekeepingSection.mealTitle") + " (عربي)"} value={form.nameAr} onChange={e => setForm(p => ({ ...p, nameAr: e.target.value }))} data-testid="input-item-name-ar" />
+            <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.nameEn} onChange={e => setForm(p => ({ ...p, nameEn: e.target.value }))} data-testid="input-item-name-en" />
+            <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
+            <div className="flex items-center gap-2">
+              {form.imageUrl ? (
+                <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                  <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <Button size="icon" variant="ghost" className="absolute top-0 end-0 w-6 h-6 bg-black/50 text-white rounded-full" onClick={() => setForm(p => ({ ...p, imageUrl: "" }))} data-testid="button-remove-item-image">
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : null}
+              <Button size="sm" variant="outline" className="gap-2 flex-1" disabled={uploading} onClick={() => fileInputRef.current?.click()} data-testid="button-upload-item-image">
+                <ImageIcon className="w-4 h-4" />
+                {uploading ? t("profile.uploading") : form.imageUrl ? (lang === "ar" ? "تغيير الصورة" : "Change Image") : (lang === "ar" ? "رفع صورة" : "Upload Image")}
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" disabled={!form.nameAr || createItem.isPending || updateItem.isPending} onClick={submitForm} data-testid="button-save-item">
+                {editingId ? t("actions.update") : t("actions.save")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }}>
+                {t("actions.cancel")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {filteredItems.length === 0 ? (
+        <div className="text-center py-4 text-muted-foreground">
+          <ChefHat className="w-10 h-10 mx-auto mb-1.5 opacity-30" />
+          <p className="text-xs">{t("housekeepingSection.noMealItems")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2" data-testid="meal-items-grid">
+          {filteredItems.map(item => (
+            <Card key={item.id} className="overflow-hidden" data-testid={`card-meal-item-${item.id}`}>
+              <CardContent className="p-0">
+                <div className="aspect-square relative bg-muted">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ChefHat className="w-10 h-10 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate absolute top-1.5 start-1.5 text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm">
+                    {t(`housekeepingSection.${item.mealType}`)}
+                  </Badge>
+                  <div className="absolute top-1 end-1 flex gap-0.5">
+                    <Button size="icon" variant="ghost" onClick={() => startEdit(item)} data-testid={`button-edit-item-${item.id}`}>
+                      <StickyNote className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => deleteItem.mutate(item.id)} data-testid={`button-delete-item-${item.id}`}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="p-2">
+                  <p className="text-xs font-bold truncate">{lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MealItemSlider({ items, lang, selectedId, onSelect }: {
+  items: MealItem[];
+  lang: string;
+  selectedId: number | null;
+  onSelect: (item: MealItem) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="relative" data-testid="meal-item-slider">
+      <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+        {items.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onSelect(item)}
+            className={`flex-shrink-0 w-20 rounded-md overflow-visible transition-all ${selectedId === item.id ? "ring-2 ring-primary" : ""}`}
+            data-testid={`slider-item-${item.id}`}
+          >
+            <div className="aspect-square bg-muted rounded-md overflow-hidden">
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ChefHat className="w-6 h-6 text-muted-foreground/40" />
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] mt-1 truncate text-center">{lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr)}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
+  const { lang } = useLang();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const canManage = isAdmin || !!user?.canApprove;
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [selectedMealItemId, setSelectedMealItemId] = useState<number | null>(null);
+  const [form, setForm] = useState({ mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+  const [showCatalog, setShowCatalog] = useState(false);
+
+  const today = new Date();
+  const weekBack = new Date(today);
+  weekBack.setDate(weekBack.getDate() - 7);
+  const weekForward = new Date(today);
+  weekForward.setDate(weekForward.getDate() + 7);
+
   const selectedDayOfWeek = selectedDate.getDay();
   const { data: allMeals = [], isLoading } = useQuery<Meal[]>({ queryKey: ["/api/meals"] });
-  const selectedMeals = allMeals.filter(m => m.dayOfWeek === selectedDayOfWeek);
+  const { data: mealItemsList = [] } = useQuery<MealItem[]>({ queryKey: ["/api/meal-items"] });
 
-  const daysWithMeals = new Set(allMeals.map(m => m.dayOfWeek));
+  const currentDateStr = formatDateStr(selectedDate);
+  const selectedMeals = allMeals.filter(m => {
+    if (m.dateStr) return m.dateStr === currentDateStr;
+    return !m.dateStr && m.dayOfWeek === selectedDayOfWeek;
+  });
+
+  const datesWithMeals = new Set<string>();
+  allMeals.forEach(m => { if (m.dateStr) datesWithMeals.add(m.dateStr); });
+  const daysWithMeals = new Set(allMeals.filter(m => !m.dateStr).map(m => m.dayOfWeek));
+
+  const filteredMealItems = mealItemsList.filter(i => i.mealType === form.mealType);
 
   const createMeal = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/meals", data),
@@ -1074,6 +1318,7 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/meals"] });
       setEditingId(null);
+      setShowAdd(false);
       resetForm();
     },
   });
@@ -1086,14 +1331,24 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   });
 
   function resetForm() {
-    setForm({ dayOfWeek: String(selectedDayOfWeek), mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+    setForm({ mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
+    setSelectedMealItemId(null);
+  }
+
+  function selectMealItem(item: MealItem) {
+    setSelectedMealItemId(item.id);
+    setForm(p => ({
+      ...p,
+      titleAr: item.nameAr,
+      titleEn: item.nameEn || "",
+      imageUrl: item.imageUrl || "",
+    }));
   }
 
   function startEdit(meal: Meal) {
     setEditingId(meal.id);
     setShowAdd(true);
     setForm({
-      dayOfWeek: String(meal.dayOfWeek),
       mealType: meal.mealType,
       titleAr: meal.titleAr,
       titleEn: meal.titleEn || "",
@@ -1101,12 +1356,14 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
       notes: meal.notes || "",
       imageUrl: meal.imageUrl || "",
     });
+    setSelectedMealItemId(null);
   }
 
   function submitForm() {
     const data = {
       ...form,
-      dayOfWeek: parseInt(form.dayOfWeek),
+      dayOfWeek: selectedDayOfWeek,
+      dateStr: currentDateStr,
       peopleCount: parseInt(form.peopleCount) || 4,
     };
     if (editingId) {
@@ -1120,79 +1377,99 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-4">
-      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} />
-
-      <MealCardsGrid
-        meals={selectedMeals}
-        lang={lang}
-        isAdmin={isAdmin}
-        onEdit={startEdit}
-        onDelete={(id) => deleteMeal.mutate(id)}
-      />
-
-      {isAdmin && (
-        <>
+      {canManage && (
+        <div className="flex justify-end">
           <Button
             size="sm"
             variant="outline"
-            className="w-full gap-2"
-            onClick={() => {
-              if (!showAdd) {
-                setEditingId(null);
-                setForm({ dayOfWeek: String(selectedDayOfWeek), mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
-              }
-              setShowAdd(!showAdd);
-            }}
-            data-testid="button-add-meal"
+            className="gap-1 text-xs"
+            onClick={() => setShowCatalog(!showCatalog)}
+            data-testid="button-toggle-catalog"
           >
-            <Plus className="w-4 h-4" />
-            {t("housekeepingSection.addMeal")}
+            <StickyNote className="w-3.5 h-3.5" />
+            {t("housekeepingSection.mealCatalog")}
           </Button>
+        </div>
+      )}
 
-          {(showAdd || editingId) && (
-            <Card>
-              <CardContent className="p-3 space-y-2">
-                <Select value={form.dayOfWeek} onValueChange={v => setForm(p => ({ ...p, dayOfWeek: v }))}>
-                  <SelectTrigger data-testid="select-meal-day"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {dayNames.map((name, i) => <SelectItem key={i} value={String(i)}>{t(`housekeepingSection.${name}`)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={form.mealType} onValueChange={v => setForm(p => ({ ...p, mealType: v }))}>
-                  <SelectTrigger data-testid="select-meal-type"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {mealTypes.map(mt => <SelectItem key={mt} value={mt}>{t(`housekeepingSection.${mt}`)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input placeholder={t("housekeepingSection.mealTitle") + " (عربي)"} value={form.titleAr} onChange={e => setForm(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-meal-title-ar" />
-                <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
-                <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
-                <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
-                <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
-                <div className="flex items-center gap-2">
-                  {form.imageUrl ? (
-                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                      <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
-                      <Button size="icon" variant="ghost" className="absolute top-0 end-0 w-6 h-6 bg-black/50 text-white rounded-full" onClick={() => setForm(p => ({ ...p, imageUrl: "" }))} data-testid="button-remove-meal-image">
-                        <X className="w-3 h-3" />
+      {showCatalog && canManage && <MealItemsSection lang={lang} />}
+
+      {!showCatalog && (
+        <>
+          <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} minDate={weekBack} maxDate={weekForward} />
+
+          <MealCardsGrid
+            meals={selectedMeals}
+            lang={lang}
+            isAdmin={canManage}
+            onEdit={startEdit}
+            onDelete={(id) => deleteMeal.mutate(id)}
+          />
+
+          {canManage && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => {
+                  if (!showAdd) {
+                    setEditingId(null);
+                    resetForm();
+                  }
+                  setShowAdd(!showAdd);
+                }}
+                data-testid="button-add-meal"
+              >
+                <Plus className="w-4 h-4" />
+                {t("housekeepingSection.addMeal")}
+              </Button>
+
+              {(showAdd || editingId) && (
+                <Card>
+                  <CardContent className="p-3 space-y-2">
+                    <Select value={form.mealType} onValueChange={v => { setForm(p => ({ ...p, mealType: v })); setSelectedMealItemId(null); }}>
+                      <SelectTrigger data-testid="select-meal-type"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {mealTypes.map(mt => <SelectItem key={mt} value={mt}>{t(`housekeepingSection.${mt}`)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+
+                    {filteredMealItems.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1.5">{t("housekeepingSection.selectMealItem")}</p>
+                        <MealItemSlider
+                          items={filteredMealItems}
+                          lang={lang}
+                          selectedId={selectedMealItemId}
+                          onSelect={selectMealItem}
+                        />
+                      </div>
+                    )}
+
+                    <Input placeholder={t("housekeepingSection.mealTitle") + " (عربي)"} value={form.titleAr} onChange={e => setForm(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-meal-title-ar" />
+                    <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
+                    <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
+                    <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
+
+                    {form.imageUrl && (
+                      <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
+                        <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
+                        {editingId ? t("actions.update") : t("actions.save")}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }}>
+                        {t("actions.cancel")}
                       </Button>
                     </div>
-                  ) : null}
-                  <Button size="sm" variant="outline" className="gap-2 flex-1" disabled={uploading} onClick={() => fileInputRef.current?.click()} data-testid="button-upload-meal-image">
-                    <ImageIcon className="w-4 h-4" />
-                    {uploading ? t("profile.uploading") : form.imageUrl ? (lang === "ar" ? "تغيير الصورة" : "Change Image") : (lang === "ar" ? "رفع صورة" : "Upload Image")}
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
-                    {editingId ? t("actions.update") : t("actions.save")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }}>
-                    {t("actions.cancel")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </>
       )}
