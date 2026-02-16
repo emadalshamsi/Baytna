@@ -937,9 +937,10 @@ export async function registerRoutes(
         });
       }
 
+      const filteredActiveTrips = excludeTripId ? activeTrips.filter(t => t.id !== excludeTripId) : activeTrips;
       res.json({
-        busy: activeTrips.length > 0 || activeOrders.length > 0 || timeConflicts.length > 0,
-        activeTrips: activeTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status, isPersonal: (t as any).isPersonal || false })),
+        busy: filteredActiveTrips.length > 0 || activeOrders.length > 0 || timeConflicts.length > 0,
+        activeTrips: filteredActiveTrips.map(t => ({ id: t.id, personName: t.personName, location: t.location, status: t.status, isPersonal: (t as any).isPersonal || false })),
         activeOrders: activeOrders.map(o => ({ id: o.id, status: o.status })),
         timeConflicts: timeConflicts.map(t => ({
           id: t.id, personName: t.personName, location: t.location,
