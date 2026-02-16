@@ -413,9 +413,15 @@ export default function DriverHomePage() {
                         <p className="text-xs text-muted-foreground">{trip.isPersonal ? "" : trip.location}</p>
                         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
-                          <span>{formatDateTime(trip.departureTime)}</span>
-                          {trip.estimatedDuration && (
-                            <span> - {trip.estimatedDuration} {t("trips.minutes")}</span>
+                          {trip.isPersonal && trip.departureTime && trip.estimatedDuration ? (
+                            <span>{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))}</span>
+                          ) : (
+                            <>
+                              <span>{formatDateTime(trip.departureTime)}</span>
+                              {trip.estimatedDuration && (
+                                <span> - {trip.estimatedDuration} {t("trips.minutes")}</span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

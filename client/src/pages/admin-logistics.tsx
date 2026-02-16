@@ -546,9 +546,13 @@ function TripsSection() {
                 )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
-                  <span className="text-foreground/80 font-medium">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>
+                  {trip.isPersonal && trip.departureTime && trip.estimatedDuration ? (
+                    <span className="text-foreground/80 font-medium">{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))} ({trip.estimatedDuration} {t("trips.minutes")})</span>
+                  ) : (
+                    <span className="text-foreground/80 font-medium">{t("trips.departureTime")}: {formatDateTime(trip.departureTime)}</span>
+                  )}
                 </div>
-                {trip.estimatedDuration && (
+                {!trip.isPersonal && trip.estimatedDuration && (
                   <div className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-3 h-3" />
                     <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
@@ -561,8 +565,11 @@ function TripsSection() {
                   </div>
                 )}
                 {trip.assignedDriver && <span>{t("roles.driver")}: {getUserName(trip.assignedDriver)}</span>}
-                {trip.waitingDuration && trip.waitingDuration > 0 && (
+                {!trip.isPersonal && trip.waitingDuration && trip.waitingDuration > 0 && (
                   <span>{t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}</span>
+                )}
+                {trip.isPersonal && trip.status === "completed" && trip.estimatedDuration && (
+                  <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
                 )}
                 {trip.notes && <p>{t("fields.notes")}: {trip.notes}</p>}
               </div>

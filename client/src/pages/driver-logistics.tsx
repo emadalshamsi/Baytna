@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Clock, Car, Play, Square, AlertTriangle, ListChecks, Wrench, Phone, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import type { Trip, Vehicle, Technician } from "@shared/schema";
-import { t, formatDateTime } from "@/lib/i18n";
+import { t, formatDateTime, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 
 type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
@@ -110,7 +110,11 @@ function DriverTripsSection() {
               {!trip.isPersonal && <div>{t("trips.location")}: {trip.location}</div>}
               <div className="flex items-center gap-2 flex-wrap">
                 <Clock className="w-3 h-3" />
-                <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
+                {trip.isPersonal && trip.departureTime && trip.estimatedDuration ? (
+                  <span className="text-foreground/80 font-medium">{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))}</span>
+                ) : (
+                  <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
+                )}
               </div>
               {trip.vehicleId && (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -176,7 +180,11 @@ function DriverTripsSection() {
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                   <Clock className="w-3 h-3" />
-                  <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
+                  {trip.isPersonal && trip.departureTime && trip.estimatedDuration ? (
+                    <span className="text-foreground/80 font-medium">{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))}</span>
+                  ) : (
+                    <span className="text-foreground/80 font-medium">{formatDateTime(trip.departureTime)}</span>
+                  )}
                   {trip.vehicleId && (
                     <>
                       <Car className="w-3 h-3" />
