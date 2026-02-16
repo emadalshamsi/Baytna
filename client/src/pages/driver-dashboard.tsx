@@ -419,7 +419,7 @@ function TripsSection() {
                   {trip.notes && <div>{trip.notes}</div>}
                 </div>
 
-                {trip.status === "waiting" && trip.waitingStartedAt && (
+                {!trip.isPersonal && trip.status === "waiting" && trip.waitingStartedAt && (
                   <div className="flex items-center gap-2 p-2 rounded-md bg-orange-50 dark:bg-orange-900/20">
                     <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                     <span className="text-sm text-orange-700 dark:text-orange-300">{t("driver.waitingTime")}:</span>
@@ -427,16 +427,18 @@ function TripsSection() {
                   </div>
                 )}
 
-                <div className="flex gap-2 flex-wrap">
-                  {trip.status === "started" && (
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "waiting" })} disabled={statusMutation.isPending} data-testid={`button-wait-trip-${trip.id}`}>
-                      <MapPin className="w-4 h-4" /> {t("driver.arrivedAtLocation")}
+                {!trip.isPersonal && (
+                  <div className="flex gap-2 flex-wrap">
+                    {trip.status === "started" && (
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "waiting" })} disabled={statusMutation.isPending} data-testid={`button-wait-trip-${trip.id}`}>
+                        <MapPin className="w-4 h-4" /> {t("driver.arrivedAtLocation")}
+                      </Button>
+                    )}
+                    <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "completed" })} disabled={statusMutation.isPending} data-testid={`button-complete-trip-${trip.id}`}>
+                      <Square className="w-4 h-4" /> {t("driver.completeTrip")}
                     </Button>
-                  )}
-                  <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "completed" })} disabled={statusMutation.isPending} data-testid={`button-complete-trip-${trip.id}`}>
-                    <Square className="w-4 h-4" /> {t("driver.completeTrip")}
-                  </Button>
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -487,9 +489,11 @@ function TripsSection() {
                     </div>
                   </div>
                 )}
-                <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "started" })} disabled={statusMutation.isPending} data-testid={`button-start-trip-${trip.id}`}>
-                  <Play className="w-4 h-4" /> {t("driver.startTrip")}
-                </Button>
+                {!trip.isPersonal && (
+                  <Button size="sm" className="gap-1.5" onClick={() => statusMutation.mutate({ id: trip.id, status: "started" })} disabled={statusMutation.isPending} data-testid={`button-start-trip-${trip.id}`}>
+                    <Play className="w-4 h-4" /> {t("driver.startTrip")}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -1010,6 +1010,21 @@ export async function registerRoutes(
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
       const allTrips = await storage.getTrips();
+
+      const now = new Date();
+      for (const trip of allTrips) {
+        if (trip.isPersonal && ["pending", "approved"].includes(trip.status) && trip.departureTime) {
+          const dep = new Date(trip.departureTime);
+          const duration = trip.estimatedDuration || 30;
+          const endTime = new Date(dep.getTime() + duration * 60000);
+          if (endTime <= now) {
+            await storage.updateTripStatus(trip.id, "completed", { completedAt: endTime });
+            trip.status = "completed";
+            (trip as any).completedAt = endTime;
+          }
+        }
+      }
+
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
