@@ -564,12 +564,9 @@ function TripsSection() {
                     <span>{t("trips.vehicle")}: {getVehicleName(trip.vehicleId)}</span>
                   </div>
                 )}
-                {trip.assignedDriver && <span>{t("roles.driver")}: {getUserName(trip.assignedDriver)}</span>}
+                {!trip.isPersonal && trip.assignedDriver && <span>{t("roles.driver")}: {getUserName(trip.assignedDriver)}</span>}
                 {!trip.isPersonal && trip.waitingDuration && trip.waitingDuration > 0 && (
                   <span>{t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}</span>
-                )}
-                {trip.isPersonal && trip.status === "completed" && trip.estimatedDuration && (
-                  <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
                 )}
                 {trip.notes && <p>{t("fields.notes")}: {trip.notes}</p>}
               </div>
