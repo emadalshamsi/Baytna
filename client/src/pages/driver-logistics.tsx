@@ -236,10 +236,21 @@ function DriverTripsSection() {
                     {t("status.completed")}
                   </Badge>
                 </div>
-                {trip.waitingDuration && trip.waitingDuration > 0 && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}
+                {trip.isPersonal && trip.estimatedDuration ? (
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {trip.departureTime && trip.estimatedDuration ? (
+                      <span>{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))} ({trip.estimatedDuration} {t("trips.minutes")})</span>
+                    ) : (
+                      <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
+                    )}
                   </div>
+                ) : (
+                  trip.waitingDuration && trip.waitingDuration > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
