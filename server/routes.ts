@@ -1739,20 +1739,30 @@ export async function registerRoutes(
       const userId = (req.session as any).userId;
       const currentUser = await storage.getUser(userId);
       if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
-      const notifs = await storage.getNotifications(userId);
-      const filtered = notifs.filter((n: any) => filterNotificationForUser(n, currentUser));
-      const unread = filtered.filter((n: any) => !n.isRead);
-
       const role = currentUser.role;
 
-      let groceriesNotifs = unread.filter((n: any) => ["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update"].includes(n.type));
-      let logisticsNotifs = unread.filter((n: any) => ["trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled"].includes(n.type));
-      const housekeepingNotifs = unread.filter((n: any) => ["laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type));
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const dateStr = today.toISOString().split("T")[0];
 
-      let groceries = groceriesNotifs.length;
-      let logistics = logisticsNotifs.length;
+      let groceries = 0;
+      let logistics = 0;
+      let housekeeping = 0;
 
-      if (role === "driver") {
+      if (role === "admin") {
+        const allOrders = await storage.getOrders();
+        const pendingOrders = allOrders.filter((o: any) => o.status === "pending");
+        groceries = pendingOrders.length;
+
+        const allTrips = await storage.getTrips();
+        const pendingTrips = allTrips.filter((t: any) => t.status === "pending");
+        logistics = pendingTrips.length;
+
+        const laundryReqs = await storage.getLaundryRequests();
+        const pendingLaundry = laundryReqs.filter((l: any) => l.status === "pending").length;
+        housekeeping = pendingLaundry;
+
+      } else if (role === "driver") {
         const allOrders = await storage.getOrders();
         const activeDriverOrders = allOrders.filter((o: any) => o.assignedDriver === userId && ["approved", "in_progress"].includes(o.status));
         groceries = activeDriverOrders.length;
@@ -1760,18 +1770,34 @@ export async function registerRoutes(
         const allTrips = await storage.getTrips();
         const activeDriverTrips = allTrips.filter((t: any) => t.assignedDriver === userId && ["approved", "started", "waiting"].includes(t.status));
         logistics = activeDriverTrips.length;
-      }
 
-      if (role === "maid") {
-        groceriesNotifs = groceriesNotifs.filter((n: any) => n.type !== "order_completed");
-        groceries = groceriesNotifs.length;
-      }
+      } else if (role === "maid") {
+        const allOrders = await storage.getOrders();
+        const activeOrders = allOrders.filter((o: any) => ["pending", "approved", "in_progress"].includes(o.status));
+        groceries = activeOrders.length;
 
-      let housekeeping = housekeepingNotifs.length;
-      if (role === "household") {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        const dateStr = today.toISOString().split("T")[0];
+        const tasks = await storage.getHousekeepingTasks();
+        const activeTasks = tasks.filter((t: any) => t.isActive && t.daysOfWeek && t.daysOfWeek.includes(dayOfWeek));
+        const completions = await storage.getTaskCompletions(dateStr);
+        const completedTaskIds = new Set(completions.map((c: any) => c.taskId));
+        const incompleteTasks = activeTasks.filter((t: any) => !completedTaskIds.has(t.id)).length;
+
+        const laundryReqs = await storage.getLaundryRequests();
+        const pendingLaundry = laundryReqs.filter((l: any) => l.status === "pending").length;
+
+        const mealsData = await storage.getMeals();
+        const todayMeals = mealsData.filter((m: any) => m.dayOfWeek === dayOfWeek).length;
+
+        housekeeping = incompleteTasks + pendingLaundry + todayMeals;
+
+      } else if (role === "household") {
+        const allOrders = await storage.getOrders();
+        const myActiveOrders = allOrders.filter((o: any) => o.createdBy === userId && ["pending", "approved", "in_progress"].includes(o.status));
+        groceries = myActiveOrders.length;
+
+        const allTrips = await storage.getTrips();
+        const myActiveTrips = allTrips.filter((t: any) => t.createdBy === userId && ["pending", "approved", "started", "waiting"].includes(t.status));
+        logistics = myActiveTrips.length;
 
         const userRoomsList = await storage.getUserRooms(userId);
         const userRoomIds = userRoomsList.map((ur: any) => ur.roomId);
@@ -1799,19 +1825,10 @@ export async function registerRoutes(
         housekeeping = incompleteTasks + pendingLaundry + todayMeals;
       }
 
-      let homeNotifs = unread.filter((n: any) =>
-        !["order_created", "order_approved", "order_rejected", "order_ready_driver", "order_in_progress", "order_completed", "shortage", "shortage_update",
-          "trip_created", "trip_approved", "trip_rejected", "trip_started", "trip_completed", "trip_cancelled",
-          "laundry_request", "laundry_completed", "task_created", "meal_created"].includes(n.type)
-      );
-      if (role === "maid") {
-        homeNotifs = homeNotifs.filter((n: any) => n.type !== "order_completed" && n.type !== "trip_completed");
-      }
-      const home = homeNotifs.length;
+      const home = 0;
+      const count = groceries + logistics + housekeeping;
 
-      const count = groceries + logistics + housekeeping + home;
-
-      res.json({ count, home: Math.max(0, home), groceries, logistics, housekeeping });
+      res.json({ count, home, groceries, logistics, housekeeping });
     } catch (error) {
       res.status(500).json({ message: "Failed to get count" });
     }
