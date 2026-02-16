@@ -573,7 +573,7 @@ export default function MaidDashboard() {
             {completedOrders.length > 0 && (
               <div className="space-y-2">
                 <h3 className="font-medium text-sm text-muted-foreground">{t("household.completedOrders")}</h3>
-                {completedOrders.slice(0, 5).map(order => (
+                {completedOrders.map(order => (
                   <Card key={order.id} data-testid={`card-maid-completed-${order.id}`}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
