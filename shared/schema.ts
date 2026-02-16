@@ -77,6 +77,7 @@ export const orders = pgTable("orders", {
   totalEstimated: integer("total_estimated").default(0),
   totalActual: integer("total_actual").default(0),
   receiptImageUrl: varchar("receipt_image_url", { length: 500 }),
+  scheduledFor: varchar("scheduled_for", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
