@@ -85,7 +85,7 @@ export default function AdminUsers() {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newFirstName, setNewFirstName] = useState("");
-  const [newLastName, setNewLastName] = useState("");
+  const [newFirstNameEn, setNewFirstNameEn] = useState("");
   const [newRole, setNewRole] = useState("household");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<AuthUser | null>(null);
 
@@ -97,7 +97,7 @@ export default function AdminUsers() {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: async (data: { username: string; password: string; firstName: string; lastName: string; role: string }) => {
+    mutationFn: async (data: { username: string; password: string; firstName: string; firstNameEn: string; role: string }) => {
       const res = await apiRequest("POST", "/api/admin/create-user", data);
       return res.json();
     },
@@ -108,7 +108,7 @@ export default function AdminUsers() {
       setNewUsername("");
       setNewPassword("");
       setNewFirstName("");
-      setNewLastName("");
+      setNewFirstNameEn("");
       setNewRole("household");
     },
     onError: (err: any) => {
@@ -157,7 +157,7 @@ export default function AdminUsers() {
       username: newUsername.trim(),
       password: newPassword.trim(),
       firstName: newFirstName.trim(),
-      lastName: newLastName.trim(),
+      firstNameEn: newFirstNameEn.trim(),
       role: newRole,
     });
   };
@@ -198,8 +198,8 @@ export default function AdminUsers() {
               />
               <Input
                 placeholder={t("auth.nameEn")}
-                value={newLastName}
-                onChange={e => setNewLastName(e.target.value)}
+                value={newFirstNameEn}
+                onChange={e => setNewFirstNameEn(e.target.value)}
                 data-testid="input-new-name-en"
               />
               <Select value={newRole} onValueChange={setNewRole}>

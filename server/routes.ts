@@ -131,6 +131,7 @@ export async function registerRoutes(
       }
 
       const { username, password, firstName, lastName } = parsed.data;
+      const firstNameEn = req.body.firstNameEn;
 
       const existing = await storage.getUserByUsername(username);
       if (existing) {
@@ -145,6 +146,7 @@ export async function registerRoutes(
         username,
         password: hashedPassword,
         firstName: firstName || null,
+        firstNameEn: firstNameEn || null,
         lastName: lastName || null,
         role: isFirstUser ? "admin" : "household",
         canApprove: isFirstUser,
@@ -167,7 +169,7 @@ export async function registerRoutes(
       if (!admin || admin.role !== "admin") {
         return res.status(403).json({ message: "Admin only" });
       }
-      const { username, password, firstName, lastName, role } = req.body;
+      const { username, password, firstName, firstNameEn, lastName, role } = req.body;
       if (!username || !password) {
         return res.status(400).json({ message: "Username and password required" });
       }
@@ -180,6 +182,7 @@ export async function registerRoutes(
         username,
         password: hashedPassword,
         firstName: firstName || null,
+        firstNameEn: firstNameEn || null,
         lastName: lastName || null,
         role: role || "household",
         canApprove: false,
@@ -248,9 +251,10 @@ export async function registerRoutes(
   app.patch("/api/auth/profile", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const { firstName, lastName, profileImageUrl } = req.body;
-      const updateData: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null } = {};
+      const { firstName, firstNameEn, lastName, profileImageUrl } = req.body;
+      const updateData: { firstName?: string | null; firstNameEn?: string | null; lastName?: string | null; profileImageUrl?: string | null } = {};
       if (firstName !== undefined) updateData.firstName = typeof firstName === "string" && firstName.trim() ? firstName.trim().slice(0, 100) : null;
+      if (firstNameEn !== undefined) updateData.firstNameEn = typeof firstNameEn === "string" && firstNameEn.trim() ? firstNameEn.trim().slice(0, 100) : null;
       if (lastName !== undefined) updateData.lastName = typeof lastName === "string" && lastName.trim() ? lastName.trim().slice(0, 100) : null;
       if (profileImageUrl !== undefined) updateData.profileImageUrl = typeof profileImageUrl === "string" && profileImageUrl.trim() ? profileImageUrl.trim().slice(0, 500) : null;
       const updated = await storage.updateUserProfile(userId, updateData);
