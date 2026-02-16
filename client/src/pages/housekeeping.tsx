@@ -517,8 +517,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctR}%` }} />
+                      <div className="flex-1 h-2 rounded-full overflow-hidden bg-sky-100 dark:bg-sky-900/40">
+                        <div className="h-full rounded-full transition-all bg-sky-400 dark:bg-sky-500" style={{ width: `${pctR}%` }} />
                       </div>
                       <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
                     </div>
@@ -615,8 +615,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-2 rounded-full overflow-hidden bg-[#fcfeff]">
-                          <div className="h-full rounded-full transition-all bg-[#87b3fa]" style={{ width: `${pctR}%` }} />
+                        <div className="flex-1 h-2 rounded-full overflow-hidden bg-sky-100 dark:bg-sky-900/40">
+                          <div className="h-full rounded-full transition-all bg-sky-400 dark:bg-sky-500" style={{ width: `${pctR}%` }} />
                         </div>
                         <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
                       </div>
