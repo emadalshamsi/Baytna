@@ -222,7 +222,7 @@ const en: typeof ar = {
     addMeal: "Add Meal",
     addMealItem: "Add Item",
     editMealItem: "Edit Item",
-    mealCatalog: "Meal Catalog",
+    mealCatalog: "Meals",
     selectMealItem: "Select Item",
     noMealItems: "No items",
     deleteMealItem: "Delete Item",
