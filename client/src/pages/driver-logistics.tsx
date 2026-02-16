@@ -236,22 +236,18 @@ function DriverTripsSection() {
                     {t("status.completed")}
                   </Badge>
                 </div>
-                {trip.isPersonal && trip.estimatedDuration ? (
-                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {trip.departureTime && trip.estimatedDuration ? (
-                      <span>{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))} ({trip.estimatedDuration} {t("trips.minutes")})</span>
-                    ) : (
-                      <span>{t("trips.estimatedDuration")}: {trip.estimatedDuration} {t("trips.minutes")}</span>
-                    )}
-                  </div>
-                ) : (
-                  trip.waitingDuration && trip.waitingDuration > 0 && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}
+                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                  {trip.departureTime && trip.estimatedDuration && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatTime(trip.departureTime)} - {formatTime(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDuration * 60000))}</span>
+                      <span>({trip.estimatedDuration} {t("trips.minutes")})</span>
                     </div>
-                  )
-                )}
+                  )}
+                  {!trip.isPersonal && trip.waitingDuration != null && trip.waitingDuration >= 0 && (
+                    <div>{t("driver.waitingTime")}: {formatWaiting(trip.waitingDuration)}</div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
