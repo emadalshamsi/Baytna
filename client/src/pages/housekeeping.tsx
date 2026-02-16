@@ -380,13 +380,10 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
 
   const filteredTasks = tasks.filter(task => {
     if (!task.isActive) return false;
-    if (task.roomId !== null) {
-      const room = rooms.find(r => r.id === task.roomId);
-      if (room?.isExcluded) return false;
-    }
-    if (hasRoomFilter && task.roomId !== null && !myRoomIds.includes(task.roomId)) return false;
-    if (roomFilter === "global" && task.roomId !== null) return false;
-    if (roomFilter !== "all" && roomFilter !== "global" && task.roomId !== null && task.roomId !== parseInt(roomFilter)) return false;
+    const room = task.roomId ? rooms.find(r => r.id === task.roomId) : null;
+    if (room?.isExcluded) return false;
+    if (hasRoomFilter && task.roomId && !myRoomIds.includes(task.roomId)) return false;
+    if (roomFilter !== "all" && task.roomId !== parseInt(roomFilter)) return false;
 
     if (task.frequency === "once") {
       return task.specificDate === dateStr;
@@ -412,7 +409,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const isAllRoomsSelected = selectedRoomIds.includes(-1);
 
   const canSave = () => {
-    if (!newTask.titleAr || (selectedRoomIds.length === 0 && !isAllRoomsSelected)) return false;
+    if (!newTask.titleAr || selectedRoomIds.length === 0) return false;
     if (newTask.frequency === "once") return !!selectedSpecificDate;
     if (newTask.frequency === "monthly") return selectedDaysOfWeek.length > 0 && selectedWeeksOfMonth.length > 0;
     if (newTask.frequency === "weekly") return selectedDaysOfWeek.length > 0;
@@ -432,12 +429,9 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
         specificDate: newTask.frequency === "once" ? selectedSpecificDate : null,
       };
 
-      if (isAllRoomsSelected) {
-        await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId: null });
-      } else {
-        for (const roomId of selectedRoomIds) {
-          await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId });
-        }
+      const roomsToCreate = isAllRoomsSelected ? activeRooms.map(r => r.id) : selectedRoomIds;
+      for (const roomId of roomsToCreate) {
+        await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/housekeeping-tasks"] });
       toast({ title: t("housekeepingSection.taskCompleted") });
@@ -489,20 +483,8 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
             onClick={() => setRoomFilter("all")}
             data-testid="button-filter-all-rooms"
           >
-            {t("housekeepingSection.today")}
+            {t("housekeepingSection.allRooms")}
           </Button>
-          {tasks.some(t => t.roomId === null && t.isActive) && (
-            <Button
-              variant={roomFilter === "global" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setRoomFilter("global")}
-              className="gap-1"
-              data-testid="button-filter-global-tasks"
-            >
-              <Home className="w-3.5 h-3.5" />
-              {t("housekeepingSection.allRooms")}
-            </Button>
-          )}
           {activeRooms.map(room => (
             <Button
               key={room.id}
@@ -583,12 +565,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                     <p className={`text-sm font-bold ${isDone ? "line-through" : ""}`}>
                       {lang === "ar" ? task.titleAr : (task.titleEn || task.titleAr)}
                     </p>
-                    {task.roomId === null ? (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Home className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{t("housekeepingSection.allRooms")}</span>
-                      </div>
-                    ) : room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
+                    {room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
                       <div className="flex items-center gap-1 mt-0.5">
                         <TaskRoomIcon className="w-3 h-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>
