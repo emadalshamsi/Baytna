@@ -1662,7 +1662,7 @@ export async function registerRoutes(
   app.post("/api/meals", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const meal = await storage.createMeal(req.body);
@@ -1675,7 +1675,7 @@ export async function registerRoutes(
   app.patch("/api/meals/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const meal = await storage.updateMeal(parseInt(req.params.id), req.body);
@@ -1689,7 +1689,7 @@ export async function registerRoutes(
   app.delete("/api/meals/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.deleteMeal(parseInt(req.params.id));

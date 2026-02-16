@@ -1248,7 +1248,7 @@ function MealItemSlider({ items, lang, selectedId, onSelect }: {
           <button
             key={item.id}
             onClick={() => onSelect(item)}
-            className={`flex-shrink-0 w-20 rounded-md overflow-visible transition-all ${selectedId === item.id ? "ring-2 ring-primary" : ""}`}
+            className={`flex-shrink-0 w-20 rounded-md transition-all ${selectedId === item.id ? "ring-2 ring-primary" : ""}`}
             data-testid={`slider-item-${item.id}`}
           >
             <div className="aspect-square bg-muted rounded-md overflow-hidden">
@@ -1431,12 +1431,6 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
                 <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
                 <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
                 <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
-
-                {form.imageUrl && (
-                  <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
-                    <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
-                  </div>
-                )}
 
                 <div className="flex gap-2">
                   <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
