@@ -298,14 +298,15 @@ function TripsSection() {
   const drivers = allUsers?.filter(u => u.role === "driver") || [];
 
   type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string; isPersonal?: boolean }[]; activeOrders: { id: number; status: string }[]; timeConflicts?: { id: number; personName: string; location: string; departureTime: string; estimatedDuration: number; isPersonal?: boolean }[] };
-  const availabilityParams = new URLSearchParams();
-  if (departureTime) availabilityParams.set("departureTime", new Date(departureTime).toISOString());
-  if (estimatedDuration) availabilityParams.set("duration", estimatedDuration);
-  if (editingTrip) availabilityParams.set("excludeTripId", String(editingTrip.id));
+  const editingTripId = editingTrip?.id ?? null;
   const { data: driverAvailability } = useQuery<DriverAvailability>({
-    queryKey: ["/api/drivers", assignedDriver, "availability", departureTime, estimatedDuration, editingTrip?.id],
+    queryKey: ["/api/drivers", assignedDriver, "availability", departureTime, estimatedDuration, editingTripId],
     queryFn: async () => {
-      const res = await fetch(`/api/drivers/${assignedDriver}/availability?${availabilityParams.toString()}`);
+      const params = new URLSearchParams();
+      if (departureTime) params.set("departureTime", new Date(departureTime).toISOString());
+      if (estimatedDuration) params.set("duration", estimatedDuration);
+      if (editingTripId) params.set("excludeTripId", String(editingTripId));
+      const res = await fetch(`/api/drivers/${assignedDriver}/availability?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to check");
       return res.json();
     },
