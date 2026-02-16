@@ -342,10 +342,7 @@ export function t(path: string): string {
 }
 
 export function displayName(user: { firstName?: string | null; lastName?: string | null; username?: string | null }): string {
-  if (currentLang === "ar") {
-    return user.firstName || user.lastName || user.username || "?";
-  }
-  return user.lastName || user.firstName || user.username || "?";
+  return user.firstName || user.username || "?";
 }
 
 export function formatPrice(amount: number): string {
