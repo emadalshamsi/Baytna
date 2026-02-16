@@ -495,50 +495,72 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
       <div className="space-y-4">
         <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
 
-        {sortedRoomEntries.length === 0 ? (
+        {activeRooms.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <Button
+              variant={roomFilter === "all" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setRoomFilter("all")}
+              data-testid="button-filter-all-rooms"
+            >
+              {t("housekeepingSection.allRooms")}
+            </Button>
+            {activeRooms.map(room => (
+              <Button
+                key={room.id}
+                variant={roomFilter === String(room.id) ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setRoomFilter(String(room.id))}
+                data-testid={`button-filter-room-${room.id}`}
+              >
+                {lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {filteredTasks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Brush className="w-12 h-12 mx-auto mb-2 opacity-30" />
             <p className="text-sm">{t("housekeepingSection.noTasks")}</p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {sortedRoomEntries.map(({ room, roomTasks, doneCount, allDone }) => {
-              const RoomIcon = getRoomIcon(room.icon);
-              const total = roomTasks.length;
-              const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+          <div className="grid gap-2">
+            {filteredTasks.map(task => {
+              const isDone = completedTaskIds.has(task.id);
+              const room = rooms.find(r => r.id === task.roomId);
               return (
                 <Card
-                  key={room.id}
-                  className={`transition-opacity ${allDone ? "opacity-60" : ""}`}
-                  data-testid={`card-household-room-${room.id}`}
+                  key={task.id}
+                  className={`transition-all ${isDone ? "opacity-60" : ""}`}
+                  data-testid={`card-task-${task.id}`}
                 >
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      allDone ? "bg-green-500/20" : "bg-muted"
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isDone ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"
                     }`}>
-                      {allDone ? (
-                        <Check className="w-7 h-7 text-green-600 dark:text-green-400" strokeWidth={3} />
-                      ) : (
-                        <RoomIcon className="w-7 h-7 text-muted-foreground" />
-                      )}
+                      {isDone ? <Check className="w-6 h-6" strokeWidth={3} /> : <Brush className="w-6 h-6" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {doneCount}/{total} {t("maidHome.completed")}
+                      <p className={`text-sm font-bold ${isDone ? "line-through" : ""}`}>
+                        {lang === "ar" ? task.titleAr : (task.titleEn || task.titleAr)}
                       </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      {total > 0 && (
-                        <div className="w-12 h-12 relative flex items-center justify-center">
-                          <svg className="absolute inset-0 w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--primary) / 0.2)" strokeWidth="3" />
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--primary))" strokeWidth="3"
-                              strokeDasharray={`${(doneCount / total) * 125.7} 125.7`}
-                              strokeLinecap="round" />
-                          </svg>
-                          <span className="text-xs font-bold relative">{pct}%</span>
+                      {activeRooms.length > 1 && room && (() => { const TaskRoomIcon = getRoomIcon(room.icon); return (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <TaskRoomIcon className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</span>
                         </div>
+                      ); })()}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {isDone ? (
+                        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-xs bg-green-500/20 text-green-700 dark:text-green-300">
+                          {t("housekeepingSection.taskDone")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
+                          {t("housekeepingSection.taskPending")}
+                        </Badge>
                       )}
                     </div>
                   </CardContent>
