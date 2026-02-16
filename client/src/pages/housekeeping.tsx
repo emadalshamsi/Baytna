@@ -589,7 +589,6 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
     return (
       <div className="space-y-4">
         <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-
         {allActiveRooms.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Brush className="w-12 h-12 mx-auto mb-2 opacity-30" />
@@ -616,7 +615,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="flex-1 h-2 rounded-full overflow-hidden bg-[#fcfeff]">
                           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctR}%` }} />
                         </div>
                         <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
