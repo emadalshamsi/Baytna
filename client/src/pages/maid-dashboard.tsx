@@ -9,12 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
   Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
   CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
   Send, Package, Plus, Minus, X, Image as ImageIcon, RefreshCw, Clock, CalendarDays, Zap,
-  ChevronDown, ChevronUp, Check
+  ChevronDown, ChevronUp, Check, ClipboardList
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order, OrderItem } from "@shared/schema";
@@ -36,6 +37,22 @@ const categoryIcons: Record<string, any> = {
 function getIcon(iconName?: string | null) {
   if (!iconName) return Package;
   return categoryIcons[iconName.toLowerCase()] || CircleDot;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  useLang();
+  const variants: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+    approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    in_progress: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  };
+  return (
+    <Badge className={`no-default-hover-elevate no-default-active-elevate ${variants[status] || ""}`}>
+      {t(`status.${status}`)}
+    </Badge>
+  );
 }
 
 function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { orderId: number; editable?: boolean; currentScheduledFor?: string | null }) {
@@ -246,6 +263,7 @@ export default function MaidDashboard() {
   const [updateCart, setUpdateCart] = useState<{ productId: number; quantity: number; product: Product }[]>([]);
   const [scheduledFor, setScheduledFor] = useState<string>("today");
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("shopping");
 
   const getScheduledDate = (val: string) => {
     const now = new Date();
@@ -340,91 +358,51 @@ export default function MaidDashboard() {
     ? products?.filter(p => p.categoryId === selectedCategory)
     : products;
 
-  const pendingOrders = orders?.filter(o => o.status === "pending" || o.status === "approved") || [];
-  const activeOrders = orders?.filter(o => o.status === "in_progress") || [];
+  const pendingOrders = orders?.filter(o => o.status === "pending") || [];
+  const activeOrders = orders?.filter(o => o.status === "approved" || o.status === "in_progress") || [];
+  const completedOrders = orders?.filter(o => o.status === "completed") || [];
+  const inProgressOrders = orders?.filter(o => o.status === "in_progress") || [];
+
+  const tabItems = [
+    { value: "shopping", icon: ShoppingCart, label: t("nav.addItems") },
+    { value: "orders", icon: ClipboardList, label: t("nav.orders") },
+  ];
+
+  if (user?.canAddShortages) {
+    tabItems.push({ value: "shortages", icon: Package, label: t("shortages.title") });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold">{t("nav.addItems")}</h2>
-        <div className="flex items-center gap-2">
-          {activeOrders.length > 0 && (
-            <Button variant="outline" className="gap-2" onClick={() => setShowUpdateOrder(true)} data-testid="button-update-active-order">
-              <RefreshCw className="w-4 h-4" /> {t("maid.updateOrder")}
-            </Button>
-          )}
-          <Button className="gap-2 relative" onClick={() => setShowCart(true)} data-testid="button-view-cart">
-            <ShoppingCart className="w-5 h-5" />
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -left-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                {cart.reduce((s, i) => s + i.quantity, 0)}
-              </span>
-            )}
-          </Button>
-        </div>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start gap-1 flex-nowrap overflow-x-auto">
+          {tabItems.map(tab => (
+            <TabsTrigger key={tab.value} value={tab.value} className="gap-1 shrink-0" data-testid={`tab-${tab.value}`}>
+              <tab.icon className="w-4 h-4" /> {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {pendingOrders.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">{t("driver.yourOrders")}</h3>
-          {pendingOrders.map(o => (
-            <Card key={o.id} data-testid={`card-maid-order-${o.id}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">#{o.id}</span>
-                    {(() => {
-                      const today = new Date().toISOString().split("T")[0];
-                      const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
-                      const isTomorrow = o.scheduledFor === tmr.toISOString().split("T")[0];
-                      const isToday = !o.scheduledFor || o.scheduledFor === today;
-                      return (
-                        <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-[10px] gap-0.5">
-                          {isTomorrow ? <Clock className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
-                          {isTomorrow ? t("schedule.tomorrow") : isToday ? t("schedule.today") : o.scheduledFor}
-                        </Badge>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`no-default-hover-elevate no-default-active-elevate ${o.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"}`}>
-                      {t(`status.${o.status}`)}
-                    </Badge>
-                    <Button size="icon" variant="ghost" onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} data-testid={`button-expand-maid-order-${o.id}`}>
-                      {expandedOrder === o.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-                {expandedOrder === o.id && (
-                  <MaidOrderDetailPanel
-                    orderId={o.id}
-                    editable={o.status === "pending" && o.createdBy === user?.id}
-                    currentScheduledFor={o.scheduledFor}
-                  />
+        <TabsContent value="shopping">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h2 className="text-lg font-bold">{t("nav.addItems")}</h2>
+              <div className="flex items-center gap-2">
+                {inProgressOrders.length > 0 && (
+                  <Button variant="outline" className="gap-2" onClick={() => setShowUpdateOrder(true)} data-testid="button-update-active-order">
+                    <RefreshCw className="w-4 h-4" /> {t("maid.updateOrder")}
+                  </Button>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {activeOrders.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-            <RefreshCw className="w-3 h-3" /> {t("status.in_progress")}
-          </h3>
-          {activeOrders.map(o => (
-            <Card key={o.id} data-testid={`card-maid-active-order-${o.id}`}>
-              <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
-                <span>#{o.id}</span>
-                <Badge className="no-default-hover-elevate no-default-active-elevate bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                  {t("status.in_progress")}
-                </Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <Button className="gap-2 relative" onClick={() => setShowCart(true)} data-testid="button-view-cart">
+                  <ShoppingCart className="w-5 h-5" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-2 -left-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                      {cart.reduce((s, i) => s + i.quantity, 0)}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
 
       {categories && categories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -496,14 +474,139 @@ export default function MaidDashboard() {
         </div>
       )}
 
-      {user?.canAddShortages && (
-        <div className="space-y-2 border-t pt-4">
-          <h3 className="text-sm font-bold flex items-center gap-2" data-testid="text-shortages-section">
-            {t("shortages.title")}
-          </h3>
-          <ShortagesSection />
-        </div>
-      )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="orders">
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <Card>
+                <CardContent className="p-3 text-center">
+                  <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xl font-bold block" data-testid="text-pending-count">{pendingOrders.length}</span>
+                  <span className="text-xs text-muted-foreground">{t("household.pendingLabel")}</span>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-3 text-center">
+                  <ClipboardList className="w-5 h-5 mx-auto mb-1 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xl font-bold block" data-testid="text-active-count">{activeOrders.length}</span>
+                  <span className="text-xs text-muted-foreground">{t("household.activeLabel")}</span>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-3 text-center">
+                  <Check className="w-5 h-5 mx-auto mb-1 text-green-600 dark:text-green-400" />
+                  <span className="text-xl font-bold block" data-testid="text-completed-count">{completedOrders.length}</span>
+                  <span className="text-xs text-muted-foreground">{t("household.completedLabel")}</span>
+                </CardContent>
+              </Card>
+            </div>
+
+            {pendingOrders.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-medium text-sm text-muted-foreground">{t("household.pendingOrders")}</h3>
+                {pendingOrders.map(order => (
+                  <Card key={order.id} data-testid={`card-maid-order-${order.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">#{order.id}</span>
+                          {(() => {
+                            const today = new Date().toISOString().split("T")[0];
+                            const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+                            const isTomorrow = order.scheduledFor === tmr.toISOString().split("T")[0];
+                            const isToday = !order.scheduledFor || order.scheduledFor === today;
+                            return (
+                              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-[10px] gap-0.5">
+                                {isTomorrow ? <Clock className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
+                                {isTomorrow ? t("schedule.tomorrow") : isToday ? t("schedule.today") : order.scheduledFor}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <Button size="icon" variant="ghost" onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)} data-testid={`button-expand-maid-order-${order.id}`}>
+                            {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      {order.notes && <p className="text-sm text-muted-foreground mt-1">{order.notes}</p>}
+                      {expandedOrder === order.id && (
+                        <MaidOrderDetailPanel
+                          orderId={order.id}
+                          editable={order.status === "pending" && order.createdBy === user?.id}
+                          currentScheduledFor={order.scheduledFor}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {activeOrders.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-medium text-sm text-muted-foreground">{t("household.activeOrders")}</h3>
+                {activeOrders.map(order => (
+                  <Card key={order.id} data-testid={`card-maid-active-order-${order.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">#{order.id}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <Button size="icon" variant="ghost" onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)} data-testid={`button-expand-maid-active-${order.id}`}>
+                            {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      {expandedOrder === order.id && <MaidOrderDetailPanel orderId={order.id} />}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {completedOrders.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-medium text-sm text-muted-foreground">{t("household.completedOrders")}</h3>
+                {completedOrders.slice(0, 5).map(order => (
+                  <Card key={order.id} data-testid={`card-maid-completed-${order.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">#{order.id}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <Button size="icon" variant="ghost" onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)} data-testid={`button-expand-maid-completed-${order.id}`}>
+                            {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      {expandedOrder === order.id && <MaidOrderDetailPanel orderId={order.id} />}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {!orders?.length && (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">{t("messages.noOrders")}</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {user?.canAddShortages && (
+          <TabsContent value="shortages"><ShortagesSection /></TabsContent>
+        )}
+      </Tabs>
 
       <Dialog open={showCart} onOpenChange={setShowCart}>
         <DialogContent>
@@ -572,11 +675,11 @@ export default function MaidDashboard() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("maid.updateOrder")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            {activeOrders.length > 0 && (
+            {inProgressOrders.length > 0 && (
               <Select value={selectedOrderForUpdate} onValueChange={setSelectedOrderForUpdate}>
                 <SelectTrigger data-testid="select-active-order"><SelectValue placeholder={t("maid.selectOrder")} /></SelectTrigger>
                 <SelectContent>
-                  {activeOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>#{o.id}</SelectItem>)}
+                  {inProgressOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>#{o.id}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
