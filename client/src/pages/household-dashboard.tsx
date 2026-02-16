@@ -21,11 +21,11 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
-import { t, formatPrice } from "@/lib/i18n";
+import { t, formatPrice, getLang } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
-import { KitchenTab } from "@/pages/housekeeping";
+import { KitchenTab, MealItemsSection } from "@/pages/housekeeping";
 
 const categoryIcons: Record<string, any> = {
   milk: Milk, dairy: Milk, apple: Apple, fruit: Apple, fruits: Apple,
@@ -730,12 +730,12 @@ export default function HouseholdDashboard() {
     );
   }
 
-  if (user?.canAddShortages) {
+  if (user?.canAddShortages && !user?.canApprove) {
     tabItems.push({ value: "shortages", icon: AlertTriangle, label: t("shortages.title") });
   }
 
   if (user?.canApprove) {
-    tabItems.push({ value: "meals", icon: ChefHat, label: t("housekeepingSection.kitchen") });
+    tabItems.push({ value: "meals", icon: ChefHat, label: t("housekeepingSection.mealCatalog") });
   }
 
   return (
@@ -988,7 +988,7 @@ export default function HouseholdDashboard() {
         )}
 
         {user?.canApprove && (
-          <TabsContent value="meals"><KitchenTab isAdmin={true} /></TabsContent>
+          <TabsContent value="meals"><MealItemsSection lang={getLang()} /></TabsContent>
         )}
       </Tabs>
 

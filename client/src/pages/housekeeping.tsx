@@ -1030,7 +1030,7 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
   );
 }
 
-function MealItemsSection({ lang }: { lang: string }) {
+export function MealItemsSection({ lang }: { lang: string }) {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -1279,7 +1279,6 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedMealItemId, setSelectedMealItemId] = useState<number | null>(null);
   const [form, setForm] = useState({ mealType: "breakfast", titleAr: "", titleEn: "", peopleCount: "4", notes: "", imageUrl: "" });
-  const [showCatalog, setShowCatalog] = useState(false);
 
   const today = new Date();
   const weekBack = new Date(today);
@@ -1377,99 +1376,78 @@ export function KitchenTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-4">
+      <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} minDate={weekBack} maxDate={weekForward} />
+
+      <MealCardsGrid
+        meals={selectedMeals}
+        lang={lang}
+        isAdmin={canManage}
+        onEdit={startEdit}
+        onDelete={(id) => deleteMeal.mutate(id)}
+      />
+
       {canManage && (
-        <div className="flex justify-end">
+        <>
           <Button
             size="sm"
             variant="outline"
-            className="gap-1 text-xs"
-            onClick={() => setShowCatalog(!showCatalog)}
-            data-testid="button-toggle-catalog"
+            className="w-full gap-2"
+            onClick={() => {
+              if (!showAdd) {
+                setEditingId(null);
+                resetForm();
+              }
+              setShowAdd(!showAdd);
+            }}
+            data-testid="button-add-meal"
           >
-            <StickyNote className="w-3.5 h-3.5" />
-            {t("housekeepingSection.mealCatalog")}
+            <Plus className="w-4 h-4" />
+            {t("housekeepingSection.addMeal")}
           </Button>
-        </div>
-      )}
 
-      {showCatalog && canManage && <MealItemsSection lang={lang} />}
+          {(showAdd || editingId) && (
+            <Card>
+              <CardContent className="p-3 space-y-2">
+                <Select value={form.mealType} onValueChange={v => { setForm(p => ({ ...p, mealType: v })); setSelectedMealItemId(null); }}>
+                  <SelectTrigger data-testid="select-meal-type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {mealTypes.map(mt => <SelectItem key={mt} value={mt}>{t(`housekeepingSection.${mt}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
 
-      {!showCatalog && (
-        <>
-          <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} daysWithData={daysWithMeals} minDate={weekBack} maxDate={weekForward} />
+                {filteredMealItems.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">{t("housekeepingSection.selectMealItem")}</p>
+                    <MealItemSlider
+                      items={filteredMealItems}
+                      lang={lang}
+                      selectedId={selectedMealItemId}
+                      onSelect={selectMealItem}
+                    />
+                  </div>
+                )}
 
-          <MealCardsGrid
-            meals={selectedMeals}
-            lang={lang}
-            isAdmin={canManage}
-            onEdit={startEdit}
-            onDelete={(id) => deleteMeal.mutate(id)}
-          />
+                <Input placeholder={t("housekeepingSection.mealTitle") + " (عربي)"} value={form.titleAr} onChange={e => setForm(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-meal-title-ar" />
+                <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
+                <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
+                <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
 
-          {canManage && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => {
-                  if (!showAdd) {
-                    setEditingId(null);
-                    resetForm();
-                  }
-                  setShowAdd(!showAdd);
-                }}
-                data-testid="button-add-meal"
-              >
-                <Plus className="w-4 h-4" />
-                {t("housekeepingSection.addMeal")}
-              </Button>
+                {form.imageUrl && (
+                  <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
+                    <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
 
-              {(showAdd || editingId) && (
-                <Card>
-                  <CardContent className="p-3 space-y-2">
-                    <Select value={form.mealType} onValueChange={v => { setForm(p => ({ ...p, mealType: v })); setSelectedMealItemId(null); }}>
-                      <SelectTrigger data-testid="select-meal-type"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {mealTypes.map(mt => <SelectItem key={mt} value={mt}>{t(`housekeepingSection.${mt}`)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-
-                    {filteredMealItems.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1.5">{t("housekeepingSection.selectMealItem")}</p>
-                        <MealItemSlider
-                          items={filteredMealItems}
-                          lang={lang}
-                          selectedId={selectedMealItemId}
-                          onSelect={selectMealItem}
-                        />
-                      </div>
-                    )}
-
-                    <Input placeholder={t("housekeepingSection.mealTitle") + " (عربي)"} value={form.titleAr} onChange={e => setForm(p => ({ ...p, titleAr: e.target.value }))} data-testid="input-meal-title-ar" />
-                    <Input placeholder={t("housekeepingSection.mealTitle") + " (EN)"} value={form.titleEn} onChange={e => setForm(p => ({ ...p, titleEn: e.target.value }))} data-testid="input-meal-title-en" />
-                    <Input placeholder={t("housekeepingSection.peopleCount")} type="number" value={form.peopleCount} onChange={e => setForm(p => ({ ...p, peopleCount: e.target.value }))} data-testid="input-meal-people" />
-                    <Input placeholder={t("housekeepingSection.specialNotes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} data-testid="input-meal-notes" />
-
-                    {form.imageUrl && (
-                      <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
-                        <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
-                        {editingId ? t("actions.update") : t("actions.save")}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }}>
-                        {t("actions.cancel")}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={!form.titleAr || createMeal.isPending || updateMeal.isPending} onClick={submitForm} data-testid="button-save-meal">
+                    {editingId ? t("actions.update") : t("actions.save")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }}>
+                    {t("actions.cancel")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
