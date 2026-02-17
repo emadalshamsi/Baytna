@@ -11,8 +11,8 @@ import { useState, useEffect, useRef } from "react";
 import type { Trip, Vehicle, Technician } from "@shared/schema";
 import { t, formatDateTime, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
-import bannerLight from "@assets/CarBanner01_1771338274301.png";
-import bannerDark from "@assets/CarBanner02_1771338274301.png";
+import bannerLight from "@assets/CarBanner01_1771341537912.png";
+import bannerDark from "@assets/CarBanner02_1771341537911.png";
 
 type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
 
