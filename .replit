@@ -45,3 +45,6 @@ waitForPort = 5000
 VAPID_PUBLIC_KEY = "BDiXn553rwb9Q3hPuCccH39VrARTrucgQjI_3f6ddoONcff1m4-V9yDdq3v7QQ-GkhYOtQUZJ24Zy6tBSz0t028"
 VAPID_PRIVATE_KEY = "ehhi5LFnW_I3o7F02EwIrkPwdSQpUYntLS0Gu4OSIwY"
 VAPID_SUBJECT = "mailto:admin@baytkom.app"
+
+[agent]
+integrations = ["github:1.0.0"]
