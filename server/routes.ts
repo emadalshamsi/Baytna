@@ -40,7 +40,7 @@ function filterNotificationForUser(notif: any, user: { role: string; canApprove:
   if (user.role === "admin") return true;
   if (notif.type === "order_created" || notif.type === "trip_created") return false;
   if (notif.type === "order_ready_driver") return user.role === "driver";
-  if (notif.type === "laundry_request") return user.role === "maid";
+  if (notif.type === "laundry_request" || notif.type === "maid_call") return user.role === "maid";
   return true;
 }
 
@@ -1726,6 +1726,57 @@ export async function registerRoutes(
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to add item" });
+    }
+  });
+
+  // Maid Calls
+  app.get("/api/maid-calls", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const calls = await storage.getActiveMaidCalls();
+      res.json(calls);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get maid calls" });
+    }
+  });
+
+  app.post("/api/maid-calls", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser || currentUser.role !== "household") {
+        return res.status(403).json({ message: "Only household users can call the maid" });
+      }
+      const call = await storage.createMaidCall({ calledBy: userId, status: "active" });
+      const allUsers = await storage.getAllUsers();
+      const maids = allUsers.filter(u => u.role === "maid" && !u.isSuspended);
+      const callerName = currentUser.firstName || currentUser.username;
+      for (const maid of maids) {
+        await notifyAndPush(maid.id, {
+          titleAr: `نداء من ${callerName}`,
+          titleEn: `Call from ${callerName}`,
+          bodyAr: "يرجى التوجه الآن",
+          bodyEn: "Please come now",
+          type: "maid_call",
+          url: "/",
+        });
+      }
+      res.json(call);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create maid call" });
+    }
+  });
+
+  app.patch("/api/maid-calls/:id/dismiss", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      if (user.role !== "maid" && user.role !== "admin") {
+        return res.status(403).json({ message: "Only maids or admins can dismiss calls" });
+      }
+      const call = await storage.dismissMaidCall(parseInt(req.params.id));
+      if (!call) return res.status(404).json({ message: "Call not found" });
+      res.json(call);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to dismiss maid call" });
     }
   });
 

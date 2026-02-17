@@ -25,6 +25,8 @@ import {
   type Shortage, type InsertShortage,
   type PushSubscription, type InsertPushSubscription,
   type Notification, type InsertNotification,
+  type MaidCall, type InsertMaidCall,
+  maidCalls,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -167,6 +169,10 @@ export interface IStorage {
   markNotificationRead(id: number): Promise<void>;
   markAllNotificationsRead(userId: string): Promise<void>;
 
+  getMaidCalls(): Promise<MaidCall[]>;
+  getActiveMaidCalls(): Promise<MaidCall[]>;
+  createMaidCall(call: InsertMaidCall): Promise<MaidCall>;
+  dismissMaidCall(id: number): Promise<MaidCall | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -876,6 +882,24 @@ export class DatabaseStorage implements IStorage {
     } catch (e) { console.error("Cleanup files error:", e); }
 
     console.log(`[Cleanup] Completed at ${now.toISOString()}`);
+  }
+
+  async getMaidCalls(): Promise<MaidCall[]> {
+    return db.select().from(maidCalls).orderBy(desc(maidCalls.createdAt));
+  }
+
+  async getActiveMaidCalls(): Promise<MaidCall[]> {
+    return db.select().from(maidCalls).where(eq(maidCalls.status, "active")).orderBy(desc(maidCalls.createdAt));
+  }
+
+  async createMaidCall(call: InsertMaidCall): Promise<MaidCall> {
+    const [created] = await db.insert(maidCalls).values(call).returning();
+    return created;
+  }
+
+  async dismissMaidCall(id: number): Promise<MaidCall | undefined> {
+    const [updated] = await db.update(maidCalls).set({ status: "dismissed", dismissedAt: new Date() }).where(eq(maidCalls.id, id)).returning();
+    return updated;
   }
 
 }

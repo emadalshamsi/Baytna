@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Brush, WashingMachine, ChefHat, Check,
-  AlertCircle, Clock, Users,
+  AlertCircle, Clock, Users, BellRing,
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -13,7 +13,7 @@ import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundryScheduleEntry, Meal } from "@shared/schema";
+import type { Room, HousekeepingTask, TaskCompletion, LaundryRequest, LaundryScheduleEntry, Meal, MaidCall, User } from "@shared/schema";
 
 const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
@@ -55,6 +55,11 @@ export default function MaidHomePage() {
   });
   const { data: schedule = [] } = useQuery<LaundryScheduleEntry[]>({ queryKey: ["/api/laundry-schedule"] });
   const { data: allMeals = [] } = useQuery<Meal[]>({ queryKey: ["/api/meals"] });
+  const { data: maidCalls = [] } = useQuery<MaidCall[]>({
+    queryKey: ["/api/maid-calls"],
+    refetchInterval: 5000,
+  });
+  const { data: allUsers = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
   const activeRooms = rooms.filter(r => !r.isExcluded);
   const dailyTasks = tasks.filter(task => {
@@ -93,6 +98,16 @@ export default function MaidHomePage() {
       toast({ title: t("housekeepingSection.laundryDone") });
     },
   });
+
+  const dismissMaidCall = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/maid-calls/${id}/dismiss`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maid-calls"] });
+      toast({ title: t("maidCall.dismissed") });
+    },
+  });
+
+  const activeMaidCalls = maidCalls.filter((c: MaidCall) => c.status === "active");
 
   if (tasksLoading) {
     return (
@@ -188,6 +203,49 @@ export default function MaidHomePage() {
               </Card>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeMaidCalls.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <BellRing className="w-5 h-5 text-red-500 animate-pulse" />
+            <h3 className="text-base font-bold">{t("maidCall.title")}</h3>
+            <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate">
+              {activeMaidCalls.length}
+            </Badge>
+          </div>
+          {activeMaidCalls.map((call: MaidCall) => {
+            const caller = allUsers.find((u: User) => u.id === call.calledBy);
+            const callerName = caller ? (lang === "ar" ? caller.firstName || caller.displayName || caller.username : caller.firstNameEn || caller.displayName || caller.username) : "?";
+            return (
+              <Card key={call.id} className="border-red-500/20 bg-red-500/5" data-testid={`card-maid-call-${call.id}`}>
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                      <BellRing className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{t("maidCall.callFrom")} {callerName}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {call.createdAt ? formatTime(call.createdAt) : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => dismissMaidCall.mutate(call.id)}
+                    data-testid={`button-dismiss-maid-call-${call.id}`}
+                  >
+                    <Check className="w-4 h-4" />
+                    <span className="text-sm font-bold">{t("maidCall.dismiss")}</span>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

@@ -1,14 +1,15 @@
 import { Switch, Route, Link, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/hooks/use-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import type { Room, HousekeepingTask, TaskCompletion } from "@shared/schema";
 import { Switch as SwitchUI } from "@/components/ui/switch";
@@ -193,6 +194,37 @@ function HouseholdTasksProgress() {
   );
 }
 
+function CallMaidButton() {
+  useLang();
+  const { toast } = useToast();
+  const callMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/maid-calls", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maid-calls"] });
+      toast({ title: t("householdHome.callSent") });
+    },
+  });
+
+  return (
+    <Card
+      className="hover-elevate active-elevate-2 cursor-pointer"
+      onClick={() => !callMutation.isPending && callMutation.mutate()}
+      data-testid="button-call-maid"
+    >
+      <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+        <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
+          <BellRing className="w-7 h-7 text-orange-500" />
+        </div>
+        <span className="text-sm font-semibold text-center">
+          {callMutation.isPending ? t("householdHome.calling") : t("householdHome.callMaid")}
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
+
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
@@ -209,7 +241,10 @@ function HomeContent() {
     default: return (
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
-        <HouseholdTasksProgress />
+        <div className="grid grid-cols-2 gap-4">
+          <CallMaidButton />
+          <HouseholdTasksProgress />
+        </div>
       </div>
     );
   }

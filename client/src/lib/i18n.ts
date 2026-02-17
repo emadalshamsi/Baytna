@@ -33,6 +33,16 @@ const ar = {
     noRoomsAssigned: "لم يتم تعيين غرف لك بعد",
     noTasksToday: "لا توجد مهام لهذا اليوم",
     tasksDone: "مكتملة",
+    callMaid: "نداء الخادمة",
+    callSent: "تم إرسال النداء",
+    calling: "جاري الإرسال...",
+  },
+  maidCall: {
+    title: "نداءات",
+    callFrom: "نداء من",
+    dismiss: "تم",
+    noCalls: "لا توجد نداءات حالياً",
+    dismissed: "تم الرد",
   },
   housekeepingSection: {
     title: "إدارة المنزل",
@@ -199,6 +209,16 @@ const en: typeof ar = {
     noRoomsAssigned: "No rooms assigned to you yet",
     noTasksToday: "No tasks for today",
     tasksDone: "completed",
+    callMaid: "Call Maid",
+    callSent: "Call sent",
+    calling: "Sending...",
+  },
+  maidCall: {
+    title: "Calls",
+    callFrom: "Call from",
+    dismiss: "Done",
+    noCalls: "No active calls",
+    dismissed: "Responded",
   },
   housekeepingSection: {
     title: "Housekeeping",
