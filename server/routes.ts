@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import webpush from "web-push";
+import { v2 as cloudinary } from "cloudinary";
 import { registerSchema, loginSchema } from "@shared/schema";
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -67,21 +68,14 @@ async function notifyAndPush(userId: string, data: { titleAr: string; titleEn?: 
   } catch {}
 }
 
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const uploadStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-  },
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const upload = multer({
-  storage: uploadStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedMime = /^image\/(jpeg|jpg|png|gif|webp|heic|heif)$/;
@@ -735,16 +729,24 @@ export async function registerRoutes(
     }
   });
 
-  app.use("/uploads", (await import("express")).default.static(uploadsDir));
-
   app.post("/api/upload", isAuthenticated, upload.single("image"), async (req: Request, res: Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const imageUrl = `/uploads/${req.file.filename}`;
-      res.json({ imageUrl });
+      const result = await new Promise<any>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "baytkom", resource_type: "image" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file!.buffer);
+      });
+      res.json({ imageUrl: result.secure_url });
     } catch (error) {
+      console.error("Upload error:", error);
       res.status(500).json({ message: "Failed to upload file" });
     }
   });
