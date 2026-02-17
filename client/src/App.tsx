@@ -283,13 +283,9 @@ function HomeContent() {
     default: return (
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-1 flex">
-            <CallMaidButton />
-          </div>
-          <div className="col-span-2 flex">
-            <HouseholdTasksProgress />
-          </div>
+        <HouseholdTasksProgress />
+        <div className="w-1/3">
+          <CallMaidButton />
         </div>
       </div>
     );
