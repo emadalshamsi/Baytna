@@ -111,19 +111,17 @@ function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
   const showBanner = user.role !== "driver" && user.role !== "maid";
-  let content;
   switch (user.role) {
-    case "admin": content = <AdminDashboard />; break;
+    case "admin": return (
+      <div className="space-y-4">
+        {showBanner && <HomeBanner />}
+        <AdminDashboard />
+      </div>
+    );
     case "maid": return <MaidHomePage />;
     case "driver": return <DriverHomePage />;
-    default: content = <HouseholdDashboard />; break;
+    default: return showBanner ? <HomeBanner /> : null;
   }
-  return (
-    <div className="space-y-4">
-      {showBanner && <HomeBanner />}
-      {content}
-    </div>
-  );
 }
 
 function GroceriesBanner() {
