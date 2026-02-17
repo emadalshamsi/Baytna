@@ -26,7 +26,8 @@ import {
   type PushSubscription, type InsertPushSubscription,
   type Notification, type InsertNotification,
   type MaidCall, type InsertMaidCall,
-  maidCalls,
+  type DriverCall, type InsertDriverCall,
+  maidCalls, driverCalls,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -173,6 +174,11 @@ export interface IStorage {
   getActiveMaidCalls(): Promise<MaidCall[]>;
   createMaidCall(call: InsertMaidCall): Promise<MaidCall>;
   dismissMaidCall(id: number): Promise<MaidCall | undefined>;
+
+  getDriverCalls(): Promise<DriverCall[]>;
+  getActiveDriverCalls(): Promise<DriverCall[]>;
+  createDriverCall(call: InsertDriverCall): Promise<DriverCall>;
+  dismissDriverCall(id: number): Promise<DriverCall | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -841,6 +847,15 @@ export class DatabaseStorage implements IStorage {
     } catch (e) { console.error("Cleanup maid calls error:", e); }
 
     try {
+      await db.delete(driverCalls).where(
+        or(
+          and(eq(driverCalls.status, "dismissed"), lt(driverCalls.dismissedAt, fiveMinAgo)),
+          lt(driverCalls.createdAt, twoWeeksAgo)
+        )
+      );
+    } catch (e) { console.error("Cleanup driver calls error:", e); }
+
+    try {
       const oldOrders = await db.select({ id: orders.id, receiptImageUrl: orders.receiptImageUrl })
         .from(orders)
         .where(
@@ -909,6 +924,24 @@ export class DatabaseStorage implements IStorage {
 
   async dismissMaidCall(id: number): Promise<MaidCall | undefined> {
     const [updated] = await db.update(maidCalls).set({ status: "dismissed", dismissedAt: new Date() }).where(eq(maidCalls.id, id)).returning();
+    return updated;
+  }
+
+  async getDriverCalls(): Promise<DriverCall[]> {
+    return db.select().from(driverCalls).orderBy(desc(driverCalls.createdAt));
+  }
+
+  async getActiveDriverCalls(): Promise<DriverCall[]> {
+    return db.select().from(driverCalls).where(eq(driverCalls.status, "active")).orderBy(desc(driverCalls.createdAt));
+  }
+
+  async createDriverCall(call: InsertDriverCall): Promise<DriverCall> {
+    const [created] = await db.insert(driverCalls).values(call).returning();
+    return created;
+  }
+
+  async dismissDriverCall(id: number): Promise<DriverCall | undefined> {
+    const [updated] = await db.update(driverCalls).set({ status: "dismissed", dismissedAt: new Date() }).where(eq(driverCalls.id, id)).returning();
     return updated;
   }
 
