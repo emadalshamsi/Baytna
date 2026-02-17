@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart, Pencil, X,
+  Truck, MapPin, Clock, Package, Plus, CalendarDays, Check, ShoppingCart, Pencil, X, Car, BellRing,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -19,7 +19,7 @@ import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Trip, Order, Vehicle } from "@shared/schema";
+import type { Trip, Order, Vehicle, User } from "@shared/schema";
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -162,6 +162,23 @@ export default function DriverHomePage() {
   });
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
+  });
+  const { data: driverCalls = [] } = useQuery<any[]>({
+    queryKey: ["/api/driver-calls"],
+    refetchInterval: 5000,
+  });
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const activeDriverCalls = driverCalls.filter((c: any) => c.status === "active");
+
+  const dismissDriverCall = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/driver-calls/${id}/dismiss`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver-calls"] });
+      toast({ title: t("driverCall.dismissed") });
+    },
   });
 
   const driverName = user ? displayName(user) : "";
@@ -318,6 +335,49 @@ export default function DriverHomePage() {
           )}
         </CardContent>
       </Card>
+
+      {activeDriverCalls.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <BellRing className="w-5 h-5 text-red-500 animate-pulse" />
+            <h3 className="text-base font-bold">{t("driverCall.title")}</h3>
+            <Badge variant="destructive" className="no-default-hover-elevate no-default-active-elevate">
+              {activeDriverCalls.length}
+            </Badge>
+          </div>
+          {activeDriverCalls.map((call: any) => {
+            const caller = allUsers.find((u: User) => u.id === call.calledBy);
+            const callerName = caller ? (lang === "ar" ? caller.firstName || caller.displayName || caller.username : caller.firstNameEn || caller.displayName || caller.username) : "?";
+            return (
+              <Card key={call.id} className="border-red-500/20 bg-red-500/5" data-testid={`card-driver-call-${call.id}`}>
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                      <BellRing className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{t("driverCall.callFrom")} {callerName}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {call.createdAt ? formatTime(call.createdAt) : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => dismissDriverCall.mutate(call.id)}
+                    data-testid={`button-dismiss-driver-call-${call.id}`}
+                  >
+                    <Check className="w-4 h-4" />
+                    <span className="text-sm font-bold">{t("driverCall.dismiss")}</span>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
 

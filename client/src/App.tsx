@@ -9,7 +9,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing } from "lucide-react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing, Car } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import type { Room, HousekeepingTask, TaskCompletion } from "@shared/schema";
 import { Switch as SwitchUI } from "@/components/ui/switch";
@@ -267,6 +267,79 @@ function CallMaidButton() {
   );
 }
 
+function CallDriverButton() {
+  useLang();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: driverCalls = [] } = useQuery<any[]>({
+    queryKey: ["/api/driver-calls"],
+    refetchInterval: 5000,
+  });
+
+  const myCall = driverCalls.find((c: any) => c.calledBy === user?.id);
+  const hasActiveCall = myCall?.status === "active";
+  const TWO_MINUTES = 2 * 60 * 1000;
+  const isDismissedRecently = myCall?.status === "dismissed" && myCall?.dismissedAt &&
+    (Date.now() - new Date(myCall.dismissedAt).getTime()) < TWO_MINUTES;
+
+  const callMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/driver-calls", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver-calls"] });
+      toast({ title: t("householdHome.driverCallSent") });
+    },
+  });
+
+  if (isDismissedRecently) {
+    return (
+      <Card className="w-full h-full" data-testid="card-driver-coming">
+        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
+          <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
+            <Car className="w-7 h-7 text-green-500" />
+          </div>
+          <span className="text-sm font-semibold text-center text-green-600 dark:text-green-400">
+            {t("householdHome.driverComing")}
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (hasActiveCall) {
+    return (
+      <Card className="w-full h-full" data-testid="card-driver-call-waiting">
+        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
+          <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center">
+            <Car className="w-7 h-7 text-blue-500 animate-pulse" />
+          </div>
+          <span className="text-sm font-semibold text-center text-blue-600 dark:text-blue-400">
+            {t("householdHome.driverCallSent")}
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      className="hover-elevate active-elevate-2 cursor-pointer w-full h-full"
+      onClick={() => !callMutation.isPending && callMutation.mutate()}
+      data-testid="button-call-driver"
+    >
+      <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
+        <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center">
+          <Car className="w-7 h-7 text-blue-500" />
+        </div>
+        <span className="text-sm font-semibold text-center">
+          {callMutation.isPending ? t("householdHome.driverCalling") : t("householdHome.callDriver")}
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
+
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
@@ -284,8 +357,13 @@ function HomeContent() {
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
         <HouseholdTasksProgress />
-        <div className="w-1/3">
-          <CallMaidButton />
+        <div className="flex gap-4">
+          <div className="w-1/3">
+            <CallMaidButton />
+          </div>
+          <div className="w-1/3">
+            <CallDriverButton />
+          </div>
         </div>
       </div>
     );
