@@ -202,7 +202,12 @@ function CallMaidButton() {
     queryKey: ["/api/maid-calls"],
     refetchInterval: 5000,
   });
-  const hasActiveCall = maidCalls.some((c: any) => c.status === "active" && c.calledBy === user?.id);
+
+  const myCall = maidCalls.find((c: any) => c.calledBy === user?.id);
+  const hasActiveCall = myCall?.status === "active";
+  const TWO_MINUTES = 2 * 60 * 1000;
+  const isDismissedRecently = myCall?.status === "dismissed" && myCall?.dismissedAt &&
+    (Date.now() - new Date(myCall.dismissedAt).getTime()) < TWO_MINUTES;
 
   const callMutation = useMutation({
     mutationFn: async () => {
@@ -214,7 +219,7 @@ function CallMaidButton() {
     },
   });
 
-  if (hasActiveCall) {
+  if (isDismissedRecently) {
     return (
       <Card className="w-full h-full" data-testid="card-maid-coming">
         <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
@@ -223,6 +228,21 @@ function CallMaidButton() {
           </div>
           <span className="text-sm font-semibold text-center text-green-600 dark:text-green-400">
             {t("householdHome.maidComing")}
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (hasActiveCall) {
+    return (
+      <Card className="w-full h-full" data-testid="card-call-waiting">
+        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
+          <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
+            <BellRing className="w-7 h-7 text-orange-500 animate-pulse" />
+          </div>
+          <span className="text-sm font-semibold text-center text-orange-600 dark:text-orange-400">
+            {t("householdHome.callSent")}
           </span>
         </CardContent>
       </Card>
