@@ -164,8 +164,8 @@ function HouseholdTasksProgress() {
   }
 
   return (
-    <Card data-testid="household-tasks-progress">
-      <CardContent className="py-4 space-y-3">
+    <Card className="w-full h-full" data-testid="household-tasks-progress">
+      <CardContent className="py-4 space-y-3 h-full flex flex-col justify-center">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-primary" />
@@ -216,8 +216,8 @@ function CallMaidButton() {
 
   if (hasActiveCall) {
     return (
-      <Card data-testid="card-maid-coming">
-        <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+      <Card className="w-full h-full" data-testid="card-maid-coming">
+        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
           <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
             <BellRing className="w-7 h-7 text-green-500" />
           </div>
@@ -231,11 +231,11 @@ function CallMaidButton() {
 
   return (
     <Card
-      className="hover-elevate active-elevate-2 cursor-pointer"
+      className="hover-elevate active-elevate-2 cursor-pointer w-full h-full"
       onClick={() => !callMutation.isPending && callMutation.mutate()}
       data-testid="button-call-maid"
     >
-      <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+      <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
         <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
           <BellRing className="w-7 h-7 text-orange-500" />
         </div>
@@ -263,11 +263,11 @@ function HomeContent() {
     default: return (
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
-        <div className="flex gap-4">
-          <div className="w-1/4 flex-shrink-0">
+        <div className="flex gap-4 items-stretch">
+          <div className="w-1/4 flex-shrink-0 flex">
             <CallMaidButton />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 flex">
             <HouseholdTasksProgress />
           </div>
         </div>
