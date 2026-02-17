@@ -1,5 +1,7 @@
 import { db } from "./db";
-import { eq, desc, and, gte, lte, lt, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, inArray, or } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
@@ -782,6 +784,108 @@ export class DatabaseStorage implements IStorage {
     await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
   }
 
+  async runCleanup(): Promise<void> {
+    const now = new Date();
+
+    const twoWeeksAgo = new Date(now);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const oneMonthAgo = new Date(now);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    try {
+      await db.delete(notifications).where(lt(notifications.createdAt, twoWeeksAgo));
+    } catch (e) { console.error("Cleanup notifications error:", e); }
+
+    try {
+      await db.delete(trips).where(
+        and(
+          or(eq(trips.status, "completed"), eq(trips.status, "rejected")),
+          lt(trips.createdAt, twoWeeksAgo)
+        )
+      );
+    } catch (e) { console.error("Cleanup trips error:", e); }
+
+    try {
+      await db.delete(laundryRequests).where(
+        and(
+          or(eq(laundryRequests.status, "done"), eq(laundryRequests.status, "cancelled")),
+          lt(laundryRequests.createdAt, twoWeeksAgo)
+        )
+      );
+    } catch (e) { console.error("Cleanup laundry error:", e); }
+
+    try {
+      await db.delete(shortages).where(
+        and(
+          or(eq(shortages.status, "completed"), eq(shortages.status, "rejected")),
+          lt(shortages.createdAt, twoWeeksAgo)
+        )
+      );
+    } catch (e) { console.error("Cleanup shortages error:", e); }
+
+    try {
+      const oldOrders = await db.select({ id: orders.id, receiptImageUrl: orders.receiptImageUrl })
+        .from(orders)
+        .where(
+          and(
+            or(eq(orders.status, "completed"), eq(orders.status, "rejected")),
+            lt(orders.createdAt, oneMonthAgo)
+          )
+        );
+
+      if (oldOrders.length > 0) {
+        const oldOrderIds = oldOrders.map(o => o.id);
+        await db.delete(orderItems).where(inArray(orderItems.orderId, oldOrderIds));
+        await db.delete(orders).where(inArray(orders.id, oldOrderIds));
+      }
+    } catch (e) { console.error("Cleanup orders error:", e); }
+
+    try {
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      if (fs.existsSync(uploadsDir)) {
+        const mealImageUrls = new Set<string>();
+        const allMealItems = await db.select({ imageUrl: mealItems.imageUrl }).from(mealItems);
+        const allMeals = await db.select({ imageUrl: meals.imageUrl }).from(meals);
+        allMealItems.forEach(m => { if (m.imageUrl) mealImageUrls.add(m.imageUrl); });
+        allMeals.forEach(m => { if (m.imageUrl) mealImageUrls.add(m.imageUrl); });
+
+        const activeProducts = await db.select({ imageUrl: products.imageUrl }).from(products);
+        const productImages = new Set<string>();
+        activeProducts.forEach(p => { if (p.imageUrl) productImages.add(p.imageUrl); });
+
+        const activeUsers = await db.select({ profileImageUrl: users.profileImageUrl }).from(users);
+        const userImages = new Set<string>();
+        activeUsers.forEach(u => { if (u.profileImageUrl) userImages.add(u.profileImageUrl); });
+
+        const files = fs.readdirSync(uploadsDir);
+        for (const file of files) {
+          const filePath = path.join(uploadsDir, file);
+          const fileUrl = `/uploads/${file}`;
+
+          if (mealImageUrls.has(fileUrl) || productImages.has(fileUrl) || userImages.has(fileUrl)) continue;
+
+          const stat = fs.statSync(filePath);
+          const fileAge = now.getTime() - stat.mtimeMs;
+
+          if (fileAge > 7 * 24 * 60 * 60 * 1000) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      }
+    } catch (e) { console.error("Cleanup files error:", e); }
+
+    console.log(`[Cleanup] Completed at ${now.toISOString()}`);
+  }
+
 }
 
 export const storage = new DatabaseStorage();
+
+setInterval(() => {
+  storage.runCleanup().catch(e => console.error("Cleanup failed:", e));
+}, 6 * 60 * 60 * 1000);
+
+setTimeout(() => {
+  storage.runCleanup().catch(e => console.error("Initial cleanup failed:", e));
+}, 30 * 1000);
