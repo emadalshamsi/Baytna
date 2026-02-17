@@ -263,11 +263,11 @@ function HomeContent() {
     default: return (
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
-        <div className="flex gap-4 items-stretch">
-          <div className="w-1/4 flex-shrink-0 flex">
+        <div className="grid grid-cols-4 gap-4">
+          <div className="col-span-1 flex">
             <CallMaidButton />
           </div>
-          <div className="flex-1 flex">
+          <div className="col-span-3 flex">
             <HouseholdTasksProgress />
           </div>
         </div>
