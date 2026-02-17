@@ -1749,13 +1749,14 @@ export async function registerRoutes(
       const call = await storage.createMaidCall({ calledBy: userId, status: "active" });
       const allUsers = await storage.getAllUsers();
       const maids = allUsers.filter(u => u.role === "maid" && !u.isSuspended);
-      const callerName = currentUser.firstName || currentUser.username;
+      const callerNameAr = currentUser.firstName || currentUser.username;
+      const callerNameEn = currentUser.firstNameEn || currentUser.username;
       for (const maid of maids) {
         await notifyAndPush(maid.id, {
-          titleAr: `نداء من ${callerName}`,
-          titleEn: `Call from ${callerName}`,
-          bodyAr: "يرجى التوجه الآن",
-          bodyEn: "Please come now",
+          titleAr: `نداء من ${callerNameAr}`,
+          titleEn: `Call from ${callerNameEn}`,
+          bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
+          bodyEn: `Please come now to ${callerNameEn}`,
           type: "maid_call",
           url: "/",
         });
