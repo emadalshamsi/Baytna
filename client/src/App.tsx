@@ -128,9 +128,9 @@ function HomeContent() {
 
 function GroceriesBanner() {
   return (
-    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "30vh" }} data-testid="banner-groceries">
-      <img src={groceriesBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "30vh" }} />
-      <img src={groceriesBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "30vh" }} />
+    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "25vh" }} data-testid="banner-groceries">
+      <img src={groceriesBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "25vh" }} />
+      <img src={groceriesBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "25vh" }} />
     </div>
   );
 }
