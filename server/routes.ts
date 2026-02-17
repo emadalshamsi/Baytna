@@ -1791,6 +1791,68 @@ export async function registerRoutes(
     }
   });
 
+  // Driver Calls
+  app.get("/api/driver-calls", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const allCalls = await storage.getDriverCalls();
+      const now = Date.now();
+      const TWO_MINUTES = 2 * 60 * 1000;
+      const calls = allCalls.filter((c) => {
+        if (c.status === "active") return true;
+        if (c.status === "dismissed" && c.dismissedAt) {
+          return (now - new Date(c.dismissedAt).getTime()) < TWO_MINUTES;
+        }
+        return false;
+      });
+      res.json(calls);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get driver calls" });
+    }
+  });
+
+  app.post("/api/driver-calls", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser || currentUser.role !== "household") {
+        return res.status(403).json({ message: "Only household users can call the driver" });
+      }
+      const call = await storage.createDriverCall({ calledBy: userId, status: "active" });
+      const allUsers = await storage.getAllUsers();
+      const drivers = allUsers.filter(u => u.role === "driver" && !u.isSuspended);
+      const callerNameAr = currentUser.firstName || currentUser.username;
+      const callerNameEn = currentUser.firstNameEn || currentUser.username;
+      for (const driver of drivers) {
+        await notifyAndPush(driver.id, {
+          titleAr: `نداء من ${callerNameAr}`,
+          titleEn: `Call from ${callerNameEn}`,
+          bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
+          bodyEn: `Please come now to ${callerNameEn}`,
+          type: "driver_call",
+          url: "/",
+        });
+      }
+      res.json(call);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create driver call" });
+    }
+  });
+
+  app.patch("/api/driver-calls/:id/dismiss", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser || (currentUser.role !== "driver" && currentUser.role !== "admin")) {
+        return res.status(403).json({ message: "Only drivers or admins can dismiss calls" });
+      }
+      const call = await storage.dismissDriverCall(parseInt(req.params.id));
+      if (!call) return res.status(404).json({ message: "Call not found" });
+      res.json(call);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to dismiss driver call" });
+    }
+  });
+
   app.get("/api/vapid-public-key", (_req: Request, res: Response) => {
     res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || "" });
   });
