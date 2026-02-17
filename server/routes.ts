@@ -734,20 +734,37 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
+      console.log("[Cloudinary] Upload attempt:", {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "NOT SET",
+        api_key_set: !!process.env.CLOUDINARY_API_KEY,
+        api_secret_set: !!process.env.CLOUDINARY_API_SECRET,
+        file_size: req.file.size,
+        file_type: req.file.mimetype,
+      });
       const result = await new Promise<any>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: "baytkom", resource_type: "image" },
           (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
+            if (error) {
+              console.error("[Cloudinary] Upload stream error:", JSON.stringify(error, null, 2));
+              reject(error);
+            } else {
+              console.log("[Cloudinary] Upload success:", {
+                public_id: result?.public_id,
+                secure_url: result?.secure_url,
+                format: result?.format,
+                bytes: result?.bytes,
+              });
+              resolve(result);
+            }
           }
         );
         stream.end(req.file!.buffer);
       });
       res.json({ imageUrl: result.secure_url });
-    } catch (error) {
-      console.error("Upload error:", error);
-      res.status(500).json({ message: "Failed to upload file" });
+    } catch (error: any) {
+      console.error("[Cloudinary] Upload failed - Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      res.status(500).json({ message: "Failed to upload file", error: error?.message || "Unknown error" });
     }
   });
 
