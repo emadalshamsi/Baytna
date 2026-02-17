@@ -11,6 +11,8 @@ import {
   Shirt, AlertCircle, ImageIcon, Home,
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
+import homeBannerLight from "@assets/HomeBanner01_1771338596382.png";
+import homeBannerDark from "@assets/HomeBanner02_1771338596382.png";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang, formatTime } from "@/lib/i18n";
@@ -1461,6 +1463,10 @@ export default function HousekeepingPage() {
 
   return (
     <div className="space-y-4" data-testid="page-housekeeping">
+      <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "20vh" }} data-testid="banner-housekeeping">
+        <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "20vh" }} />
+        <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "20vh" }} />
+      </div>
       <div className="flex gap-1.5">
         <TabButton active={tab === "tasks"} icon={Brush} label={t("housekeepingSection.tasks")} onClick={() => setTab("tasks")} testId="tab-tasks" />
         <TabButton active={tab === "laundry"} icon={WashingMachine} label={t("housekeepingSection.laundry")} onClick={() => setTab("laundry")} testId="tab-laundry" />
