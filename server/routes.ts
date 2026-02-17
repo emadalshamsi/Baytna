@@ -1732,7 +1732,16 @@ export async function registerRoutes(
   // Maid Calls
   app.get("/api/maid-calls", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const calls = await storage.getActiveMaidCalls();
+      const allCalls = await storage.getMaidCalls();
+      const now = Date.now();
+      const TWO_MINUTES = 2 * 60 * 1000;
+      const calls = allCalls.filter((c) => {
+        if (c.status === "active") return true;
+        if (c.status === "dismissed" && c.dismissedAt) {
+          return (now - new Date(c.dismissedAt).getTime()) < TWO_MINUTES;
+        }
+        return false;
+      });
       res.json(calls);
     } catch (error) {
       res.status(500).json({ message: "Failed to get maid calls" });
