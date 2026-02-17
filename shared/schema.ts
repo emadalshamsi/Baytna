@@ -257,6 +257,7 @@ export const notifications = pgTable("notifications", {
 export const maidCalls = pgTable("maid_calls", {
   id: serial("id").primaryKey(),
   calledBy: varchar("called_by").notNull().references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
   dismissedAt: timestamp("dismissed_at"),
@@ -267,6 +268,7 @@ export const insertMaidCallSchema = createInsertSchema(maidCalls).omit({ id: tru
 export const driverCalls = pgTable("driver_calls", {
   id: serial("id").primaryKey(),
   calledBy: varchar("called_by").notNull().references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
   dismissedAt: timestamp("dismissed_at"),

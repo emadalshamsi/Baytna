@@ -1755,13 +1755,12 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "household") {
         return res.status(403).json({ message: "Only household users can call the maid" });
       }
-      const call = await storage.createMaidCall({ calledBy: userId, status: "active" });
-      const allUsers = await storage.getAllUsers();
-      const maids = allUsers.filter(u => u.role === "maid" && !u.isSuspended);
+      const { targetUserId } = req.body;
+      const call = await storage.createMaidCall({ calledBy: userId, targetUserId: targetUserId || null, status: "active" });
       const callerNameAr = currentUser.firstName || currentUser.username;
       const callerNameEn = currentUser.firstNameEn || currentUser.username;
-      for (const maid of maids) {
-        await notifyAndPush(maid.id, {
+      if (targetUserId) {
+        await notifyAndPush(targetUserId, {
           titleAr: `نداء من ${callerNameAr}`,
           titleEn: `Call from ${callerNameEn}`,
           bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
@@ -1769,6 +1768,19 @@ export async function registerRoutes(
           type: "maid_call",
           url: "/",
         });
+      } else {
+        const allUsers = await storage.getAllUsers();
+        const maids = allUsers.filter(u => u.role === "maid" && !u.isSuspended);
+        for (const maid of maids) {
+          await notifyAndPush(maid.id, {
+            titleAr: `نداء من ${callerNameAr}`,
+            titleEn: `Call from ${callerNameEn}`,
+            bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
+            bodyEn: `Please come now to ${callerNameEn}`,
+            type: "maid_call",
+            url: "/",
+          });
+        }
       }
       res.json(call);
     } catch (error) {
@@ -1817,13 +1829,12 @@ export async function registerRoutes(
       if (!currentUser || currentUser.role !== "household") {
         return res.status(403).json({ message: "Only household users can call the driver" });
       }
-      const call = await storage.createDriverCall({ calledBy: userId, status: "active" });
-      const allUsers = await storage.getAllUsers();
-      const drivers = allUsers.filter(u => u.role === "driver" && !u.isSuspended);
+      const { targetUserId } = req.body;
+      const call = await storage.createDriverCall({ calledBy: userId, targetUserId: targetUserId || null, status: "active" });
       const callerNameAr = currentUser.firstName || currentUser.username;
       const callerNameEn = currentUser.firstNameEn || currentUser.username;
-      for (const driver of drivers) {
-        await notifyAndPush(driver.id, {
+      if (targetUserId) {
+        await notifyAndPush(targetUserId, {
           titleAr: `نداء من ${callerNameAr}`,
           titleEn: `Call from ${callerNameEn}`,
           bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
@@ -1831,6 +1842,19 @@ export async function registerRoutes(
           type: "driver_call",
           url: "/",
         });
+      } else {
+        const allUsers = await storage.getAllUsers();
+        const drivers = allUsers.filter(u => u.role === "driver" && !u.isSuspended);
+        for (const driver of drivers) {
+          await notifyAndPush(driver.id, {
+            titleAr: `نداء من ${callerNameAr}`,
+            titleEn: `Call from ${callerNameEn}`,
+            bodyAr: `يرجى التوجه الآن ل${callerNameAr}`,
+            bodyEn: `Please come now to ${callerNameEn}`,
+            type: "driver_call",
+            url: "/",
+          });
+        }
       }
       res.json(call);
     } catch (error) {
