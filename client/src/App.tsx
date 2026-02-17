@@ -23,6 +23,8 @@ import DriverDashboard from "@/pages/driver-dashboard";
 import DriverHomePage from "@/pages/driver-home";
 import DriverLogisticsPage from "@/pages/driver-logistics";
 import HouseholdDashboard from "@/pages/household-dashboard";
+import homeBannerLight from "@assets/HomeBanner01_1771338596382.png";
+import homeBannerDark from "@assets/HomeBanner02_1771338596382.png";
 import HousekeepingPage from "@/pages/housekeeping";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -97,12 +99,22 @@ function BottomNavBar() {
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
+  let content;
   switch (user.role) {
-    case "admin": return <AdminDashboard />;
-    case "maid": return <MaidHomePage />;
-    case "driver": return <DriverHomePage />;
-    default: return <HouseholdDashboard />;
+    case "admin": content = <AdminDashboard />; break;
+    case "maid": content = <MaidHomePage />; break;
+    case "driver": content = <DriverHomePage />; break;
+    default: content = <HouseholdDashboard />; break;
   }
+  return (
+    <div className="space-y-4">
+      <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "20vh" }} data-testid="banner-home">
+        <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "20vh" }} />
+        <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "20vh" }} />
+      </div>
+      {content}
+    </div>
+  );
 }
 
 function GroceriesContent() {
