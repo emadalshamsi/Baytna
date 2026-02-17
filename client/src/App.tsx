@@ -1,6 +1,6 @@
 import { Switch, Route, Link, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,8 +8,9 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw } from "lucide-react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
+import type { Room, HousekeepingTask, TaskCompletion } from "@shared/schema";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { t, getLang, setLang, formatDateTime, type Lang } from "@/lib/i18n";
@@ -107,6 +108,91 @@ function HomeBanner() {
   );
 }
 
+function HouseholdTasksProgress() {
+  useLang();
+  const { user } = useAuth();
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const dayOfWeek = today.getDay();
+
+  const { data: rooms } = useQuery<Room[]>({ queryKey: ["/api/rooms"] });
+  const { data: userRoomIds } = useQuery<number[]>({
+    queryKey: ["/api/user-rooms", user?.id],
+    queryFn: () => fetch(`/api/user-rooms/${user?.id}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!user,
+  });
+  const { data: tasks } = useQuery<HousekeepingTask[]>({ queryKey: ["/api/housekeeping-tasks"] });
+  const { data: completions } = useQuery<TaskCompletion[]>({
+    queryKey: ["/api/task-completions", todayStr],
+    queryFn: () => fetch(`/api/task-completions/${todayStr}`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  if (!userRoomIds || userRoomIds.length === 0 || !rooms || !tasks) {
+    if (userRoomIds && userRoomIds.length === 0) {
+      return (
+        <Card data-testid="household-tasks-progress">
+          <CardContent className="py-6 text-center text-muted-foreground">
+            {t("householdHome.noRoomsAssigned")}
+          </CardContent>
+        </Card>
+      );
+    }
+    return null;
+  }
+
+  const myRooms = rooms.filter(r => userRoomIds.includes(r.id) && r.isActive && !r.isExcluded);
+  const myTasks = tasks.filter(task => {
+    if (!myRooms.some(r => r.id === task.roomId)) return false;
+    if (!task.isActive) return false;
+    const taskDays = task.daysOfWeek as number[] | null;
+    if (taskDays && taskDays.length > 0) return taskDays.includes(dayOfWeek);
+    return true;
+  });
+
+  const completedIds = new Set(completions?.map(c => c.taskId) || []);
+  const completedCount = myTasks.filter(task => completedIds.has(task.id)).length;
+  const totalCount = myTasks.length;
+  const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const lang = getLang();
+  let label: string;
+  if (myRooms.length === 1) {
+    label = lang === "ar" ? (myRooms[0].nameAr || "") : (myRooms[0].nameEn || myRooms[0].nameAr || "");
+  } else {
+    label = t("householdHome.myRooms");
+  }
+
+  return (
+    <Card data-testid="household-tasks-progress">
+      <CardContent className="py-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-primary" />
+            <span className="font-semibold">{label}</span>
+          </div>
+          <Badge className="no-default-hover-elevate no-default-active-elevate bg-primary/10 text-primary">
+            {completedCount}/{totalCount} {t("householdHome.tasksDone")}
+          </Badge>
+        </div>
+        {totalCount > 0 ? (
+          <div className="space-y-1">
+            <div className="w-full h-3 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${percentage}%` }}
+                data-testid="progress-bar"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground text-center">{percentage}%</div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center">{t("householdHome.noTasksToday")}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
@@ -120,7 +206,12 @@ function HomeContent() {
     );
     case "maid": return <MaidHomePage />;
     case "driver": return <DriverHomePage />;
-    default: return showBanner ? <HomeBanner /> : null;
+    default: return (
+      <div className="space-y-4">
+        {showBanner && <HomeBanner />}
+        <HouseholdTasksProgress />
+      </div>
+    );
   }
 }
 

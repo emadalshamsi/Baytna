@@ -27,6 +27,13 @@ const ar = {
     todayMeals: "وجبات اليوم",
     noLaundryPending: "لا توجد طلبات غسيل حالياً",
   },
+  householdHome: {
+    myRooms: "غرفي",
+    tasksProgress: "إنجاز المهام",
+    noRoomsAssigned: "لم يتم تعيين غرف لك بعد",
+    noTasksToday: "لا توجد مهام لهذا اليوم",
+    tasksDone: "مكتملة",
+  },
   housekeepingSection: {
     title: "إدارة المنزل",
     tasks: "المهام",
@@ -185,6 +192,13 @@ const en: typeof ar = {
     laundryAlerts: "Laundry Requests",
     todayMeals: "Today's Meals",
     noLaundryPending: "No pending laundry requests",
+  },
+  householdHome: {
+    myRooms: "My Rooms",
+    tasksProgress: "Tasks Progress",
+    noRoomsAssigned: "No rooms assigned to you yet",
+    noTasksToday: "No tasks for today",
+    tasksDone: "completed",
   },
   housekeepingSection: {
     title: "Housekeeping",
