@@ -16,8 +16,8 @@ import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
 import { t, getLang, displayName, formatDate, formatTime, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
-import bannerLight from "@assets/CarBanner01_1771341537912.png";
-import bannerDark from "@assets/CarBanner02_1771341537911.png";
+import bannerLight from "@/assets/images/CarBanner01_1771341537912.png";
+import bannerDark from "@/assets/images/CarBanner02_1771341537911.png";
 
 const specialties = ["plumber", "farmer", "acTech", "electrician", "carpenter", "painter", "other"] as const;
 

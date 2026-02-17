@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LogIn, UserPlus, Eye, EyeOff, Moon, Sun } from "lucide-react";
-import logoImg from "@assets/Bait_Logo_1771162936105.png";
+import logoImg from "@/assets/images/Bait_Logo_1771162936105.png";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";

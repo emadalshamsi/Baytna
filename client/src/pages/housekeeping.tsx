@@ -11,8 +11,8 @@ import {
   Shirt, AlertCircle, ImageIcon, Home,
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
-import homeBannerLight from "@assets/HomeBanner01_1771338596382.png";
-import homeBannerDark from "@assets/HomeBanner02_1771338596382.png";
+import homeBannerLight from "@/assets/images/HomeBanner01_1771338596382.png";
+import homeBannerDark from "@/assets/images/HomeBanner02_1771338596382.png";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { t, getLang, formatTime } from "@/lib/i18n";
