@@ -594,6 +594,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTaskCompletions(date: string): Promise<TaskCompletion[]> {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const cutoffDate = weekAgo.toISOString().split("T")[0];
+    await db.delete(taskCompletions).where(lt(taskCompletions.completionDate, cutoffDate));
     return db.select().from(taskCompletions).where(eq(taskCompletions.completionDate, date));
   }
 
