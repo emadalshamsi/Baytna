@@ -98,9 +98,9 @@ function BottomNavBar() {
 
 function HomeBanner() {
   return (
-    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "40vh" }} data-testid="banner-home">
-      <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "40vh" }} />
-      <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "40vh" }} />
+    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "35vh" }} data-testid="banner-home">
+      <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "35vh" }} />
+      <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "35vh" }} />
     </div>
   );
 }
