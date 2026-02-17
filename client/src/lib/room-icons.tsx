@@ -1,21 +1,9 @@
 import {
   DoorOpen, Sofa, CookingPot, Car, Tent, Flower2, Package, Home, type LucideIcon,
-  Fence, GripVertical, Armchair, Bath,
+  Fence, GripVertical, Armchair, Bath, ArrowUpDown,
 } from "lucide-react";
-import stairsImagePath from "@assets/image_1771201557923.png";
 
-function StairsIcon({ className }: { className?: string }) {
-  return (
-    <img
-      src={stairsImagePath}
-      alt="stairs"
-      className={`stairs-icon ${className || ""}`}
-      style={{ display: "inline-block" }}
-    />
-  ) as unknown as React.ReactSVGElement;
-}
-
-export const ROOM_ICON_OPTIONS: { key: string; Icon: LucideIcon | typeof StairsIcon }[] = [
+export const ROOM_ICON_OPTIONS: { key: string; Icon: LucideIcon }[] = [
   { key: "door", Icon: DoorOpen },
   { key: "sofa", Icon: Sofa },
   { key: "kitchen", Icon: CookingPot },
@@ -27,16 +15,14 @@ export const ROOM_ICON_OPTIONS: { key: string; Icon: LucideIcon | typeof StairsI
   { key: "home", Icon: Home },
   { key: "bathroom", Icon: Bath },
   { key: "armchair", Icon: Armchair },
-  { key: "stairs", Icon: StairsIcon },
+  { key: "stairs", Icon: ArrowUpDown },
 ];
 
-type IconComponent = LucideIcon | typeof StairsIcon;
-
-const iconMap: Record<string, IconComponent> = Object.fromEntries(
+const iconMap: Record<string, LucideIcon> = Object.fromEntries(
   ROOM_ICON_OPTIONS.map(({ key, Icon }) => [key, Icon])
 );
 
-export function getRoomIcon(iconKey?: string | null): IconComponent {
+export function getRoomIcon(iconKey?: string | null): LucideIcon {
   return iconMap[iconKey || "door"] || DoorOpen;
 }
 
