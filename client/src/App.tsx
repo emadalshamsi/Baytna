@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing, Car } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
-import type { Room, HousekeepingTask, TaskCompletion } from "@shared/schema";
+import type { Room, HousekeepingTask, TaskCompletion, User } from "@shared/schema";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { t, getLang, setLang, formatDateTime, type Lang } from "@/lib/i18n";
@@ -194,40 +194,50 @@ function HouseholdTasksProgress() {
   );
 }
 
-function CallMaidButton() {
-  useLang();
+function CallPersonButton({ targetUser, type }: { targetUser: User; type: "maid" | "driver" }) {
+  const { lang } = useLang();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { data: maidCalls = [] } = useQuery<any[]>({
-    queryKey: ["/api/maid-calls"],
+  const apiPath = type === "maid" ? "/api/maid-calls" : "/api/driver-calls";
+
+  const { data: calls = [] } = useQuery<any[]>({
+    queryKey: [apiPath],
     refetchInterval: 5000,
   });
 
-  const myCall = maidCalls.find((c: any) => c.calledBy === user?.id);
-  const hasActiveCall = myCall?.status === "active";
+  const myCallForTarget = calls.find((c: any) => c.calledBy === user?.id && c.targetUserId === targetUser.id);
+  const hasActiveCall = myCallForTarget?.status === "active";
   const TWO_MINUTES = 2 * 60 * 1000;
-  const isDismissedRecently = myCall?.status === "dismissed" && myCall?.dismissedAt &&
-    (Date.now() - new Date(myCall.dismissedAt).getTime()) < TWO_MINUTES;
+  const isDismissedRecently = myCallForTarget?.status === "dismissed" && myCallForTarget?.dismissedAt &&
+    (Date.now() - new Date(myCallForTarget.dismissedAt).getTime()) < TWO_MINUTES;
+
+  const personName = lang === "ar"
+    ? (targetUser.firstName || targetUser.username)
+    : (targetUser.firstNameEn || targetUser.username);
+
+  const IconComp = type === "maid" ? BellRing : Car;
+  const accentColor = type === "maid" ? "orange" : "blue";
 
   const callMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/maid-calls", {});
+      await apiRequest("POST", apiPath, { targetUserId: targetUser.id });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/maid-calls"] });
+      queryClient.invalidateQueries({ queryKey: [apiPath] });
       toast({ title: t("householdHome.callSent") });
     },
   });
 
   if (isDismissedRecently) {
     return (
-      <Card className="w-full h-full" data-testid="card-maid-coming">
+      <Card className="w-full h-full" data-testid={`card-${type}-coming-${targetUser.id}`}>
         <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
           <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
-            <BellRing className="w-7 h-7 text-green-500" />
+            <IconComp className="w-7 h-7 text-green-500" />
           </div>
-          <span className="text-sm font-semibold text-center text-green-600 dark:text-green-400">
-            {t("householdHome.maidComing")}
+          <span className="text-sm font-bold text-center">{personName}</span>
+          <span className="text-xs font-semibold text-center text-green-600 dark:text-green-400">
+            {type === "maid" ? t("householdHome.maidComing") : t("householdHome.driverComing")}
           </span>
         </CardContent>
       </Card>
@@ -236,12 +246,13 @@ function CallMaidButton() {
 
   if (hasActiveCall) {
     return (
-      <Card className="w-full h-full" data-testid="card-call-waiting">
+      <Card className="w-full h-full" data-testid={`card-${type}-waiting-${targetUser.id}`}>
         <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
-          <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
-            <BellRing className="w-7 h-7 text-orange-500 animate-pulse" />
+          <div className={`w-14 h-14 rounded-full bg-${accentColor}-500/10 flex items-center justify-center`}>
+            <IconComp className={`w-7 h-7 text-${accentColor}-500 animate-pulse`} />
           </div>
-          <span className="text-sm font-semibold text-center text-orange-600 dark:text-orange-400">
+          <span className="text-sm font-bold text-center">{personName}</span>
+          <span className={`text-xs font-semibold text-center text-${accentColor}-600 dark:text-${accentColor}-400`}>
             {t("householdHome.callSent")}
           </span>
         </CardContent>
@@ -253,90 +264,46 @@ function CallMaidButton() {
     <Card
       className="hover-elevate active-elevate-2 cursor-pointer w-full h-full"
       onClick={() => !callMutation.isPending && callMutation.mutate()}
-      data-testid="button-call-maid"
+      data-testid={`button-call-${type}-${targetUser.id}`}
     >
       <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
-        <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
-          <BellRing className="w-7 h-7 text-orange-500" />
+        <div className={`w-14 h-14 rounded-full bg-${accentColor}-500/10 flex items-center justify-center`}>
+          <IconComp className={`w-7 h-7 text-${accentColor}-500`} />
         </div>
-        <span className="text-sm font-semibold text-center">
-          {callMutation.isPending ? t("householdHome.calling") : t("householdHome.callMaid")}
+        <span className="text-sm font-bold text-center">{personName}</span>
+        <span className="text-xs text-muted-foreground text-center">
+          {callMutation.isPending ? t("householdHome.calling") : t("householdHome.callName")}
         </span>
       </CardContent>
     </Card>
   );
 }
 
-function CallDriverButton() {
+function HouseholdCallButtons() {
   useLang();
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const { data: driverCalls = [] } = useQuery<any[]>({
-    queryKey: ["/api/driver-calls"],
-    refetchInterval: 5000,
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
 
-  const myCall = driverCalls.find((c: any) => c.calledBy === user?.id);
-  const hasActiveCall = myCall?.status === "active";
-  const TWO_MINUTES = 2 * 60 * 1000;
-  const isDismissedRecently = myCall?.status === "dismissed" && myCall?.dismissedAt &&
-    (Date.now() - new Date(myCall.dismissedAt).getTime()) < TWO_MINUTES;
+  const maids = allUsers.filter(u => u.role === "maid" && !u.isSuspended);
+  const drivers = allUsers.filter(u => u.role === "driver" && !u.isSuspended);
 
-  const callMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/driver-calls", {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/driver-calls"] });
-      toast({ title: t("householdHome.driverCallSent") });
-    },
-  });
-
-  if (isDismissedRecently) {
-    return (
-      <Card className="w-full h-full" data-testid="card-driver-coming">
-        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
-          <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
-            <Car className="w-7 h-7 text-green-500" />
-          </div>
-          <span className="text-sm font-semibold text-center text-green-600 dark:text-green-400">
-            {t("householdHome.driverComing")}
-          </span>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (hasActiveCall) {
-    return (
-      <Card className="w-full h-full" data-testid="card-driver-call-waiting">
-        <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
-          <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center">
-            <Car className="w-7 h-7 text-blue-500 animate-pulse" />
-          </div>
-          <span className="text-sm font-semibold text-center text-blue-600 dark:text-blue-400">
-            {t("householdHome.driverCallSent")}
-          </span>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (maids.length === 0 && drivers.length === 0) return null;
 
   return (
-    <Card
-      className="hover-elevate active-elevate-2 cursor-pointer w-full h-full"
-      onClick={() => !callMutation.isPending && callMutation.mutate()}
-      data-testid="button-call-driver"
-    >
-      <CardContent className="p-4 flex flex-col items-center justify-center gap-2 h-full">
-        <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center">
-          <Car className="w-7 h-7 text-blue-500" />
+    <div className="flex gap-3 flex-wrap">
+      {maids.map(maid => (
+        <div key={maid.id} className="w-[calc(33.333%-0.5rem)]" style={{ minWidth: "100px" }}>
+          <CallPersonButton targetUser={maid} type="maid" />
         </div>
-        <span className="text-sm font-semibold text-center">
-          {callMutation.isPending ? t("householdHome.driverCalling") : t("householdHome.callDriver")}
-        </span>
-      </CardContent>
-    </Card>
+      ))}
+      {drivers.length > 0 && maids.length > 0 && <div className="flex-1" />}
+      {drivers.map(driver => (
+        <div key={driver.id} className="w-[calc(33.333%-0.5rem)]" style={{ minWidth: "100px" }}>
+          <CallPersonButton targetUser={driver} type="driver" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -357,15 +324,7 @@ function HomeContent() {
       <div className="space-y-4">
         {showBanner && <HomeBanner />}
         <HouseholdTasksProgress />
-        <div className="flex gap-4">
-          <div className="w-1/3">
-            <CallMaidButton />
-          </div>
-          <div className="flex-1" />
-          <div className="w-1/3">
-            <CallDriverButton />
-          </div>
-        </div>
+        <HouseholdCallButtons />
       </div>
     );
   }
