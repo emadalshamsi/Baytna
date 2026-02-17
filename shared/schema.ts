@@ -264,6 +264,16 @@ export const maidCalls = pgTable("maid_calls", {
 
 export const insertMaidCallSchema = createInsertSchema(maidCalls).omit({ id: true, createdAt: true, dismissedAt: true });
 
+export const driverCalls = pgTable("driver_calls", {
+  id: serial("id").primaryKey(),
+  calledBy: varchar("called_by").notNull().references(() => users.id),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  dismissedAt: timestamp("dismissed_at"),
+});
+
+export const insertDriverCallSchema = createInsertSchema(driverCalls).omit({ id: true, createdAt: true, dismissedAt: true });
+
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
@@ -345,3 +355,5 @@ export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type MaidCall = typeof maidCalls.$inferSelect;
 export type InsertMaidCall = z.infer<typeof insertMaidCallSchema>;
+export type DriverCall = typeof driverCalls.$inferSelect;
+export type InsertDriverCall = z.infer<typeof insertDriverCallSchema>;
