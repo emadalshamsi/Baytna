@@ -197,6 +197,13 @@ function HouseholdTasksProgress() {
 function CallMaidButton() {
   useLang();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: maidCalls = [] } = useQuery<any[]>({
+    queryKey: ["/api/maid-calls"],
+    refetchInterval: 5000,
+  });
+  const hasActiveCall = maidCalls.some((c: any) => c.status === "active" && c.calledBy === user?.id);
+
   const callMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/maid-calls", {});
@@ -206,6 +213,21 @@ function CallMaidButton() {
       toast({ title: t("householdHome.callSent") });
     },
   });
+
+  if (hasActiveCall) {
+    return (
+      <Card data-testid="card-maid-coming">
+        <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+          <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
+            <BellRing className="w-7 h-7 text-green-500" />
+          </div>
+          <span className="text-sm font-semibold text-center text-green-600 dark:text-green-400">
+            {t("householdHome.maidComing")}
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card

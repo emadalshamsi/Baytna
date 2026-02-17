@@ -1769,8 +1769,9 @@ export async function registerRoutes(
 
   app.patch("/api/maid-calls/:id/dismiss", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const user = req.user as User;
-      if (user.role !== "maid" && user.role !== "admin") {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser || (currentUser.role !== "maid" && currentUser.role !== "admin")) {
         return res.status(403).json({ message: "Only maids or admins can dismiss calls" });
       }
       const call = await storage.dismissMaidCall(parseInt(req.params.id));
