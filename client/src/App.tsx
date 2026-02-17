@@ -26,7 +26,7 @@ import HouseholdDashboard from "@/pages/household-dashboard";
 import homeBannerLight from "@assets/UseFBanner01_1771338954529.png";
 import homeBannerDark from "@assets/UseFBanner02_1771338954528.png";
 import groceriesBannerLight from "@assets/ShpBanner01_1771340185500.png";
-import groceriesBannerDark from "@assets/ShpBanner02_1771340185499.png";
+import groceriesBannerDark from "@assets/ShpBanner02_1771340468754.png";
 import HousekeepingPage from "@/pages/housekeeping";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
