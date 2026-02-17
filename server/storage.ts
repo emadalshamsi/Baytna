@@ -831,6 +831,16 @@ export class DatabaseStorage implements IStorage {
     } catch (e) { console.error("Cleanup shortages error:", e); }
 
     try {
+      const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      await db.delete(maidCalls).where(
+        or(
+          and(eq(maidCalls.status, "dismissed"), lt(maidCalls.dismissedAt, fiveMinAgo)),
+          lt(maidCalls.createdAt, twoWeeksAgo)
+        )
+      );
+    } catch (e) { console.error("Cleanup maid calls error:", e); }
+
+    try {
       const oldOrders = await db.select({ id: orders.id, receiptImageUrl: orders.receiptImageUrl })
         .from(orders)
         .where(
