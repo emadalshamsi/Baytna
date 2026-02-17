@@ -28,7 +28,7 @@ const ar = {
     noLaundryPending: "لا توجد طلبات غسيل حالياً",
   },
   householdHome: {
-    myRooms: "غرفي",
+    myRooms: "الغرف الخاصة بي",
     tasksProgress: "إنجاز المهام",
     noRoomsAssigned: "لم يتم تعيين غرف لك بعد",
     noTasksToday: "لا توجد مهام لهذا اليوم",
