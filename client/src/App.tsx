@@ -361,6 +361,7 @@ function HomeContent() {
           <div className="w-1/3">
             <CallMaidButton />
           </div>
+          <div className="flex-1" />
           <div className="w-1/3">
             <CallDriverButton />
           </div>
