@@ -23,6 +23,8 @@ import DriverDashboard from "@/pages/driver-dashboard";
 import DriverHomePage from "@/pages/driver-home";
 import DriverLogisticsPage from "@/pages/driver-logistics";
 import HouseholdDashboard from "@/pages/household-dashboard";
+import homeBannerLight from "@assets/UseFBanner01_1771338954529.png";
+import homeBannerDark from "@assets/UseFBanner02_1771338954528.png";
 import HousekeepingPage from "@/pages/housekeeping";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -94,15 +96,32 @@ function BottomNavBar() {
   );
 }
 
+function HomeBanner() {
+  return (
+    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "25vh" }} data-testid="banner-home">
+      <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "25vh" }} />
+      <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "25vh" }} />
+    </div>
+  );
+}
+
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
+  const showBanner = user.role !== "driver" && user.role !== "maid";
+  let content;
   switch (user.role) {
-    case "admin": return <AdminDashboard />;
+    case "admin": content = <AdminDashboard />; break;
     case "maid": return <MaidHomePage />;
     case "driver": return <DriverHomePage />;
-    default: return <HouseholdDashboard />;
+    default: content = <HouseholdDashboard />; break;
   }
+  return (
+    <div className="space-y-4">
+      {showBanner && <HomeBanner />}
+      {content}
+    </div>
+  );
 }
 
 function GroceriesContent() {
