@@ -847,9 +847,10 @@ export class DatabaseStorage implements IStorage {
     } catch (e) { console.error("Cleanup maid calls error:", e); }
 
     try {
+      const fiveMinAgoDriver = new Date(now.getTime() - 5 * 60 * 1000);
       await db.delete(driverCalls).where(
         or(
-          and(eq(driverCalls.status, "dismissed"), lt(driverCalls.dismissedAt, fiveMinAgo)),
+          and(eq(driverCalls.status, "dismissed"), lt(driverCalls.dismissedAt, fiveMinAgoDriver)),
           lt(driverCalls.createdAt, twoWeeksAgo)
         )
       );
