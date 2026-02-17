@@ -25,6 +25,8 @@ import DriverLogisticsPage from "@/pages/driver-logistics";
 import HouseholdDashboard from "@/pages/household-dashboard";
 import homeBannerLight from "@assets/UseFBanner01_1771338954529.png";
 import homeBannerDark from "@assets/UseFBanner02_1771338954528.png";
+import groceriesBannerLight from "@assets/ShpBanner01_1771340185500.png";
+import groceriesBannerDark from "@assets/ShpBanner02_1771340185499.png";
 import HousekeepingPage from "@/pages/housekeeping";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -124,15 +126,32 @@ function HomeContent() {
   );
 }
 
+function GroceriesBanner() {
+  return (
+    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "30vh" }} data-testid="banner-groceries">
+      <img src={groceriesBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "30vh" }} />
+      <img src={groceriesBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "30vh" }} />
+    </div>
+  );
+}
+
 function GroceriesContent() {
   const { user } = useAuth();
   if (!user) return null;
+  const showBanner = user.role !== "driver" && user.role !== "maid";
+  let content;
   switch (user.role) {
-    case "admin": return <AdminShopping />;
+    case "admin": content = <AdminShopping />; break;
     case "maid": return <MaidDashboard />;
     case "driver": return <DriverDashboard />;
-    default: return <HouseholdDashboard />;
+    default: content = <HouseholdDashboard />; break;
   }
+  return (
+    <div className="space-y-4">
+      {showBanner && <GroceriesBanner />}
+      {content}
+    </div>
+  );
 }
 
 function LogisticsContent() {
