@@ -11,6 +11,8 @@ import { useState, useEffect, useRef } from "react";
 import type { Trip, Vehicle, Technician } from "@shared/schema";
 import { t, formatDateTime, formatTime } from "@/lib/i18n";
 import { useLang } from "@/App";
+import bannerLight from "@assets/CarBanner01_1771338274301.png";
+import bannerDark from "@assets/CarBanner02_1771338274301.png";
 
 type DriverAvailability = { busy: boolean; activeTrips: { id: number; personName: string; location: string; status: string }[]; activeOrders: { id: number; status: string }[] };
 
@@ -311,10 +313,20 @@ export default function DriverLogisticsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold flex items-center gap-2" data-testid="text-driver-logistics-title">
-        <Car className="w-5 h-5 text-primary" />
-        {t("nav.logisticsSection")}
-      </h2>
+      <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "20vh" }} data-testid="banner-driver-logistics">
+        <img
+          src={bannerLight}
+          alt=""
+          className="w-full h-full object-cover object-center block dark:hidden"
+          style={{ maxHeight: "20vh" }}
+        />
+        <img
+          src={bannerDark}
+          alt=""
+          className="w-full h-full object-cover object-center hidden dark:block"
+          style={{ maxHeight: "20vh" }}
+        />
+      </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start gap-1">
           <TabsTrigger value="trips" className="gap-1 shrink-0" data-testid="tab-driver-trips">
