@@ -171,7 +171,7 @@ export default function DriverHomePage() {
     queryKey: ["/api/users"],
   });
 
-  const activeDriverCalls = driverCalls.filter((c: any) => c.status === "active");
+  const activeDriverCalls = driverCalls.filter((c: any) => c.status === "active" && (c.targetUserId === null || c.targetUserId === user?.id));
 
   const dismissDriverCall = useMutation({
     mutationFn: (id: number) => apiRequest("PATCH", `/api/driver-calls/${id}/dismiss`),

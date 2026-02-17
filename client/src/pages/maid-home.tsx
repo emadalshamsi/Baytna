@@ -107,7 +107,7 @@ export default function MaidHomePage() {
     },
   });
 
-  const activeMaidCalls = maidCalls.filter((c: MaidCall) => c.status === "active");
+  const activeMaidCalls = maidCalls.filter((c: MaidCall) => c.status === "active" && (c.targetUserId === null || c.targetUserId === user?.id));
 
   if (tasksLoading) {
     return (
