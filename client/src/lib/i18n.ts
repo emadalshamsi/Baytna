@@ -1,5 +1,5 @@
 const ar = {
-  app: { name: "بيتكم", subtitle: "إدارة المنزل" },
+  app: { name: "بيتنا", subtitle: "إدارة المنزل" },
   roles: { admin: "مدير", household: "أهل البيت", maid: "عاملة منزلية", driver: "سائق" },
   nav: { dashboard: "الرئيسية", products: "المنتجات", categories: "التصنيفات", orders: "الطلبات", users: "المستخدمين", settings: "الإعدادات", shopping: "التسوق", addItems: "إضافة طلب", stores: "المتاجر", vehicles: "السيارات", trips: "المشاوير", technicians: "دليل الفنيين", logistics: "الخدمات", homeManagement: "إدارة المنزل", shoppingSection: "المشتريات والطلبات", logisticsSection: "السيارات والمشاوير", quickLinks: "روابط سريعة", viewAll: "عرض الكل", locations: "المواقع", groceries: "المشتريات", housekeeping: "المنزل", comingSoon: "قريباً", housekeepingDesc: "سيتم إضافة هذا القسم قريباً", profile: "الملف الشخصي" },
   actions: { add: "إضافة", edit: "تعديل", delete: "حذف", save: "حفظ", cancel: "إلغاء", approve: "اعتماد", reject: "رفض", login: "تسجيل الدخول", logout: "تسجيل الخروج", search: "بحث", confirm: "تأكيد", back: "رجوع", submit: "إرسال", update: "تحديث" },
@@ -188,7 +188,7 @@ const ar = {
 };
 
 const en: typeof ar = {
-  app: { name: "Baytkom", subtitle: "Home Management" },
+  app: { name: "Baytna", subtitle: "Home Management" },
   roles: { admin: "Admin", household: "Household", maid: "Maid", driver: "Driver" },
   nav: { dashboard: "Dashboard", products: "Products", categories: "Categories", orders: "Orders", users: "Users", settings: "Settings", shopping: "Shopping", addItems: "Add Items", stores: "Stores", vehicles: "Vehicles", trips: "Trips", technicians: "Technicians", logistics: "Services", homeManagement: "Home Management", shoppingSection: "Shopping & Orders", logisticsSection: "Vehicles & Trips", quickLinks: "Quick Links", viewAll: "View All", locations: "Locations", groceries: "Groceries", housekeeping: "Home", comingSoon: "Coming Soon", housekeepingDesc: "This section will be added soon", profile: "Profile" },
   actions: { add: "Add", edit: "Edit", delete: "Delete", save: "Save", cancel: "Cancel", approve: "Approve", reject: "Reject", login: "Login", logout: "Logout", search: "Search", confirm: "Confirm", back: "Back", submit: "Submit", update: "Update" },
@@ -381,7 +381,7 @@ const translations = { ar, en };
 
 function getStoredLang(): Lang {
   try {
-    const stored = localStorage.getItem("baytkom-lang");
+    const stored = localStorage.getItem("baytna-lang");
     if (stored === "en" || stored === "ar") return stored;
   } catch {}
   return "ar";
@@ -398,7 +398,7 @@ applyLangToDocument(currentLang);
 
 export function setLang(lang: Lang) {
   currentLang = lang;
-  localStorage.setItem("baytkom-lang", lang);
+  localStorage.setItem("baytna-lang", lang);
   applyLangToDocument(lang);
 }
 

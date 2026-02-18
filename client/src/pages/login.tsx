@@ -103,7 +103,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <img src={logoImg} alt="بيتكم" className="w-14 h-14 rounded-md object-cover" data-testid="img-app-logo" />
+            <img src={logoImg} alt="بيتنا" className="w-14 h-14 rounded-md object-cover" data-testid="img-app-logo" />
             <div>
               <h1 className="text-2xl font-bold" data-testid="text-app-name">{t("app.name")}</h1>
               <p className="text-sm text-muted-foreground">{t("app.subtitle")}</p>

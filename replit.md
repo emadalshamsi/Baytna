@@ -1,4 +1,4 @@
-# Baytkom - بيتكم (Home Management)
+# Baytna - بيتنا (Home Management)
 
 ## Overview
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.

@@ -1,6 +1,6 @@
 {
-  "name": "بيتكم - إدارة المنزل",
-  "short_name": "بيتكم",
+  "name": "بيتنا - إدارة المنزل",
+  "short_name": "بيتنا",
   "description": "تطبيق إدارة مشتريات ومهام المنزل",
   "start_url": "/",
   "display": "standalone",

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'baytkom-v1';
+const CACHE_NAME = 'baytna-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,7 +9,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'بيتكم', body: 'لديك إشعار جديد', icon: '/icon-192.png', badge: '/icon-192.png', data: {} };
+  let data = { title: 'بيتنا', body: 'لديك إشعار جديد', icon: '/icon-192.png', badge: '/icon-192.png', data: {} };
   try {
     if (event.data) {
       data = { ...data, ...event.data.json() };

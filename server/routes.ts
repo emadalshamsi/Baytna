@@ -13,7 +13,7 @@ import { registerSchema, loginSchema } from "@shared/schema";
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:admin@baytkom.app",
+    process.env.VAPID_SUBJECT || "mailto:admin@baytna.app",
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
@@ -105,7 +105,7 @@ export async function registerRoutes(
   app.set("trust proxy", 1);
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "baytkom-dev-secret-key",
+      secret: process.env.SESSION_SECRET || "baytna-dev-secret-key",
       store: sessionStore,
       resave: false,
       saveUninitialized: false,
@@ -743,7 +743,7 @@ export async function registerRoutes(
       });
       const result = await new Promise<any>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "baytkom", resource_type: "image" },
+          { folder: "baytna", resource_type: "image" },
           (error, result) => {
             if (error) {
               console.error("[Cloudinary] Upload stream error:", JSON.stringify(error, null, 2));
