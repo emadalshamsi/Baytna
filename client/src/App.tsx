@@ -9,12 +9,12 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing, Car } from "lucide-react";
+import { Home, ShoppingCart, Truck, Sparkles, Settings, Moon, Sun, Bell, BellOff, Check, X, RefreshCw, CheckCircle2, BellRing, Car, Smile } from "lucide-react";
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import type { Room, HousekeepingTask, TaskCompletion, User } from "@shared/schema";
 import { Switch as SwitchUI } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { t, getLang, setLang, formatDateTime, type Lang } from "@/lib/i18n";
+import { t, getLang, setLang, formatDateTime, displayName, type Lang } from "@/lib/i18n";
 import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminShopping from "@/pages/admin-shopping";
@@ -307,6 +307,17 @@ function HouseholdCallButtons() {
   );
 }
 
+function WelcomeGreeting() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="flex items-center gap-2 px-4 pt-3" data-testid="welcome-greeting">
+      <span className="text-base font-bold">{t("messages.helloGreeting")} {displayName(user)}</span>
+      <Smile className="w-5 h-5 text-yellow-500 shrink-0" />
+    </div>
+  );
+}
+
 function HomeContent() {
   const { user } = useAuth();
   if (!user) return null;
@@ -314,14 +325,26 @@ function HomeContent() {
   switch (user.role) {
     case "admin": return (
       <div className="space-y-4">
+        <WelcomeGreeting />
         {showBanner && <HomeBanner />}
         <AdminDashboard />
       </div>
     );
-    case "maid": return <MaidHomePage />;
-    case "driver": return <DriverHomePage />;
+    case "maid": return (
+      <div className="space-y-4">
+        <WelcomeGreeting />
+        <MaidHomePage />
+      </div>
+    );
+    case "driver": return (
+      <div className="space-y-4">
+        <WelcomeGreeting />
+        <DriverHomePage />
+      </div>
+    );
     default: return (
       <div className="space-y-4">
+        <WelcomeGreeting />
         {showBanner && <HomeBanner />}
         <HouseholdTasksProgress />
         <HouseholdCallButtons />
