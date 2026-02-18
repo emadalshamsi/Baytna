@@ -101,10 +101,17 @@ function BottomNavBar() {
 }
 
 function HomeBanner() {
+  const { user } = useAuth();
   return (
-    <div className="w-full overflow-hidden rounded-xl" style={{ maxHeight: "30vh" }} data-testid="banner-home">
+    <div className="w-full overflow-hidden rounded-xl relative" style={{ maxHeight: "30vh" }} data-testid="banner-home">
       <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "30vh" }} />
       <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "30vh" }} />
+      {user && (
+        <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-lg px-3 py-1.5" data-testid="welcome-greeting">
+          <Smile className="w-5 h-5 text-yellow-400 shrink-0" />
+          <span className="text-sm font-bold text-white drop-shadow-sm">{t("messages.helloGreeting")} {displayName(user)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -325,8 +332,7 @@ function HomeContent() {
   switch (user.role) {
     case "admin": return (
       <div className="space-y-4">
-        <WelcomeGreeting />
-        {showBanner && <HomeBanner />}
+        <HomeBanner />
         <AdminDashboard />
       </div>
     );
@@ -344,8 +350,7 @@ function HomeContent() {
     );
     default: return (
       <div className="space-y-4">
-        <WelcomeGreeting />
-        {showBanner && <HomeBanner />}
+        <HomeBanner />
         <HouseholdTasksProgress />
         <HouseholdCallButtons />
       </div>
