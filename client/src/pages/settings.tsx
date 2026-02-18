@@ -615,6 +615,51 @@ function ProfilePhotoSection() {
   );
 }
 
+function EditNameSection() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [firstName, setFirstName] = useState(user?.firstName || "");
+  const [firstNameEn, setFirstNameEn] = useState(user?.firstNameEn || "");
+
+  const updateNameMutation = useMutation({
+    mutationFn: (data: { firstName: string; firstNameEn: string }) =>
+      apiRequest("PATCH", "/api/auth/profile", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: t("profile.profileUpdated") });
+    },
+  });
+
+  const handleSave = () => {
+    updateNameMutation.mutate({ firstName: firstName.trim(), firstNameEn: firstNameEn.trim() });
+  };
+
+  return (
+    <div className="space-y-3">
+      <Input
+        placeholder={t("auth.firstName")}
+        value={firstName}
+        onChange={e => setFirstName(e.target.value)}
+        data-testid="input-edit-firstname"
+      />
+      <Input
+        placeholder={t("auth.nameEn")}
+        value={firstNameEn}
+        onChange={e => setFirstNameEn(e.target.value)}
+        data-testid="input-edit-name-en"
+      />
+      <Button
+        className="w-full"
+        onClick={handleSave}
+        disabled={updateNameMutation.isPending}
+        data-testid="button-save-name"
+      >
+        {t("actions.save")}
+      </Button>
+    </div>
+  );
+}
+
 function ChangePasswordSection() {
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -821,6 +866,18 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <CollapsibleSection
+        title={t("profile.editName")}
+        icon={<Pencil className="w-5 h-5" />}
+        testId="section-edit-name"
+      >
+        <Card>
+          <CardContent className="p-4">
+            <EditNameSection />
+          </CardContent>
+        </Card>
+      </CollapsibleSection>
 
       <Card>
         <CardContent className="p-4 space-y-1">
