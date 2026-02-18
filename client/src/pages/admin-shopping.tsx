@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2 } from "lucide-react";
+import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, formatDate } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, getLang } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
+import { MealItemsSection } from "@/pages/housekeeping";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
@@ -798,12 +799,16 @@ export default function AdminShopping() {
           <TabsTrigger value="shortages" className="gap-1 shrink-0" data-testid="tab-shortages">
             <AlertTriangle className="w-4 h-4" /> {t("shortages.title")}
           </TabsTrigger>
+          <TabsTrigger value="meals" className="gap-1 shrink-0" data-testid="tab-meals">
+            <UtensilsCrossed className="w-4 h-4" /> {t("housekeeping.mealCatalog")}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="orders"><OrdersSection /></TabsContent>
         <TabsContent value="products"><ProductsSection /></TabsContent>
         <TabsContent value="categories"><CategoriesSection /></TabsContent>
         <TabsContent value="stores"><StoresSection /></TabsContent>
         <TabsContent value="shortages"><ShortagesSection isAdmin={true} /></TabsContent>
+        <TabsContent value="meals"><MealItemsSection lang={getLang()} /></TabsContent>
       </Tabs>
     </div>
   );

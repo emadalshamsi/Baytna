@@ -840,7 +840,7 @@ export default function SettingsPage() {
         </Card>
       </CollapsibleSection>
 
-      {user.role === "admin" && (
+      {(user.role === "admin" || user.canApprove) && (
         <div className="space-y-2">
           <CollapsibleSection
             title={t("rooms.title")}

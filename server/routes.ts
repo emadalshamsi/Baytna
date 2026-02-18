@@ -160,7 +160,7 @@ export async function registerRoutes(
     try {
       const userId = (req.session as any).userId;
       const admin = await storage.getUser(userId);
-      if (!admin || admin.role !== "admin") {
+      if (!admin || (admin.role !== "admin" && !admin.canApprove)) {
         return res.status(403).json({ message: "Admin only" });
       }
       const { username, password, firstName, firstNameEn, lastName, role } = req.body;
@@ -291,7 +291,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/role", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const { role, canApprove, canAddShortages, canApproveTrips } = req.body;
@@ -310,7 +310,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/suspend", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const { isSuspended } = req.body;
@@ -329,7 +329,7 @@ export async function registerRoutes(
   app.delete("/api/users/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || currentUser.role !== "admin") {
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       if (req.params.id === currentUser.id) {
