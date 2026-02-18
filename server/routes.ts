@@ -72,6 +72,7 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
 });
 
 const upload = multer({
@@ -757,16 +758,31 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
       console.log("[Cloudinary] Upload attempt:", {
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "NOT SET",
-        api_key_set: !!process.env.CLOUDINARY_API_KEY,
-        api_secret_set: !!process.env.CLOUDINARY_API_SECRET,
+        cloud_name: cloudName || "NOT SET",
+        api_key_set: !!apiKey,
+        api_key_length: apiKey?.length || 0,
+        api_secret_set: !!apiSecret,
+        api_secret_length: apiSecret?.length || 0,
         file_size: req.file.size,
         file_type: req.file.mimetype,
       });
+      if (!cloudName || !apiKey || !apiSecret) {
+        console.error("[Cloudinary] Missing credentials!", { cloudName: !!cloudName, apiKey: !!apiKey, apiSecret: !!apiSecret });
+        return res.status(500).json({ message: "Cloudinary not configured" });
+      }
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true,
+      });
       const result = await new Promise<any>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "baytna", resource_type: "image" },
+          { folder: "baytna", resource_type: "image", type: "upload" },
           (error, result) => {
             if (error) {
               console.error("[Cloudinary] Upload stream error:", JSON.stringify(error, null, 2));
