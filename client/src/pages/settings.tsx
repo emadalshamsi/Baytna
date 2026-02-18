@@ -9,7 +9,7 @@ import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera,
 import { ROOM_ICON_OPTIONS, getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, getLang, displayName } from "@/lib/i18n";
+import { t, getLang, displayName, imgUrl } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -546,7 +546,7 @@ function ProfilePhotoSection() {
     <div className="flex flex-col items-center gap-3">
       <div className="relative">
         <Avatar className="w-20 h-20">
-          {user.profileImageUrl && <AvatarImage src={user.profileImageUrl} alt={displayName(user)} />}
+          {user.profileImageUrl && <AvatarImage src={imgUrl(user.profileImageUrl)} alt={displayName(user)} />}
           <AvatarFallback className="text-2xl font-bold">{displayName(user)[0].toUpperCase()}</AvatarFallback>
         </Avatar>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} data-testid="input-profile-photo" />

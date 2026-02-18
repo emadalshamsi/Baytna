@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
-import { t, formatPrice, formatDateTime } from "@/lib/i18n";
+import { t, formatPrice, formatDateTime, imgUrl } from "@/lib/i18n";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -278,7 +278,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
               <div className="flex items-center gap-2">
                 {product?.imageUrl && (
                   <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={product.imageUrl} alt={product.nameAr} className="w-full h-full object-cover" />
+                    <img src={imgUrl(product.imageUrl)} alt={product.nameAr} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <span className={`font-medium text-sm ${(checked[item.id] || item.isPurchased) ? "line-through text-muted-foreground" : ""}`}>

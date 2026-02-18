@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, formatDate, getLang } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, getLang, imgUrl } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { MealItemsSection } from "@/pages/housekeeping";
@@ -151,7 +151,7 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
           return (
             <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0" data-testid={`order-item-${item.id}`}>
               <div className="flex items-center gap-2 min-w-0">
-                {product?.imageUrl && <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
                   <span className="font-medium text-sm truncate block">{product?.nameAr || product?.nameEn || `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
@@ -430,7 +430,7 @@ function ProductsSection() {
               <div className="flex items-center gap-3">
                 {p.imageUrl ? (
                   <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={p.imageUrl} alt={p.nameAr} className="w-full h-full object-cover" />
+                    <img src={imgUrl(p.imageUrl)} alt={p.nameAr} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">

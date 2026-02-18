@@ -422,6 +422,13 @@ export function displayName(user: { firstName?: string | null; firstNameEn?: str
   return en || ar || user.username || "?";
 }
 
+export function imgUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  const sep = url.includes("?") ? "&" : "?";
+  const cacheBuster = Math.floor(Date.now() / (5 * 60 * 1000));
+  return `${url}${sep}_v=${cacheBuster}`;
+}
+
 export function formatPrice(amount: number): string {
   return currentLang === "ar" ? `${amount} ر.س` : `${amount} SAR`;
 }
