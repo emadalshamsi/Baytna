@@ -422,11 +422,14 @@ export function displayName(user: { firstName?: string | null; firstNameEn?: str
   return en || ar || user.username || "?";
 }
 
-export function imgUrl(url: string | null | undefined): string {
+export function imgUrl(url: string | null | undefined, w = 500, h = 500): string {
   if (!url) return "";
-  const sep = url.includes("?") ? "&" : "?";
+  const transformed = url.includes("res.cloudinary.com") && url.includes("/upload/")
+    ? url.replace("/upload/", `/upload/c_fill,g_face,w_${w},h_${h},q_auto,f_auto/`)
+    : url;
+  const sep = transformed.includes("?") ? "&" : "?";
   const cacheBuster = Math.floor(Date.now() / (5 * 60 * 1000));
-  return `${url}${sep}_v=${cacheBuster}`;
+  return `${transformed}${sep}_v=${cacheBuster}`;
 }
 
 export function formatPrice(amount: number): string {
