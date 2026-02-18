@@ -505,10 +505,11 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="grid gap-2">
           {activeRooms.map(room => {
             const RIcon = getRoomIcon(room.icon);
-            const roomTasks = tasks.filter((t: any) => t.roomId === room.id && (t.daysOfWeek?.includes(selectedDate.getDay()) ?? true));
+            const roomTasks = filteredTasks.filter(t => t.roomId === room.id);
             const totalT = roomTasks.length;
-            const doneT = roomTasks.filter((t: any) => completedTaskIds.has(t.id)).length;
+            const doneT = roomTasks.filter(t => completedTaskIds.has(t.id)).length;
             const pctR = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
+            if (totalT === 0) return null;
             const isSelected = roomFilter === String(room.id);
             return (
               <Card
@@ -593,43 +594,95 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
   const isMaid = user?.role === "maid";
 
   if (isMaid) {
+    const maidTasksByRoom: Record<number, HousekeepingTask[]> = {};
+    for (const task of filteredTasks) {
+      if (!maidTasksByRoom[task.roomId]) maidTasksByRoom[task.roomId] = [];
+      maidTasksByRoom[task.roomId].push(task);
+    }
+    const maidSortedRooms = allActiveRooms
+      .filter(r => maidTasksByRoom[r.id] && maidTasksByRoom[r.id].length > 0)
+      .map(room => {
+        const rTasks = maidTasksByRoom[room.id];
+        const doneCount = rTasks.filter(t => completedTaskIds.has(t.id)).length;
+        const allDone = doneCount === rTasks.length;
+        return { room, rTasks, doneCount, allDone };
+      })
+      .sort((a, b) => {
+        if (a.allDone !== b.allDone) return a.allDone ? 1 : -1;
+        return (a.room.sortOrder ?? 0) - (b.room.sortOrder ?? 0);
+      });
+
     return (
       <div className="space-y-4">
         <DateStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-        {allActiveRooms.length === 0 ? (
+        {maidSortedRooms.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Brush className="w-12 h-12 mx-auto mb-2 opacity-30" />
             <p className="text-sm">{t("housekeepingSection.noTasks")}</p>
           </div>
         ) : (
-          <div className="grid gap-2">
-            {allActiveRooms.map(room => {
+          <div className="space-y-4">
+            {maidSortedRooms.map(({ room, rTasks, doneCount, allDone }) => {
               const RIcon = getRoomIcon(room.icon);
-              const roomTasks = tasks.filter((t: any) => t.roomId === room.id && (t.daysOfWeek?.includes(selectedDate.getDay()) ?? true));
-              const totalT = roomTasks.length;
-              const doneT = roomTasks.filter((t: any) => completedTaskIds.has(t.id)).length;
-              const pctR = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
+              const totalT = rTasks.length;
+              const pctR = totalT > 0 ? Math.round((doneCount / totalT) * 100) : 0;
               return (
-                <Card
-                  key={room.id}
-                  className="bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30"
-                  data-testid={`card-progress-room-${room.id}`}
-                >
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
-                      <RIcon className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-2 rounded-full overflow-hidden bg-primary/15">
-                          <div className="h-full rounded-full transition-all bg-primary/70" style={{ width: `${pctR}%` }} />
-                        </div>
-                        <span className="text-xs text-muted-foreground flex-shrink-0">{doneT}/{totalT}</span>
+                <div key={room.id} className={`space-y-2 transition-opacity ${allDone ? "opacity-60" : ""}`}>
+                  <Card
+                    className="bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30"
+                    data-testid={`card-progress-room-${room.id}`}
+                  >
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted">
+                        <RIcon className="w-5 h-5 text-muted-foreground" />
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-2 rounded-full overflow-hidden bg-primary/15">
+                            <div className="h-full rounded-full transition-all bg-primary/70" style={{ width: `${pctR}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">{doneCount}/{totalT}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <div className="grid gap-1.5">
+                    {rTasks.map(task => {
+                      const isDone = completedTaskIds.has(task.id);
+                      return (
+                        <Card
+                          key={task.id}
+                          className={`hover-elevate active-elevate-2 cursor-pointer transition-all ${isDone ? "opacity-60" : ""}`}
+                          onClick={() => toggleCompletion.mutate({ taskId: task.id, isDone })}
+                          data-testid={`card-task-${task.id}`}
+                        >
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                              isDone ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {isDone ? <Check className="w-5 h-5" strokeWidth={3} /> : <Brush className="w-5 h-5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-bold ${isDone ? "line-through" : ""}`}>
+                                {lang === "ar" ? task.titleAr : (task.titleEn || task.titleAr)}
+                              </p>
+                            </div>
+                            {isDone ? (
+                              <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-xs bg-green-500/20 text-green-700 dark:text-green-300">
+                                {t("housekeepingSection.taskDone")}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
+                                {t("housekeepingSection.taskPending")}
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
