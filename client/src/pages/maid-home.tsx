@@ -121,6 +121,9 @@ export default function MaidHomePage() {
   }
 
   const tasksByRoom: Record<number, HousekeepingTask[]> = {};
+  for (const room of activeRooms) {
+    tasksByRoom[room.id] = [];
+  }
   for (const task of dailyTasks) {
     if (!tasksByRoom[task.roomId]) tasksByRoom[task.roomId] = [];
     tasksByRoom[task.roomId].push(task);
@@ -130,7 +133,7 @@ export default function MaidHomePage() {
     .map(([roomIdStr, roomTasks]) => {
       const roomId = parseInt(roomIdStr);
       const room = rooms.find(r => r.id === roomId);
-      const allDone = roomTasks.every(t => completedTaskIds.has(t.id));
+      const allDone = roomTasks.length > 0 && roomTasks.every(t => completedTaskIds.has(t.id));
       return { roomId, room, roomTasks, allDone, sortOrder: room?.sortOrder ?? 0 };
     })
     .sort((a, b) => {
@@ -315,13 +318,18 @@ export default function MaidHomePage() {
               <div className="flex items-center gap-2">
                 <RoomHeaderIcon className="w-5 h-5 text-muted-foreground" />
                 <h3 className="text-base font-bold">{localName(room)}</h3>
+                {roomTasks.length > 0 && (
                 <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
                   {roomDone}/{roomTasks.length}
                 </Badge>
+              )}
                 {allDone && (
                   <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
                 )}
               </div>
+              {roomTasks.length === 0 && (
+                <p className="text-xs text-muted-foreground px-1">{t("housekeepingSection.noTasks")}</p>
+              )}
               {roomTasks.map(task => {
                 const isDone = completedTaskIds.has(task.id);
                 return (
