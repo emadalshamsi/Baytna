@@ -430,6 +430,20 @@ export function localName(item: { nameAr?: string | null; nameEn?: string | null
   return item.nameEn || item.nameAr || "";
 }
 
+export function localUnit(item: { unitAr?: string | null; unitEn?: string | null; unit?: string | null } | null | undefined): string {
+  if (!item) return "";
+  if (currentLang === "ar") return item.unitAr || item.unit || item.unitEn || "";
+  return item.unitEn || item.unit || item.unitAr || "";
+}
+
+export function productDisplayName(item: { nameAr?: string | null; nameEn?: string | null; unitAr?: string | null; unitEn?: string | null; unit?: string | null } | null | undefined): string {
+  const name = localName(item);
+  const unit = localUnit(item);
+  if (!name) return "";
+  if (!unit) return name;
+  return `${name} - ${unit}`;
+}
+
 export function imgUrl(url: string | null | undefined, w = 500, h = 500): string {
   if (!url) return "";
   const transformed = url.includes("res.cloudinary.com") && url.includes("/upload/")

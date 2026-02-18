@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
-import { t, formatPrice, formatDateTime, imgUrl, localName } from "@/lib/i18n";
+import { t, formatPrice, formatDateTime, imgUrl, localName, productDisplayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -120,7 +120,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
   };
 
   const getProduct = (productId: number) => products?.find(pr => pr.id === productId);
-  const getProductName = (productId: number) => { const p = getProduct(productId); return p ? localName(p) : `#${productId}`; };
+  const getProductName = (productId: number) => { const p = getProduct(productId); return p ? productDisplayName(p) : `#${productId}`; };
 
   const getStoreName = (storeId: number | null) => {
     if (!storeId) return t("driver.noStore");

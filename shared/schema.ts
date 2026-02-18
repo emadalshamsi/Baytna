@@ -59,6 +59,8 @@ export const products = pgTable("products", {
   imageUrl: varchar("image_url", { length: 500 }),
   icon: varchar("icon", { length: 50 }),
   unit: varchar("unit", { length: 50 }),
+  unitAr: varchar("unit_ar", { length: 50 }),
+  unitEn: varchar("unit_en", { length: 50 }),
   isActive: boolean("is_active").notNull().default(true),
 });
 

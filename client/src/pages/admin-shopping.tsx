@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, productDisplayName } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { MealItemsSection } from "@/pages/housekeeping";
@@ -122,7 +122,7 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
             <SelectContent>
               {filteredAvailable.map(p => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {localName(p)} {p.estimatedPrice ? `- ${formatPrice(p.estimatedPrice)}` : ""}
+                  {productDisplayName(p)} {p.estimatedPrice ? `- ${formatPrice(p.estimatedPrice)}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -153,7 +153,7 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
               <div className="flex items-center gap-2 min-w-0">
                 {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
-                  <span className="font-medium text-sm truncate block">{product ? localName(product) : `#${item.productId}`}</span>
+                  <span className="font-medium text-sm truncate block">{product ? productDisplayName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                 </div>
               </div>
@@ -305,13 +305,14 @@ function ProductsSection() {
   const [preferredStore, setPreferredStore] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [storeId, setStoreId] = useState("");
-  const [unit, setUnit] = useState("");
+  const [unitAr, setUnitAr] = useState("");
+  const [unitEn, setUnitEn] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
-    setNameAr(""); setNameEn(""); setEstimatedPrice(""); setPreferredStore(""); setCategoryId(""); setStoreId(""); setUnit(""); setImageUrl("");
+    setNameAr(""); setNameEn(""); setEstimatedPrice(""); setPreferredStore(""); setCategoryId(""); setStoreId(""); setUnitAr(""); setUnitEn(""); setImageUrl("");
     setEditingProduct(null);
   };
 
@@ -319,7 +320,7 @@ function ProductsSection() {
     setEditingProduct(p);
     setNameAr(p.nameAr); setNameEn(p.nameEn || ""); setEstimatedPrice(String(p.estimatedPrice || ""));
     setPreferredStore(p.preferredStore || ""); setCategoryId(p.categoryId ? String(p.categoryId) : "");
-    setStoreId(p.storeId ? String(p.storeId) : ""); setUnit(p.unit || ""); setImageUrl(p.imageUrl || "");
+    setStoreId(p.storeId ? String(p.storeId) : ""); setUnitAr(p.unitAr || p.unit || ""); setUnitEn(p.unitEn || ""); setImageUrl(p.imageUrl || "");
     setShowAdd(true);
   };
 
@@ -361,7 +362,7 @@ function ProductsSection() {
       preferredStore: preferredStore || null,
       categoryId: categoryId ? parseInt(categoryId) : null,
       storeId: storeId ? parseInt(storeId) : null,
-      unit: unit || null, imageUrl: imageUrl || null,
+      unit: unitAr || unitEn || null, unitAr: unitAr || null, unitEn: unitEn || null, imageUrl: imageUrl || null,
     };
     if (editingProduct) updateMutation.mutate({ id: editingProduct.id, data });
     else createMutation.mutate(data);
@@ -387,7 +388,10 @@ function ProductsSection() {
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
             <Input type="number" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
-            <Input placeholder={t("fields.unit")} value={unit} onChange={e => setUnit(e.target.value)} data-testid="input-product-unit" />
+            <div className="flex gap-2">
+              <Input placeholder={t("fields.unit")} value={unitAr} onChange={e => setUnitAr(e.target.value)} data-testid="input-product-unit-ar" className="flex-1" />
+              <Input placeholder="Unit" value={unitEn} onChange={e => setUnitEn(e.target.value)} data-testid="input-product-unit-en" dir="ltr" className="flex-1" />
+            </div>
             {categories && categories.length > 0 && (
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger data-testid="select-product-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
@@ -438,7 +442,7 @@ function ProductsSection() {
                   </div>
                 )}
                 <div>
-                  <span className="font-medium">{localName(p)}</span>
+                  <span className="font-medium">{productDisplayName(p)}</span>
                   <div className="text-sm text-muted-foreground">
                     {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}
                     {p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}
