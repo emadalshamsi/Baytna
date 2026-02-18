@@ -800,7 +800,7 @@ export default function AdminShopping() {
             <AlertTriangle className="w-4 h-4" /> {t("shortages.title")}
           </TabsTrigger>
           <TabsTrigger value="meals" className="gap-1 shrink-0" data-testid="tab-meals">
-            <UtensilsCrossed className="w-4 h-4" /> {t("housekeeping.mealCatalog")}
+            <UtensilsCrossed className="w-4 h-4" /> {t("housekeepingSection.mealCatalog")}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="orders"><OrdersSection /></TabsContent>
