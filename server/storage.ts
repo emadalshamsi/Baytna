@@ -1,7 +1,5 @@
 import { db } from "./db";
 import { eq, desc, and, gte, lte, lt, inArray, or } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
@@ -873,39 +871,6 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (e) { console.error("Cleanup orders error:", e); }
 
-    try {
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      if (fs.existsSync(uploadsDir)) {
-        const mealImageUrls = new Set<string>();
-        const allMealItems = await db.select({ imageUrl: mealItems.imageUrl }).from(mealItems);
-        const allMeals = await db.select({ imageUrl: meals.imageUrl }).from(meals);
-        allMealItems.forEach(m => { if (m.imageUrl) mealImageUrls.add(m.imageUrl); });
-        allMeals.forEach(m => { if (m.imageUrl) mealImageUrls.add(m.imageUrl); });
-
-        const activeProducts = await db.select({ imageUrl: products.imageUrl }).from(products);
-        const productImages = new Set<string>();
-        activeProducts.forEach(p => { if (p.imageUrl) productImages.add(p.imageUrl); });
-
-        const activeUsers = await db.select({ profileImageUrl: users.profileImageUrl }).from(users);
-        const userImages = new Set<string>();
-        activeUsers.forEach(u => { if (u.profileImageUrl) userImages.add(u.profileImageUrl); });
-
-        const files = fs.readdirSync(uploadsDir);
-        for (const file of files) {
-          const filePath = path.join(uploadsDir, file);
-          const fileUrl = `/uploads/${file}`;
-
-          if (mealImageUrls.has(fileUrl) || productImages.has(fileUrl) || userImages.has(fileUrl)) continue;
-
-          const stat = fs.statSync(filePath);
-          const fileAge = now.getTime() - stat.mtimeMs;
-
-          if (fileAge > 7 * 24 * 60 * 60 * 1000) {
-            fs.unlinkSync(filePath);
-          }
-        }
-      }
-    } catch (e) { console.error("Cleanup files error:", e); }
 
     console.log(`[Cleanup] Completed at ${now.toISOString()}`);
   }
