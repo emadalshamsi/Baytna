@@ -107,9 +107,9 @@ function HomeBanner() {
       <img src={homeBannerLight} alt="" className="w-full h-full object-cover object-center block dark:hidden" style={{ maxHeight: "30vh" }} />
       <img src={homeBannerDark} alt="" className="w-full h-full object-cover object-center hidden dark:block" style={{ maxHeight: "30vh" }} />
       {user && (
-        <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-lg px-3 py-1.5" data-testid="welcome-greeting">
-          <Smile className="w-5 h-5 text-yellow-400 shrink-0" />
-          <span className="text-sm font-bold text-white drop-shadow-sm">{t("messages.helloGreeting")} {displayName(user)}</span>
+        <div className={`absolute top-3 ${getLang() === "ar" ? "right-3" : "left-3"} flex items-center gap-1.5`} data-testid="welcome-greeting">
+          <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{t("messages.helloGreeting")} {displayName(user)}</span>
+          <Smile className="w-5 h-5 text-yellow-500 shrink-0" />
         </div>
       )}
     </div>
