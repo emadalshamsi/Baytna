@@ -60,6 +60,18 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  if (process.env.DB_FORCE_RESET === "true") {
+    const { pool } = await import("./db");
+    console.log("[DB_FORCE_RESET] Dropping all tables and recreating schema...");
+    await pool.query("DROP SCHEMA public CASCADE");
+    await pool.query("CREATE SCHEMA public");
+    console.log("[DB_FORCE_RESET] Schema dropped. Running drizzle-kit push to recreate tables...");
+    const { execSync } = await import("child_process");
+    execSync("npx drizzle-kit push --force", { stdio: "inherit" });
+    console.log("[DB_FORCE_RESET] Tables recreated successfully.");
+    console.log("[DB_FORCE_RESET] IMPORTANT: Remove DB_FORCE_RESET env var now to avoid data loss on next restart!");
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
