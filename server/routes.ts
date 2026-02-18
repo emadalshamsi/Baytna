@@ -758,15 +758,15 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-      const apiKey = process.env.CLOUDINARY_API_KEY;
-      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+      const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || "").trim();
+      const apiKey = (process.env.CLOUDINARY_API_KEY || "").trim();
+      const apiSecret = (process.env.CLOUDINARY_API_SECRET || "").trim();
       console.log("[Cloudinary] Upload attempt:", {
         cloud_name: cloudName || "NOT SET",
         api_key_set: !!apiKey,
-        api_key_length: apiKey?.length || 0,
+        api_key_length: apiKey.length,
         api_secret_set: !!apiSecret,
-        api_secret_length: apiSecret?.length || 0,
+        api_secret_length: apiSecret.length,
         file_size: req.file.size,
         file_type: req.file.mimetype,
       });
@@ -780,25 +780,16 @@ export async function registerRoutes(
         api_secret: apiSecret,
         secure: true,
       });
-      const result = await new Promise<any>((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "baytna", resource_type: "image", type: "upload" },
-          (error, result) => {
-            if (error) {
-              console.error("[Cloudinary] Upload stream error:", JSON.stringify(error, null, 2));
-              reject(error);
-            } else {
-              console.log("[Cloudinary] Upload success:", {
-                public_id: result?.public_id,
-                secure_url: result?.secure_url,
-                format: result?.format,
-                bytes: result?.bytes,
-              });
-              resolve(result);
-            }
-          }
-        );
-        stream.end(req.file!.buffer);
+      const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      const result = await cloudinary.uploader.upload(dataUri, {
+        folder: "baytna",
+        resource_type: "image",
+      });
+      console.log("[Cloudinary] Upload success:", {
+        public_id: result?.public_id,
+        secure_url: result?.secure_url,
+        format: result?.format,
+        bytes: result?.bytes,
       });
       res.json({ imageUrl: result.secure_url });
     } catch (error: any) {
