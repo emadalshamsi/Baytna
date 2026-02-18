@@ -38,7 +38,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUserCount(): Promise<number>;
   updateUserRole(id: string, role: string, canApprove: boolean, canAddShortages?: boolean, canApproveTrips?: boolean): Promise<User | undefined>;
-  updateUserProfile(id: string, data: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User | undefined>;
+  updateUserProfile(id: string, data: { firstName?: string | null; firstNameEn?: string | null; lastName?: string | null; profileImageUrl?: string | null; username?: string }): Promise<User | undefined>;
   updateUserPassword(id: string, newPasswordHash: string): Promise<void>;
   suspendUser(id: string, isSuspended: boolean): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
@@ -232,7 +232,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: string, data: { firstName?: string | null; lastName?: string | null; profileImageUrl?: string | null }): Promise<User | undefined> {
+  async updateUserProfile(id: string, data: { firstName?: string | null; firstNameEn?: string | null; lastName?: string | null; profileImageUrl?: string | null; username?: string }): Promise<User | undefined> {
     const [user] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return user;
   }

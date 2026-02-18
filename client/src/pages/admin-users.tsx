@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus, Trash2 } from "lucide-react";
+import { Ban, UserCheck, DoorOpen, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, Pencil, Check, X } from "lucide-react";
 import { useState } from "react";
 import { t, displayName } from "@/lib/i18n";
 import { useLang } from "@/App";
+import { useAuth } from "@/hooks/use-auth";
 import type { AuthUser } from "@/hooks/use-auth";
 import type { Room } from "@shared/schema";
 
@@ -76,11 +77,92 @@ function UserRoomAssignment({ userId, lang }: { userId: string; lang: string }) 
   );
 }
 
+function EditUserForm({ user, onClose }: { user: AuthUser; onClose: () => void }) {
+  const { toast } = useToast();
+  const [editUsername, setEditUsername] = useState(user.username || "");
+  const [editFirstName, setEditFirstName] = useState(user.firstName || "");
+  const [editFirstNameEn, setEditFirstNameEn] = useState(user.firstNameEn || "");
+
+  const updateDetailsMutation = useMutation({
+    mutationFn: async (data: { username: string; firstName: string; firstNameEn: string }) => {
+      await apiRequest("PATCH", `/api/users/${user.id}/details`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: t("admin.userUpdated") });
+      onClose();
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || t("admin.usernameExists"), variant: "destructive" });
+    },
+  });
+
+  const handleSave = () => {
+    if (!editUsername.trim()) return;
+    updateDetailsMutation.mutate({
+      username: editUsername.trim(),
+      firstName: editFirstName.trim(),
+      firstNameEn: editFirstNameEn.trim(),
+    });
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t space-y-2" data-testid={`section-edit-user-${user.id}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <Pencil className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs font-bold text-muted-foreground">{t("admin.editUser")}</span>
+      </div>
+      <Input
+        placeholder={t("auth.username")}
+        value={editUsername}
+        onChange={e => setEditUsername(e.target.value)}
+        data-testid={`input-edit-username-${user.id}`}
+      />
+      <Input
+        placeholder={t("auth.firstName")}
+        value={editFirstName}
+        onChange={e => setEditFirstName(e.target.value)}
+        data-testid={`input-edit-firstname-${user.id}`}
+      />
+      <Input
+        placeholder={t("auth.nameEn")}
+        value={editFirstNameEn}
+        onChange={e => setEditFirstNameEn(e.target.value)}
+        data-testid={`input-edit-nameen-${user.id}`}
+      />
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          className="flex-1 gap-1.5"
+          onClick={handleSave}
+          disabled={updateDetailsMutation.isPending || !editUsername.trim()}
+          data-testid={`button-save-edit-${user.id}`}
+        >
+          <Check className="w-4 h-4" />
+          {t("actions.save")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={onClose}
+          data-testid={`button-cancel-edit-${user.id}`}
+        >
+          <X className="w-4 h-4" />
+          {t("admin.cancel")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const { lang } = useLang();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const { data: allUsers, isLoading } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [editingUsers, setEditingUsers] = useState<Set<string>>(new Set());
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -146,10 +228,20 @@ export default function AdminUsers() {
     });
   };
 
+  const toggleEditing = (userId: string) => {
+    setEditingUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
   const roles = ["admin", "household", "maid", "driver"] as const;
   const sortedUsers = [...(allUsers || [])].sort((a, b) => (a.username || "").localeCompare(b.username || ""));
+  const isSelf = (userId: string) => currentUser?.id === userId;
 
   const handleCreateUser = () => {
     if (!newUsername.trim() || !newPassword.trim()) return;
@@ -249,55 +341,76 @@ export default function AdminUsers() {
                   {expandedUsers.has(u.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </Button>
               </div>
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex gap-1.5 flex-wrap">
-                  {roles.map(role => (
-                    <Button key={role} size="sm" variant="outline"
-                      className={u.role === role ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
-                      onClick={() => updateRoleMutation.mutate({ id: u.id, role, canApprove: role === "admin" ? true : u.canApprove })}
-                      disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-role-${role}-${u.id}`}>
-                      {t(`roles.${role}`)}
-                    </Button>
-                  ))}
+              {!isSelf(u.id) && (
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {roles.map(role => (
+                      <Button key={role} size="sm" variant="outline"
+                        className={u.role === role ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
+                        onClick={() => updateRoleMutation.mutate({ id: u.id, role, canApprove: role === "admin" ? true : u.canApprove })}
+                        disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-role-${role}-${u.id}`}>
+                        {t(`roles.${role}`)}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button size="sm" variant="outline"
+                    className={u.canApprove ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
+                    onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
+                    disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-${u.id}`}>
+                    {t("admin.approvePermission")}
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    className={u.canAddShortages ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
+                    onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canAddShortages: !u.canAddShortages })}
+                    disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-shortages-${u.id}`}>
+                    {t("shortages.permission")}
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    className={u.canApproveTrips ? "bg-green-600 text-white border-green-600 dark:bg-green-500 dark:border-green-500" : ""}
+                    onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canApproveTrips: !u.canApproveTrips })}
+                    disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-trips-${u.id}`}>
+                    {t("trips.approvePermission")}
+                  </Button>
                 </div>
-                <Button size="sm" variant="outline"
-                  className={u.canApprove ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
-                  onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: !u.canApprove })}
-                  disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-${u.id}`}>
-                  {t("admin.approvePermission")}
-                </Button>
-                <Button size="sm" variant="outline"
-                  className={u.canAddShortages ? "bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500" : ""}
-                  onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canAddShortages: !u.canAddShortages })}
-                  disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-shortages-${u.id}`}>
-                  {t("shortages.permission")}
-                </Button>
-                <Button size="sm" variant="outline"
-                  className={u.canApproveTrips ? "bg-green-600 text-white border-green-600 dark:bg-green-500 dark:border-green-500" : ""}
-                  onClick={() => updateRoleMutation.mutate({ id: u.id, role: u.role, canApprove: u.canApprove, canApproveTrips: !u.canApproveTrips })}
-                  disabled={updateRoleMutation.isPending || u.isSuspended} data-testid={`button-toggle-approve-trips-${u.id}`}>
-                  {t("trips.approvePermission")}
-                </Button>
-              </div>
+              )}
+              {isSelf(u.id) && (
+                <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-xs">
+                  {t("admin.currentUser")}
+                </Badge>
+              )}
               {expandedUsers.has(u.id) && (
                 <>
-                  <UserRoomAssignment userId={u.id} lang={lang} />
-                  <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
-                    <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
-                      className="gap-1.5"
-                      onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
-                      disabled={suspendMutation.isPending} data-testid={`button-suspend-${u.id}`}>
-                      {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                      {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
-                    </Button>
-                    <Button size="sm" variant="destructive"
-                      className="gap-1.5"
-                      onClick={() => setDeleteConfirmUser(u)}
-                      data-testid={`button-delete-${u.id}`}>
-                      <Trash2 className="w-4 h-4" />
-                      {t("admin.deleteUser")}
-                    </Button>
-                  </div>
+                  {!isSelf(u.id) && <UserRoomAssignment userId={u.id} lang={lang} />}
+                  {editingUsers.has(u.id) && !isSelf(u.id) && (
+                    <EditUserForm user={u} onClose={() => toggleEditing(u.id)} />
+                  )}
+                  {!isSelf(u.id) && (
+                    <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
+                      {!editingUsers.has(u.id) && (
+                        <Button size="sm" variant="outline"
+                          className="gap-1.5"
+                          onClick={() => toggleEditing(u.id)}
+                          data-testid={`button-edit-${u.id}`}>
+                          <Pencil className="w-4 h-4" />
+                          {t("admin.editUser")}
+                        </Button>
+                      )}
+                      <Button size="sm" variant={u.isSuspended ? "default" : "destructive"}
+                        className="gap-1.5"
+                        onClick={() => suspendMutation.mutate({ id: u.id, isSuspended: !u.isSuspended })}
+                        disabled={suspendMutation.isPending} data-testid={`button-suspend-${u.id}`}>
+                        {u.isSuspended ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        {u.isSuspended ? t("admin.activateUser") : t("admin.suspendUser")}
+                      </Button>
+                      <Button size="sm" variant="destructive"
+                        className="gap-1.5"
+                        onClick={() => setDeleteConfirmUser(u)}
+                        data-testid={`button-delete-${u.id}`}>
+                        <Trash2 className="w-4 h-4" />
+                        {t("admin.deleteUser")}
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>

@@ -326,6 +326,29 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/users/:id/details", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { username, firstName, firstNameEn } = req.body;
+      const updateData: { username?: string; firstName?: string | null; firstNameEn?: string | null } = {};
+      if (username !== undefined) updateData.username = typeof username === "string" ? username.trim().slice(0, 100) : undefined;
+      if (firstName !== undefined) updateData.firstName = typeof firstName === "string" && firstName.trim() ? firstName.trim().slice(0, 100) : null;
+      if (firstNameEn !== undefined) updateData.firstNameEn = typeof firstNameEn === "string" && firstNameEn.trim() ? firstNameEn.trim().slice(0, 100) : null;
+      const updated = await storage.updateUserProfile(req.params.id, updateData);
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safeUser } = updated;
+      res.json(safeUser);
+    } catch (error: any) {
+      if (error?.constraint === "users_username_unique" || error?.message?.includes("unique")) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      res.status(500).json({ message: "Failed to update user details" });
+    }
+  });
+
   app.delete("/api/users/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
