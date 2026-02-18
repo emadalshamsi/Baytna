@@ -441,7 +441,7 @@ function TasksTab({ isAdmin }: { isAdmin: boolean }) {
         await apiRequest("POST", "/api/housekeeping-tasks", { ...taskPayload, roomId });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/housekeeping-tasks"] });
-      toast({ title: t("housekeepingSection.taskCompleted") });
+      toast({ title: t("housekeepingSection.taskCreated") });
       setShowAdd(false);
       setNewTask({ titleAr: "", titleEn: "", frequency: "daily", icon: "" });
       setSelectedRoomIds([]);
