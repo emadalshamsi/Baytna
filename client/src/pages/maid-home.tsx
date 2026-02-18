@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, formatTime, imgUrl } from "@/lib/i18n";
+import { t, formatTime, imgUrl, localName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -268,7 +268,7 @@ export default function MaidHomePage() {
                       <WashingMachine className="w-6 h-6 text-orange-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold">{room ? (lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)) : "?"}</p>
+                      <p className="text-sm font-bold">{room ? localName(room) : "?"}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {req.createdAt ? formatTime(req.createdAt) : ""}
@@ -314,7 +314,7 @@ export default function MaidHomePage() {
             <div key={roomId} className={`space-y-2 transition-opacity ${allDone ? "opacity-60" : ""}`}>
               <div className="flex items-center gap-2">
                 <RoomHeaderIcon className="w-5 h-5 text-muted-foreground" />
-                <h3 className="text-base font-bold">{lang === "ar" ? room.nameAr : (room.nameEn || room.nameAr)}</h3>
+                <h3 className="text-base font-bold">{localName(room)}</h3>
                 <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs">
                   {roomDone}/{roomTasks.length}
                 </Badge>

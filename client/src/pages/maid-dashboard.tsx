@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order, OrderItem } from "@shared/schema";
-import { t, imgUrl } from "@/lib/i18n";
+import { t, imgUrl, localName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { ShortagesSection } from "@/pages/admin-shopping";
@@ -152,7 +152,7 @@ function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }
             <SelectContent>
               {filteredAvailable.map(p => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {p.nameAr}
+                  {localName(p)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -176,7 +176,7 @@ function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }
               <div className="flex items-center gap-2 min-w-0">
                 {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
-                  <span className="font-medium text-sm truncate block">{product?.nameAr || `#${item.productId}`}</span>
+                  <span className="font-medium text-sm truncate block">{product ? localName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                 </div>
               </div>
@@ -414,7 +414,7 @@ export default function MaidDashboard() {
             return (
               <Button key={c.id} size="sm" variant={selectedCategory === c.id ? "default" : "outline"}
                 onClick={() => setSelectedCategory(c.id)} className="gap-1 whitespace-nowrap" data-testid={`button-category-${c.id}`}>
-                <Icon className="w-4 h-4" /> {c.nameAr}
+                <Icon className="w-4 h-4" /> {localName(c)}
               </Button>
             );
           })}
@@ -442,12 +442,12 @@ export default function MaidDashboard() {
                 >
                   {product.imageUrl ? (
                     <div className="w-10 h-10 rounded-md overflow-hidden mb-2">
-                      <img src={imgUrl(product.imageUrl)} alt={product.nameAr} className="w-full h-full object-cover" />
+                      <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-cover" />
                     </div>
                   ) : (
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                   )}
-                  <span className="text-xs font-medium leading-tight">{product.nameAr}</span>
+                  <span className="text-xs font-medium leading-tight">{localName(product)}</span>
                   {inCart && (
                     <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                       {inCart.quantity}
@@ -618,7 +618,7 @@ export default function MaidDashboard() {
               {cart.map(item => (
                 <div key={item.productId} className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{item.product.nameAr}</span>
+                    <span className="font-medium text-sm">{localName(item.product)}</span>
                     <Badge className="no-default-hover-elevate no-default-active-elevate" variant="secondary">x{item.quantity}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
@@ -698,12 +698,12 @@ export default function MaidDashboard() {
                         data-testid={`button-update-add-${product.id}`}>
                         {product.imageUrl ? (
                           <div className="w-8 h-8 rounded-md overflow-hidden mb-1">
-                            <img src={imgUrl(product.imageUrl)} alt={product.nameAr} className="w-full h-full object-cover" />
+                            <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <Icon className="w-6 h-6 mb-1 text-muted-foreground" />
                         )}
-                        <span className="text-[10px] font-medium leading-tight">{product.nameAr}</span>
+                        <span className="text-[10px] font-medium leading-tight">{localName(product)}</span>
                         {inUpdateCart && (
                           <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
                             {inUpdateCart.quantity}
@@ -718,7 +718,7 @@ export default function MaidDashboard() {
                   <div className="space-y-2 border-t pt-2">
                     {updateCart.map(item => (
                       <div key={item.productId} className="flex items-center justify-between gap-2">
-                        <span className="text-sm">{item.product.nameAr} x{item.quantity}</span>
+                        <span className="text-sm">{localName(item.product)} x{item.quantity}</span>
                         <Button size="icon" variant="ghost" onClick={() => removeFromUpdateCart(item.productId)} data-testid={`button-update-remove-${item.productId}`}>
                           <X className="w-3 h-3 text-destructive" />
                         </Button>

@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
-import { t, formatPrice, formatDateTime, imgUrl } from "@/lib/i18n";
+import { t, formatPrice, formatDateTime, imgUrl, localName } from "@/lib/i18n";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -120,12 +120,12 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
   };
 
   const getProduct = (productId: number) => products?.find(pr => pr.id === productId);
-  const getProductName = (productId: number) => getProduct(productId)?.nameAr || `#${productId}`;
+  const getProductName = (productId: number) => { const p = getProduct(productId); return p ? localName(p) : `#${productId}`; };
 
   const getStoreName = (storeId: number | null) => {
     if (!storeId) return t("driver.noStore");
     const s = allStores?.find(st => st.id === storeId);
-    return s?.nameAr || t("driver.noStore");
+    return s ? localName(s) : t("driver.noStore");
   };
 
   const getStoreWebsite = (storeId: number | null) => {
@@ -278,7 +278,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
               <div className="flex items-center gap-2">
                 {product?.imageUrl && (
                   <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={imgUrl(product.imageUrl)} alt={product.nameAr} className="w-full h-full object-cover" />
+                    <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <span className={`font-medium text-sm ${(checked[item.id] || item.isPurchased) ? "line-through text-muted-foreground" : ""}`}>

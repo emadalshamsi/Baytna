@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
-import { t, formatPrice, getLang, imgUrl } from "@/lib/i18n";
+import { t, formatPrice, getLang, imgUrl, localName } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
@@ -170,7 +170,7 @@ function OrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { 
             <SelectContent>
               {filteredAvailable.map(p => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {p.nameAr} {p.estimatedPrice ? `- ${formatPrice(p.estimatedPrice)}` : ""}
+                  {localName(p)} {p.estimatedPrice ? `- ${formatPrice(p.estimatedPrice)}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -201,7 +201,7 @@ function OrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { 
               <div className="flex items-center gap-2 min-w-0">
                 {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
-                  <span className="font-medium text-sm truncate block">{product?.nameAr || product?.nameEn || `#${item.productId}`}</span>
+                  <span className="font-medium text-sm truncate block">{product ? localName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                 </div>
               </div>
@@ -360,7 +360,7 @@ function ManageProductsSection() {
   const getStoreName = (sid: number | null) => {
     if (!sid) return "";
     const s = allStores?.find(st => st.id === sid);
-    return s?.nameAr || "";
+    return s ? localName(s) : "";
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
@@ -381,13 +381,13 @@ function ManageProductsSection() {
             {categories && categories.length > 0 && (
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger data-testid="select-product-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
-                <SelectContent>{categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.nameAr}</SelectItem>)}</SelectContent>
+                <SelectContent>{categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{localName(c)}</SelectItem>)}</SelectContent>
               </Select>
             )}
             {allStores && allStores.length > 0 && (
               <Select value={storeId} onValueChange={setStoreId}>
                 <SelectTrigger data-testid="select-product-store"><SelectValue placeholder={t("fields.preferredStore")} /></SelectTrigger>
-                <SelectContent>{allStores.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.nameAr}</SelectItem>)}</SelectContent>
+                <SelectContent>{allStores.map(s => <SelectItem key={s.id} value={String(s.id)}>{localName(s)}</SelectItem>)}</SelectContent>
               </Select>
             )}
             <div className="space-y-2">
@@ -420,7 +420,7 @@ function ManageProductsSection() {
               <div className="flex items-center gap-3">
                 {p.imageUrl ? (
                   <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={imgUrl(p.imageUrl)} alt={p.nameAr} className="w-full h-full object-cover" />
+                    <img src={imgUrl(p.imageUrl)} alt={localName(p)} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
@@ -428,8 +428,7 @@ function ManageProductsSection() {
                   </div>
                 )}
                 <div>
-                  <span className="font-medium">{p.nameAr}</span>
-                  {p.nameEn && <span className="text-sm text-muted-foreground mr-2"> ({p.nameEn})</span>}
+                  <span className="font-medium">{localName(p)}</span>
                   <div className="text-sm text-muted-foreground">
                     {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}
                     {p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}
@@ -516,7 +515,7 @@ function ManageCategoriesSection() {
         categories.map(c => (
           <Card key={c.id} data-testid={`card-category-${c.id}`}>
             <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
-              <span className="font-medium">{c.nameAr} {c.nameEn ? `(${c.nameEn})` : ""}</span>
+              <span className="font-medium">{localName(c)}</span>
               <div className="flex gap-1">
                 <Button size="icon" variant="ghost" onClick={() => openEdit(c)} data-testid={`button-edit-category-${c.id}`}>
                   <Pencil className="w-4 h-4" />
@@ -600,8 +599,7 @@ function ManageStoresSection() {
               <div>
                 <div className="flex items-center gap-2">
                   <StoreIcon className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{s.nameAr}</span>
-                  {s.nameEn && <span className="text-sm text-muted-foreground">({s.nameEn})</span>}
+                  <span className="font-medium">{localName(s)}</span>
                 </div>
                 {s.websiteUrl && (
                   <a href={s.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1 mt-1" data-testid={`link-store-url-${s.id}`}>
@@ -773,7 +771,7 @@ export default function HouseholdDashboard() {
                   return (
                     <Button key={c.id} size="sm" variant={selectedCategory === c.id ? "default" : "outline"}
                       onClick={() => setSelectedCategory(c.id)} className="gap-1 whitespace-nowrap" data-testid={`button-category-${c.id}`}>
-                      <Icon className="w-4 h-4" /> {c.nameAr}
+                      <Icon className="w-4 h-4" /> {localName(c)}
                     </Button>
                   );
                 })}
@@ -801,12 +799,12 @@ export default function HouseholdDashboard() {
                       >
                         {product.imageUrl ? (
                           <div className="w-10 h-10 rounded-md overflow-hidden mb-2">
-                            <img src={imgUrl(product.imageUrl)} alt={product.nameAr} className="w-full h-full object-cover" />
+                            <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                         )}
-                        <span className="text-xs font-medium leading-tight">{product.nameAr}</span>
+                        <span className="text-xs font-medium leading-tight">{localName(product)}</span>
                         {product.estimatedPrice ? (
                           <span className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(product.estimatedPrice)}</span>
                         ) : null}
@@ -1002,7 +1000,7 @@ export default function HouseholdDashboard() {
               {cart.map(item => (
                 <div key={item.productId} className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{item.product.nameAr}</span>
+                    <span className="font-medium text-sm">{localName(item.product)}</span>
                     <Badge className="no-default-hover-elevate no-default-active-elevate" variant="secondary">x{item.quantity}</Badge>
                   </div>
                   <div className="flex items-center gap-1">

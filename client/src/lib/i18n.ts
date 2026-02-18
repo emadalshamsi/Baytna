@@ -422,6 +422,12 @@ export function displayName(user: { firstName?: string | null; firstNameEn?: str
   return en || ar || user.username || "?";
 }
 
+export function localName(item: { nameAr?: string | null; nameEn?: string | null } | null | undefined): string {
+  if (!item) return "";
+  if (currentLang === "ar") return item.nameAr || item.nameEn || "";
+  return item.nameEn || item.nameAr || "";
+}
+
 export function imgUrl(url: string | null | undefined, w = 500, h = 500): string {
   if (!url) return "";
   const transformed = url.includes("res.cloudinary.com") && url.includes("/upload/")
