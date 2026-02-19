@@ -11,9 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ShoppingCart, Milk, Apple, Beef, Fish, Egg, Cookie, Coffee,
-  Droplets, Sparkles, Shirt, Pill, Baby, Sandwich, IceCream, Wheat,
-  CircleDot, CupSoda, Citrus, Carrot, Cherry, Grape, Banana, Nut,
+  ShoppingCart,
   Send, Package, Plus, Minus, X, Check, ClipboardList,
   Image as ImageIcon, RefreshCw, Upload, Pencil, LayoutGrid,
   Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp,
@@ -26,21 +24,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
 import { KitchenTab, MealItemsSection } from "@/pages/housekeeping";
-
-const categoryIcons: Record<string, any> = {
-  milk: Milk, dairy: Milk, apple: Apple, fruit: Apple, fruits: Apple,
-  meat: Beef, fish: Fish, egg: Egg, eggs: Egg, cookie: Cookie, cookies: Cookie,
-  coffee: Coffee, water: Droplets, cleaning: Sparkles, clothes: Shirt,
-  medicine: Pill, baby: Baby, bread: Sandwich, bakery: Sandwich,
-  icecream: IceCream, wheat: Wheat, drinks: CupSoda, citrus: Citrus,
-  vegetables: Carrot, carrot: Carrot, cherry: Cherry, grape: Grape,
-  banana: Banana, nuts: Nut,
-};
-
-function getIcon(iconName?: string | null) {
-  if (!iconName) return Package;
-  return categoryIcons[iconName.toLowerCase()] || CircleDot;
-}
+import { getIcon } from "@/lib/category-icons";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
