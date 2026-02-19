@@ -343,11 +343,13 @@ function ProductsSection() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/products", data); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/products"] }); setShowAdd(false); resetForm(); toast({ title: t("messages.productAdded") }); },
+    onError: (error: any) => { toast({ title: t("messages.error"), description: error?.message || "Failed to create product", variant: "destructive" }); },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/products/${id}`, data); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/products"] }); setShowAdd(false); resetForm(); toast({ title: t("messages.productUpdated") }); },
+    onError: (error: any) => { toast({ title: t("messages.error"), description: error?.message || "Failed to update product", variant: "destructive" }); },
   });
 
   const deleteMutation = useMutation({

@@ -438,9 +438,23 @@ export async function registerRoutes(
       if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const product = await storage.createProduct(req.body);
+      const { nameAr, nameEn, categoryId, estimatedPrice, preferredStore, storeId, imageUrl, icon, unit, unitAr, unitEn, isActive } = req.body;
+      const productData: any = { nameAr, nameEn, categoryId, estimatedPrice, preferredStore, storeId, imageUrl, icon, unit, isActive };
+      if (unitAr !== undefined) productData.unitAr = unitAr;
+      if (unitEn !== undefined) productData.unitEn = unitEn;
+      const product = await storage.createProduct(productData);
       res.json(product);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Failed to create product:", error?.message || error);
+      if (error?.message?.includes("unit_ar") || error?.message?.includes("unit_en")) {
+        const { unitAr, unitEn, ...safeBody } = req.body;
+        try {
+          const product = await storage.createProduct(safeBody);
+          return res.json(product);
+        } catch (e2: any) {
+          console.error("Fallback create also failed:", e2?.message || e2);
+        }
+      }
       res.status(500).json({ message: "Failed to create product" });
     }
   });
@@ -451,9 +465,23 @@ export async function registerRoutes(
       if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const product = await storage.updateProduct(parseInt(req.params.id), req.body);
+      const { nameAr, nameEn, categoryId, estimatedPrice, preferredStore, storeId, imageUrl, icon, unit, unitAr, unitEn, isActive } = req.body;
+      const productData: any = { nameAr, nameEn, categoryId, estimatedPrice, preferredStore, storeId, imageUrl, icon, unit, isActive };
+      if (unitAr !== undefined) productData.unitAr = unitAr;
+      if (unitEn !== undefined) productData.unitEn = unitEn;
+      const product = await storage.updateProduct(parseInt(req.params.id), productData);
       res.json(product);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Failed to update product:", error?.message || error);
+      if (error?.message?.includes("unit_ar") || error?.message?.includes("unit_en")) {
+        const { unitAr, unitEn, ...safeBody } = req.body;
+        try {
+          const product = await storage.updateProduct(parseInt(req.params.id), safeBody);
+          return res.json(product);
+        } catch (e2: any) {
+          console.error("Fallback update also failed:", e2?.message || e2);
+        }
+      }
       res.status(500).json({ message: "Failed to update product" });
     }
   });
