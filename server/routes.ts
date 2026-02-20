@@ -903,10 +903,12 @@ export async function registerRoutes(
     try {
       const allOrders = await storage.getOrders();
       const allTrips = await storage.getTrips();
+      const allSparePartOrders = await storage.getSparePartOrders();
 
       const pendingOrders = allOrders.filter(o => o.status === "pending").length;
       const pendingTrips = allTrips.filter(t => t.status === "pending").length;
-      const pending = pendingOrders + pendingTrips;
+      const pendingSparePartOrders = allSparePartOrders.filter(o => o.status === "pending").length;
+      const pending = pendingOrders + pendingTrips + pendingSparePartOrders;
 
       const approved = allOrders.filter(o => o.status === "approved").length;
       const inProgress = allOrders.filter(o => o.status === "in_progress").length;
@@ -915,25 +917,32 @@ export async function registerRoutes(
       const weekOrders = await storage.getOrdersInDateRange(weekRange.start, weekRange.end);
       const completedOrdersThisWeek = weekOrders.filter(o => o.status === "completed").length;
       const completedTripsThisWeek = allTrips.filter(t => t.status === "completed" && t.completedAt && new Date(t.completedAt) >= weekRange.start && new Date(t.completedAt) <= weekRange.end).length;
-      const completedThisWeek = completedOrdersThisWeek + completedTripsThisWeek;
+      const completedSpThisWeek = allSparePartOrders.filter(o => o.status === "completed" && o.createdAt && new Date(o.createdAt) >= weekRange.start && new Date(o.createdAt) <= weekRange.end).length;
+      const completedThisWeek = completedOrdersThisWeek + completedTripsThisWeek + completedSpThisWeek;
 
-      const total = allOrders.length + allTrips.length;
+      const total = allOrders.length + allTrips.length + allSparePartOrders.length;
 
       const monthRange = getCurrentMonthRange();
       const monthOrders = await storage.getOrdersInDateRange(monthRange.start, monthRange.end);
       const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0);
+      const sparePartsSpentThisMonth = allSparePartOrders
+        .filter(o => o.status === "completed" && o.createdAt && new Date(o.createdAt) >= monthRange.start && new Date(o.createdAt) <= monthRange.end)
+        .reduce((sum, o) => sum + (o.totalEstimated || 0), 0);
 
       res.json({
         pending,
         pendingOrders,
         pendingTrips,
+        pendingSparePartOrders,
         approved,
         inProgress,
         completed: completedThisWeek,
         total,
         totalOrders: allOrders.length,
         totalTrips: allTrips.length,
-        totalSpent: totalSpentThisMonth,
+        totalSparePartOrders: allSparePartOrders.length,
+        totalSpent: totalSpentThisMonth + sparePartsSpentThisMonth,
+        sparePartsSpent: sparePartsSpentThisMonth,
         weekStart: weekRange.start.toISOString(),
         weekEnd: weekRange.end.toISOString(),
       });

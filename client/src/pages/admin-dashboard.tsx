@@ -31,7 +31,7 @@ export default function AdminDashboard() {
   useLang();
   const [activeFilter, setActiveFilter] = useState<StatFilter>(null);
 
-  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSpent: number; weekStart: string; weekEnd: string }>({
+  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; pendingSparePartOrders: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSparePartOrders: number; totalSpent: number; sparePartsSpent: number; weekStart: string; weekEnd: string }>({
     queryKey: ["/api/stats"],
   });
 
