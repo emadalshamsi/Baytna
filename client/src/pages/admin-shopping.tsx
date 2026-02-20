@@ -432,8 +432,8 @@ function ProductsSection() {
                 <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadImage")}
               </Button>
               {imageUrl && (
-                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ minHeight: "200px" }}>
-                  <img src={imageUrl} alt="" className="w-full h-auto object-contain" />
+                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ height: "25vh" }}>
+                  <img src={imageUrl} alt="" className="w-full h-full object-contain" />
                   <Button size="icon" variant="ghost" className="absolute top-1 left-1 bg-background/80" onClick={() => setImageUrl("")} data-testid="button-remove-image">
                     <X className="w-4 h-4" />
                   </Button>

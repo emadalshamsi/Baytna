@@ -406,8 +406,8 @@ function ManageProductsSection() {
                 <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadImage")}
               </Button>
               {imageUrl && (
-                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ minHeight: "200px" }}>
-                  <img src={imageUrl} alt="" className="w-full h-auto object-contain" />
+                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ height: "25vh" }}>
+                  <img src={imageUrl} alt="" className="w-full h-full object-contain" />
                   <Button size="icon" variant="ghost" className="absolute top-1 left-1 bg-background/80" onClick={() => setImageUrl("")} data-testid="button-remove-image">
                     <X className="w-4 h-4" />
                   </Button>
@@ -844,7 +844,7 @@ export default function HouseholdDashboard() {
                         ) : (
                           <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                         )}
-                        <span className="text-xs font-medium leading-tight">{productDisplayName(product)}</span>
+                        <span className="text-xs font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
                         {product.estimatedPrice ? (
                           <span className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(product.estimatedPrice)}</span>
                         ) : null}

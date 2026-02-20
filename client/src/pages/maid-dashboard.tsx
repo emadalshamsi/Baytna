@@ -450,7 +450,7 @@ export default function MaidDashboard() {
                   ) : (
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                   )}
-                  <span className="text-xs font-medium leading-tight">{productDisplayName(product)}</span>
+                  <span className="text-xs font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
                   {inCart && (
                     <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                       {inCart.quantity}
@@ -706,7 +706,7 @@ export default function MaidDashboard() {
                         ) : (
                           <Icon className="w-6 h-6 mb-1 text-muted-foreground" />
                         )}
-                        <span className="text-[10px] font-medium leading-tight">{productDisplayName(product)}</span>
+                        <span className="text-[10px] font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
                         {inUpdateCart && (
                           <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
                             {inUpdateCart.quantity}
