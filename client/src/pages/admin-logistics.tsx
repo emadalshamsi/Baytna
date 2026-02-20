@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock } from "lucide-react";
-import { useState } from "react";
-import type { Vehicle, Trip, Technician, TripLocation } from "@shared/schema";
+import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock, Cog, Search, Upload, Image, Settings2, Trash2 } from "lucide-react";
+import { useState, useRef } from "react";
+import type { Vehicle, Trip, Technician, TripLocation, SparePart, SparePartCategory } from "@shared/schema";
 import { t, getLang, displayName, formatDate, formatTime, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
@@ -718,6 +718,273 @@ function TechniciansSection() {
   );
 }
 
+function SparePartsSection() {
+  const { lang } = useLang();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: parts, isLoading: partsLoading } = useQuery<SparePart[]>({ queryKey: ["/api/spare-parts"] });
+  const { data: categories, isLoading: catsLoading } = useQuery<SparePartCategory[]>({ queryKey: ["/api/spare-part-categories"] });
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingPart, setEditingPart] = useState<SparePart | null>(null);
+  const [nameAr, setNameAr] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [quantity, setQuantity] = useState("0");
+  const [notes, setNotes] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+
+  const [showCatDialog, setShowCatDialog] = useState(false);
+  const [editingCat, setEditingCat] = useState<SparePartCategory | null>(null);
+  const [catNameAr, setCatNameAr] = useState("");
+  const [catNameEn, setCatNameEn] = useState("");
+
+  const resetForm = () => { setNameAr(""); setNameEn(""); setCategoryId(""); setQuantity("0"); setNotes(""); setImageUrl(""); setEditingPart(null); };
+  const resetCatForm = () => { setCatNameAr(""); setCatNameEn(""); setEditingCat(null); };
+
+  const openEdit = (p: SparePart) => {
+    setEditingPart(p); setNameAr(p.nameAr); setNameEn(p.nameEn || "");
+    setCategoryId(p.categoryId ? String(p.categoryId) : ""); setQuantity(String(p.quantity));
+    setNotes(p.notes || ""); setImageUrl(p.imageUrl || ""); setShowAdd(true);
+  };
+
+  const openEditCat = (c: SparePartCategory) => {
+    setEditingCat(c); setCatNameAr(c.nameAr); setCatNameEn(c.nameEn || ""); setShowCatDialog(true);
+  };
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const { compressImage } = await import("@/lib/image-compress");
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append("image", compressed);
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await res.json();
+      if (res.ok) setImageUrl(data.imageUrl);
+    } catch {}
+    setUploading(false);
+  };
+
+  const createPartMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/spare-parts", data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-parts"] }); setShowAdd(false); resetForm(); toast({ title: t("spareParts.partAdded") }); },
+  });
+
+  const updatePartMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/spare-parts/${id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-parts"] }); setShowAdd(false); resetForm(); toast({ title: t("spareParts.partUpdated") }); },
+  });
+
+  const deletePartMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/spare-parts/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-parts"] }); toast({ title: t("spareParts.partDeleted") }); },
+  });
+
+  const createCatMutation = useMutation({
+    mutationFn: async (data: any) => { await apiRequest("POST", "/api/spare-part-categories", data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-part-categories"] }); setShowCatDialog(false); resetCatForm(); toast({ title: t("spareParts.categoryAdded") }); },
+  });
+
+  const updateCatMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => { await apiRequest("PATCH", `/api/spare-part-categories/${id}`, data); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-part-categories"] }); setShowCatDialog(false); resetCatForm(); toast({ title: t("spareParts.categoryUpdated") }); },
+  });
+
+  const deleteCatMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/spare-part-categories/${id}`); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-part-categories"] }); toast({ title: t("spareParts.categoryDeleted") }); },
+  });
+
+  const handleSavePart = () => {
+    const data = { nameAr, nameEn: nameEn || null, categoryId: categoryId ? parseInt(categoryId) : null, quantity: parseInt(quantity) || 0, notes: notes || null, imageUrl: imageUrl || null };
+    if (editingPart) updatePartMutation.mutate({ id: editingPart.id, data });
+    else createPartMutation.mutate(data);
+  };
+
+  const handleSaveCat = () => {
+    const data = { nameAr: catNameAr, nameEn: catNameEn || null };
+    if (editingCat) updateCatMutation.mutate({ id: editingCat.id, data });
+    else createCatMutation.mutate(data);
+  };
+
+  const getCategoryName = (catId: number | null) => {
+    if (!catId) return "";
+    const cat = categories?.find(c => c.id === catId);
+    if (!cat) return "";
+    return lang === "ar" ? cat.nameAr : (cat.nameEn || cat.nameAr);
+  };
+
+  const filteredParts = (parts || []).filter(p => {
+    const matchesSearch = !searchQuery || p.nameAr.includes(searchQuery) || (p.nameEn && p.nameEn.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = filterCategory === "all" || (p.categoryId && String(p.categoryId) === filterCategory);
+    return matchesSearch && matchesCategory;
+  });
+
+  if (partsLoading || catsLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20" />)}</div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2 flex-wrap">
+        <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2" data-testid="button-add-spare-part"><Plus className="w-4 h-4" /> {t("spareParts.addPart")}</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogTitle>
+              <DialogDescription className="sr-only">{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-spare-part-name-ar" />
+              <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} dir="ltr" data-testid="input-spare-part-name-en" />
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger data-testid="select-spare-part-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
+                <SelectContent>
+                  {(categories || []).map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input type="number" placeholder={t("fields.quantity")} value={quantity} onChange={e => setQuantity(e.target.value)} min="0" data-testid="input-spare-part-quantity" />
+              <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-spare-part-notes" />
+              <div>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+                {imageUrl ? (
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
+                    <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                    <Button size="icon" variant="destructive" className="absolute top-1 end-1 w-6 h-6" onClick={() => setImageUrl("")}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading} data-testid="button-upload-spare-part-image">
+                    <Upload className="w-4 h-4" /> {uploading ? "..." : t("fields.uploadImage")}
+                  </Button>
+                )}
+              </div>
+              <Button className="w-full" disabled={!nameAr || createPartMutation.isPending || updatePartMutation.isPending} data-testid="button-save-spare-part" onClick={handleSavePart}>
+                {t("actions.save")}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showCatDialog} onOpenChange={(open) => { setShowCatDialog(open); if (!open) resetCatForm(); }}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="gap-2" data-testid="button-manage-spare-categories"><Settings2 className="w-4 h-4" /> {t("spareParts.manageCategories")}</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogTitle>
+              <DialogDescription className="sr-only">{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder={t("fields.nameAr")} value={catNameAr} onChange={e => setCatNameAr(e.target.value)} data-testid="input-spare-cat-name-ar" />
+              <Input placeholder={t("fields.nameEn")} value={catNameEn} onChange={e => setCatNameEn(e.target.value)} dir="ltr" data-testid="input-spare-cat-name-en" />
+              <Button className="w-full" disabled={!catNameAr || createCatMutation.isPending || updateCatMutation.isPending} data-testid="button-save-spare-category" onClick={handleSaveCat}>
+                {editingCat ? t("actions.save") : t("actions.add")}
+              </Button>
+            </div>
+            {(categories || []).length > 0 && (
+              <div className="space-y-2 mt-4 border-t pt-4">
+                {categories!.map(c => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50" data-testid={`spare-category-${c.id}`}>
+                    <span className="text-sm font-medium">{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</span>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEditCat(c)} data-testid={`button-edit-spare-cat-${c.id}`}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deleteCatMutation.mutate(c.id)} data-testid={`button-delete-spare-cat-${c.id}`}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={t("spareParts.searchParts")}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="ps-9"
+            data-testid="input-search-spare-parts"
+          />
+        </div>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-[140px]" data-testid="select-filter-spare-category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("spareParts.allCategories")}</SelectItem>
+            {(categories || []).map(c => (
+              <SelectItem key={c.id} value={String(c.id)}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!filteredParts.length ? (
+        <div className="text-center py-8">
+          <Cog className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">{t("spareParts.noParts")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {filteredParts.map(part => (
+            <Card key={part.id} data-testid={`card-spare-part-${part.id}`}>
+              <CardContent className="p-3">
+                {part.imageUrl ? (
+                  <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-muted">
+                    <img src={part.imageUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full aspect-square rounded-lg mb-2 bg-muted/50 flex items-center justify-center">
+                    <Image className="w-8 h-8 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <p className="font-medium text-sm leading-tight" dir="auto">
+                    {lang === "ar" ? part.nameAr : (part.nameEn || part.nameAr)}
+                  </p>
+                  {getCategoryName(part.categoryId) && (
+                    <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
+                      {getCategoryName(part.categoryId)}
+                    </Badge>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{t("fields.quantity")}: {part.quantity}</span>
+                  </div>
+                  {part.notes && <p className="text-[10px] text-muted-foreground line-clamp-2">{part.notes}</p>}
+                </div>
+                <div className="flex gap-1 mt-2">
+                  <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEdit(part)} data-testid={`button-edit-spare-part-${part.id}`}>
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deletePartMutation.mutate(part.id)} data-testid={`button-delete-spare-part-${part.id}`}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminLogistics() {
   useLang();
   const [activeTab, setActiveTab] = useState("trips");
@@ -752,11 +1019,15 @@ export default function AdminLogistics() {
           <TabsTrigger value="technicians" className="gap-1 shrink-0" data-testid="tab-technicians">
             <Wrench className="w-4 h-4" /> {t("nav.technicians")}
           </TabsTrigger>
+          <TabsTrigger value="spareParts" className="gap-1 shrink-0" data-testid="tab-spare-parts">
+            <Cog className="w-4 h-4" /> {t("nav.spareParts")}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="trips"><TripsSection /></TabsContent>
         <TabsContent value="locations"><LocationsSection /></TabsContent>
         <TabsContent value="vehicles"><VehiclesSection /></TabsContent>
         <TabsContent value="technicians"><TechniciansSection /></TabsContent>
+        <TabsContent value="spareParts"><SparePartsSection /></TabsContent>
       </Tabs>
     </div>
   );
