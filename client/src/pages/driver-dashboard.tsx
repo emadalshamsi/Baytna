@@ -11,6 +11,7 @@ import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, External
 import { useState, useRef, useEffect } from "react";
 import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
 import { t, formatPrice, formatDateTime, imgUrl, localName, productDisplayName } from "@/lib/i18n";
+import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
 
 function StatusBadge({ status }: { status: string }) {
@@ -289,7 +290,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
             <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate">x{item.quantity}</Badge>
           </div>
           <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
-            <span>{t("fields.estimatedPrice")}: {formatPrice(item.estimatedPrice || 0)}</span>
+            <span className="inline-flex items-center gap-0.5">{t("fields.estimatedPrice")}: {formatPrice(item.estimatedPrice || 0)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
             {currentStatus === "in_progress" && (
               <Input
                 type="number"
@@ -300,7 +301,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
                 data-testid={`input-actual-price-${item.id}`}
               />
             )}
-            {item.actualPrice && <span>{t("fields.actualPrice")}: {formatPrice(item.actualPrice)}</span>}
+            {item.actualPrice && <span className="inline-flex items-center gap-0.5">{t("fields.actualPrice")}: {formatPrice(item.actualPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>}
           </div>
         </CardContent>
       </Card>
@@ -556,7 +557,7 @@ export default function DriverDashboard() {
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <span className="font-medium">#{o.id}</span>
-                  <span className="text-sm text-muted-foreground mr-2">{formatPrice(o.totalEstimated || 0)}</span>
+                  <span className="text-sm text-muted-foreground mr-2 inline-flex items-center gap-0.5">{formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
                 </div>
                 <StatusBadge status={o.status} />
               </CardContent>
@@ -575,7 +576,7 @@ export default function DriverDashboard() {
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <span className="font-medium">#{o.id}</span>
-                  <span className="text-sm text-muted-foreground mr-2">{formatPrice(o.totalEstimated || 0)}</span>
+                  <span className="text-sm text-muted-foreground mr-2 inline-flex items-center gap-0.5">{formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
                 </div>
                 <StatusBadge status={o.status} />
               </CardContent>
@@ -594,8 +595,8 @@ export default function DriverDashboard() {
               <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <span className="font-medium">#{o.id}</span>
-                  <span className="text-sm text-muted-foreground mr-2">
-                    {o.totalActual ? formatPrice(o.totalActual) : formatPrice(o.totalEstimated || 0)}
+                  <span className="text-sm text-muted-foreground mr-2 inline-flex items-center gap-0.5">
+                    {o.totalActual ? formatPrice(o.totalActual) : formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" />
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

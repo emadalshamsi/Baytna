@@ -20,6 +20,7 @@ import {
 import { useState, useRef } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
 import { t, formatPrice, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
+import { SarIcon } from "@/components/sar-icon";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
@@ -191,9 +192,9 @@ function OrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { 
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {item.actualPrice != null ? (
-                  <span className="text-xs">{formatPrice(item.actualPrice)}</span>
+                  <span className="text-xs inline-flex items-center gap-0.5">{formatPrice(item.actualPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">{formatPrice(item.estimatedPrice || 0)}</span>
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(item.estimatedPrice || 0)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                 )}
                 {item.isPurchased && (
                   <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
@@ -449,7 +450,7 @@ function ManageProductsSection() {
                   <span className="font-medium truncate block" dir="auto">{localName(p)}</span>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     {localUnit(p) && <span className="truncate me-2">{localUnit(p)}</span>}
-                    <span className="shrink-0 ms-auto">{p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
+                    <span className="shrink-0 ms-auto inline-flex items-center gap-0.5">{p.estimatedPrice ? <>{formatPrice(p.estimatedPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></> : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
                   </div>
                 </div>
               </div>
@@ -846,7 +847,7 @@ export default function HouseholdDashboard() {
                         )}
                         <span className="text-xs font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
                         {product.estimatedPrice ? (
-                          <span className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(product.estimatedPrice)}</span>
+                          <span className="text-[10px] text-muted-foreground mt-0.5 inline-flex items-center gap-0.5">{formatPrice(product.estimatedPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                         ) : null}
                         {inCart && (
                           <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
@@ -913,7 +914,7 @@ export default function HouseholdDashboard() {
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">#{order.id}</span>
-                          <span className="text-sm text-muted-foreground">{formatPrice(order.totalEstimated || 0)}</span>
+                          <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
                           {(() => {
                             const today = new Date().toISOString().split("T")[0];
                             const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
@@ -961,7 +962,7 @@ export default function HouseholdDashboard() {
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">#{order.id}</span>
-                          <span className="text-sm text-muted-foreground">{formatPrice(order.totalEstimated || 0)}</span>
+                          <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
                         </div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={order.status} />
@@ -986,8 +987,8 @@ export default function HouseholdDashboard() {
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">#{order.id}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {order.totalActual ? formatPrice(order.totalActual) : formatPrice(order.totalEstimated || 0)}
+                          <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">
+                            {order.totalActual ? formatPrice(order.totalActual) : formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" />
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1044,7 +1045,7 @@ export default function HouseholdDashboard() {
                     <Badge className="no-default-hover-elevate no-default-active-elevate" variant="secondary">x{item.quantity}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground">{formatPrice((item.product.estimatedPrice || 0) * item.quantity)}</span>
+                    <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">{formatPrice((item.product.estimatedPrice || 0) * item.quantity)} <SarIcon className="w-3 h-3 inline-block" /></span>
                     <Button size="icon" variant="ghost" onClick={() => {
                       if (item.quantity <= 1) removeFromCart(item.productId);
                       else updateQuantity(item.productId, -1);
@@ -1061,7 +1062,7 @@ export default function HouseholdDashboard() {
                 </div>
               ))}
               <div className="flex items-center justify-between gap-2 pt-2 border-t">
-                <span className="font-bold">{t("fields.total")}: {formatPrice(cart.reduce((s, i) => s + (i.product.estimatedPrice || 0) * i.quantity, 0))}</span>
+                <span className="font-bold inline-flex items-center gap-0.5">{t("fields.total")}: {formatPrice(cart.reduce((s, i) => s + (i.product.estimatedPrice || 0) * i.quantity, 0))} <SarIcon className="w-3 h-3 inline-block" /></span>
                 <span className="text-sm text-muted-foreground">{cart.reduce((s, i) => s + i.quantity, 0)} {t("fields.items")}</span>
               </div>
               <Textarea placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} className="text-sm" data-testid="input-order-notes" />

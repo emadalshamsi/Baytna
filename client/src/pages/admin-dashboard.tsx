@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock } from "lucide-react";
 import { t, formatPrice, displayName, formatDate, formatDateTime } from "@/lib/i18n";
+import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
 import { useState } from "react";
 import type { Order, Trip, User as UserType } from "@shared/schema";
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
                     <span className="text-xs font-medium text-foreground leading-tight">{c.label}</span>
                     {c.sub && <span className="text-[10px] text-muted-foreground leading-tight">{c.sub}</span>}
                   </div>
-                  <span className="text-xl font-bold" data-testid={`text-stat-${i}`}>{c.value}</span>
+                  <span className="text-xl font-bold inline-flex items-center gap-0.5" data-testid={`text-stat-${i}`}>{c.value} {c.key === "spent" && <SarIcon className="w-3 h-3 inline-block" />}</span>
                   {isActive ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
                 </CardContent>
               </Card>
@@ -125,13 +126,13 @@ export default function AdminDashboard() {
                       <span className="font-medium text-sm">#{order.id}</span>
                       <StatusBadge status={order.status} />
                     </div>
-                    <span className="font-semibold text-sm">{formatPrice(orderTotal)}</span>
+                    <span className="font-semibold text-sm inline-flex items-center gap-0.5">{formatPrice(orderTotal)} <SarIcon className="w-3 h-3 inline-block" /></span>
                   </div>
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
                     {order.totalActual ? (
-                      <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span>
+                      <span className="inline-flex items-center gap-0.5">{t("fields.actualPrice")}: {formatPrice(order.totalActual)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                     ) : (
-                      <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
+                      <span className="inline-flex items-center gap-0.5">{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
@@ -186,7 +187,7 @@ export default function AdminDashboard() {
             <Card data-testid="card-spending-total">
               <CardContent className="p-4 flex items-center justify-between gap-2">
                 <span className="font-semibold text-sm">{t("fields.total")}</span>
-                <span className="font-bold text-lg">{formatPrice(filteredOrders.reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0))}</span>
+                <span className="font-bold text-lg inline-flex items-center gap-0.5">{formatPrice(filteredOrders.reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0))} <SarIcon className="w-3 h-3 inline-block" /></span>
               </CardContent>
             </Card>
           )}

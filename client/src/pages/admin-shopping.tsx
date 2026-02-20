@@ -14,6 +14,7 @@ import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Up
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
 import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
+import { SarIcon } from "@/components/sar-icon";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { MealItemsSection } from "@/pages/housekeeping";
@@ -159,9 +160,9 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {item.actualPrice != null ? (
-                  <span className="text-xs">{formatPrice(item.actualPrice)}</span>
+                  <span className="text-xs inline-flex items-center gap-0.5">{formatPrice(item.actualPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">{formatPrice(item.estimatedPrice || 0)}</span>
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(item.estimatedPrice || 0)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                 )}
                 {item.isPurchased && (
                   <Badge className="no-default-hover-elevate no-default-active-elevate bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]">
@@ -244,8 +245,8 @@ function OrdersSection() {
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
                 </div>
                 <div className="flex items-center justify-between gap-2 flex-wrap text-sm text-muted-foreground">
-                  <span>{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)}</span>
-                  {order.totalActual ? <span>{t("fields.actualPrice")}: {formatPrice(order.totalActual)}</span> : null}
+                  <span className="inline-flex items-center gap-0.5">{t("fields.estimatedPrice")}: {formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
+                  {order.totalActual ? <span className="inline-flex items-center gap-0.5">{t("fields.actualPrice")}: {formatPrice(order.totalActual)} <SarIcon className="w-3 h-3 inline-block" /></span> : null}
                 </div>
                 <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
                   {creator && (
@@ -475,7 +476,7 @@ function ProductsSection() {
                   <span className="font-medium truncate block" dir="auto">{localName(p)}</span>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     {localUnit(p) && <span className="truncate me-2">{localUnit(p)}</span>}
-                    <span className="shrink-0 ms-auto">{p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
+                    <span className="shrink-0 ms-auto inline-flex items-center gap-0.5">{p.estimatedPrice ? <>{formatPrice(p.estimatedPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></> : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
                   </div>
                 </div>
               </div>
