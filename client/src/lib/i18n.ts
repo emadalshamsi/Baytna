@@ -456,7 +456,7 @@ export function imgUrl(url: string | null | undefined, w = 500, h = 500): string
 
 export function formatPrice(amount: number): string {
   const formatted = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
-  return currentLang === "ar" ? `${formatted} ر.س` : `${formatted} SAR`;
+  return `${formatted} ﷼`;
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
