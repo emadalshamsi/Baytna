@@ -283,6 +283,7 @@ export const sparePartCategories = pgTable("spare_part_categories", {
   nameAr: varchar("name_ar", { length: 200 }).notNull(),
   nameEn: varchar("name_en", { length: 200 }),
   icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 20 }),
 });
 
 export const spareParts = pgTable("spare_parts", {
@@ -292,12 +293,33 @@ export const spareParts = pgTable("spare_parts", {
   categoryId: integer("category_id").references(() => sparePartCategories.id),
   imageUrl: varchar("image_url", { length: 500 }),
   quantity: integer("quantity").notNull().default(0),
+  price: real("price").default(0),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const sparePartOrders = pgTable("spare_part_orders", {
+  id: serial("id").primaryKey(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  notes: text("notes"),
+  totalEstimated: real("total_estimated").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sparePartOrderItems = pgTable("spare_part_order_items", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull().references(() => sparePartOrders.id),
+  sparePartId: integer("spare_part_id").notNull().references(() => spareParts.id),
+  quantity: integer("quantity").notNull().default(1),
+  price: real("price").default(0),
+});
+
 export const insertSparePartCategorySchema = createInsertSchema(sparePartCategories).omit({ id: true });
 export const insertSparePartSchema = createInsertSchema(spareParts).omit({ id: true, createdAt: true });
+export const insertSparePartOrderSchema = createInsertSchema(sparePartOrders).omit({ id: true, createdAt: true });
+export const insertSparePartOrderItemSchema = createInsertSchema(sparePartOrderItems).omit({ id: true });
 
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
@@ -386,3 +408,7 @@ export type SparePartCategory = typeof sparePartCategories.$inferSelect;
 export type InsertSparePartCategory = z.infer<typeof insertSparePartCategorySchema>;
 export type SparePart = typeof spareParts.$inferSelect;
 export type InsertSparePart = z.infer<typeof insertSparePartSchema>;
+export type SparePartOrder = typeof sparePartOrders.$inferSelect;
+export type InsertSparePartOrder = z.infer<typeof insertSparePartOrderSchema>;
+export type SparePartOrderItem = typeof sparePartOrderItems.$inferSelect;
+export type InsertSparePartOrderItem = z.infer<typeof insertSparePartOrderItemSchema>;

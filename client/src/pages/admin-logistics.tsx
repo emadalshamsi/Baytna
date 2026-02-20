@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock, Cog, Search, Upload, Image, Settings2, Trash2 } from "lucide-react";
+import { Car, MapPin, Clock, Wrench, Plus, Pencil, X, Check, Phone, Navigation, AlertTriangle, CheckCircle, Lock, Cog, Search, Upload, Image, Settings2, Trash2, ShoppingCart, Send, Minus } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Vehicle, Trip, Technician, TripLocation, SparePart, SparePartCategory } from "@shared/schema";
+import { SarIcon } from "@/components/sar-icon";
+import { useAuth } from "@/hooks/use-auth";
 import { t, getLang, displayName, formatDate, formatTime, formatDateTime } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
@@ -718,9 +720,30 @@ function TechniciansSection() {
   );
 }
 
+const CATEGORY_COLORS = [
+  { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-800 dark:text-blue-200" },
+  { bg: "bg-green-100 dark:bg-green-900/40", text: "text-green-800 dark:text-green-200" },
+  { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-purple-800 dark:text-purple-200" },
+  { bg: "bg-orange-100 dark:bg-orange-900/40", text: "text-orange-800 dark:text-orange-200" },
+  { bg: "bg-pink-100 dark:bg-pink-900/40", text: "text-pink-800 dark:text-pink-200" },
+  { bg: "bg-cyan-100 dark:bg-cyan-900/40", text: "text-cyan-800 dark:text-cyan-200" },
+  { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-800 dark:text-amber-200" },
+  { bg: "bg-indigo-100 dark:bg-indigo-900/40", text: "text-indigo-800 dark:text-indigo-200" },
+  { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-800 dark:text-rose-200" },
+  { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-800 dark:text-teal-200" },
+];
+
+function getCategoryColor(catId: number) {
+  const idx = (catId - 1) % CATEGORY_COLORS.length;
+  return CATEGORY_COLORS[idx];
+}
+
+type SpareCartItem = { part: SparePart; quantity: number };
+
 function SparePartsSection() {
   const { lang } = useLang();
   const { toast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: parts, isLoading: partsLoading } = useQuery<SparePart[]>({ queryKey: ["/api/spare-parts"] });
@@ -732,6 +755,7 @@ function SparePartsSection() {
   const [nameEn, setNameEn] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [quantity, setQuantity] = useState("0");
+  const [price, setPrice] = useState("0");
   const [notes, setNotes] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -743,18 +767,47 @@ function SparePartsSection() {
   const [catNameAr, setCatNameAr] = useState("");
   const [catNameEn, setCatNameEn] = useState("");
 
-  const resetForm = () => { setNameAr(""); setNameEn(""); setCategoryId(""); setQuantity("0"); setNotes(""); setImageUrl(""); setEditingPart(null); };
+  const [cart, setCart] = useState<SpareCartItem[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [orderNotes, setOrderNotes] = useState("");
+
+  const isAdmin = user?.role === "admin" || user?.canApprove;
+
+  const resetForm = () => { setNameAr(""); setNameEn(""); setCategoryId(""); setQuantity("0"); setPrice("0"); setNotes(""); setImageUrl(""); setEditingPart(null); };
   const resetCatForm = () => { setCatNameAr(""); setCatNameEn(""); setEditingCat(null); };
 
   const openEdit = (p: SparePart) => {
     setEditingPart(p); setNameAr(p.nameAr); setNameEn(p.nameEn || "");
     setCategoryId(p.categoryId ? String(p.categoryId) : ""); setQuantity(String(p.quantity));
-    setNotes(p.notes || ""); setImageUrl(p.imageUrl || ""); setShowAdd(true);
+    setPrice(String(p.price || 0)); setNotes(p.notes || ""); setImageUrl(p.imageUrl || ""); setShowAdd(true);
   };
 
   const openEditCat = (c: SparePartCategory) => {
     setEditingCat(c); setCatNameAr(c.nameAr); setCatNameEn(c.nameEn || ""); setShowCatDialog(true);
   };
+
+  const addToCart = (part: SparePart) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.part.id === part.id);
+      if (existing) return prev.map(i => i.part.id === part.id ? { ...i, quantity: i.quantity + 1 } : i);
+      return [...prev, { part, quantity: 1 }];
+    });
+  };
+
+  const updateCartQuantity = (partId: number, delta: number) => {
+    setCart(prev => prev.map(i => {
+      if (i.part.id !== partId) return i;
+      const newQty = i.quantity + delta;
+      return newQty > 0 ? { ...i, quantity: newQty } : i;
+    }).filter(i => i.quantity > 0));
+  };
+
+  const removeFromCart = (partId: number) => {
+    setCart(prev => prev.filter(i => i.part.id !== partId));
+  };
+
+  const cartTotal = cart.reduce((sum, i) => sum + (i.part.price || 0) * i.quantity, 0);
+  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
   const handleImageUpload = async (file: File) => {
     setUploading(true);
@@ -800,8 +853,35 @@ function SparePartsSection() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/spare-part-categories"] }); toast({ title: t("spareParts.categoryDeleted") }); },
   });
 
+  const createOrderMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/spare-part-orders", {
+        createdBy: user!.id,
+        notes: orderNotes || null,
+        totalEstimated: cartTotal,
+        status: "pending",
+      });
+      const order = await res.json();
+      for (const item of cart) {
+        await apiRequest("POST", `/api/spare-part-orders/${order.id}/items`, {
+          sparePartId: item.part.id,
+          quantity: item.quantity,
+          price: (item.part.price || 0) * item.quantity,
+        });
+      }
+      return order;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
+      setCart([]);
+      setShowCart(false);
+      setOrderNotes("");
+      toast({ title: t("spareParts.orderCreated") });
+    },
+  });
+
   const handleSavePart = () => {
-    const data = { nameAr, nameEn: nameEn || null, categoryId: categoryId ? parseInt(categoryId) : null, quantity: parseInt(quantity) || 0, notes: notes || null, imageUrl: imageUrl || null };
+    const data = { nameAr, nameEn: nameEn || null, categoryId: categoryId ? parseInt(categoryId) : null, quantity: parseInt(quantity) || 0, price: parseFloat(price) || 0, notes: notes || null, imageUrl: imageUrl || null };
     if (editingPart) updatePartMutation.mutate({ id: editingPart.id, data });
     else createPartMutation.mutate(data);
   };
@@ -830,85 +910,101 @@ function SparePartsSection() {
   return (
     <div className="space-y-3">
       <div className="flex gap-2 flex-wrap">
-        <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" data-testid="button-add-spare-part"><Plus className="w-4 h-4" /> {t("spareParts.addPart")}</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogTitle>
-              <DialogDescription className="sr-only">{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-spare-part-name-ar" />
-              <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} dir="ltr" data-testid="input-spare-part-name-en" />
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger data-testid="select-spare-part-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
-                <SelectContent>
-                  {(categories || []).map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input type="number" placeholder={t("fields.quantity")} value={quantity} onChange={e => setQuantity(e.target.value)} min="0" data-testid="input-spare-part-quantity" />
-              <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-spare-part-notes" />
-              <div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
-                {imageUrl ? (
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
-                    <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-                    <Button size="icon" variant="destructive" className="absolute top-1 end-1 w-6 h-6" onClick={() => setImageUrl("")}>
-                      <X className="w-3 h-3" />
-                    </Button>
+        {isAdmin && (
+          <>
+            <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" data-testid="button-add-spare-part"><Plus className="w-4 h-4" /> {t("spareParts.addPart")}</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogTitle>
+                  <DialogDescription className="sr-only">{editingPart ? t("spareParts.editPart") : t("spareParts.addPart")}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-spare-part-name-ar" />
+                  <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} dir="ltr" data-testid="input-spare-part-name-en" />
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger data-testid="select-spare-part-category"><SelectValue placeholder={t("fields.category")} /></SelectTrigger>
+                    <SelectContent>
+                      {(categories || []).map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input type="number" placeholder={t("fields.quantity")} value={quantity} onChange={e => setQuantity(e.target.value)} min="0" data-testid="input-spare-part-quantity" />
+                  <Input type="number" placeholder={t("spareParts.price")} value={price} onChange={e => setPrice(e.target.value)} min="0" step="0.01" data-testid="input-spare-part-price" />
+                  <Input placeholder={t("fields.notes")} value={notes} onChange={e => setNotes(e.target.value)} data-testid="input-spare-part-notes" />
+                  <div>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+                    {imageUrl ? (
+                      <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
+                        <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                        <Button size="icon" variant="destructive" className="absolute top-1 end-1 w-6 h-6" onClick={() => setImageUrl("")}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading} data-testid="button-upload-spare-part-image">
+                        <Upload className="w-4 h-4" /> {uploading ? "..." : t("fields.uploadImage")}
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading} data-testid="button-upload-spare-part-image">
-                    <Upload className="w-4 h-4" /> {uploading ? "..." : t("fields.uploadImage")}
+                  <Button className="w-full" disabled={!nameAr || createPartMutation.isPending || updatePartMutation.isPending} data-testid="button-save-spare-part" onClick={handleSavePart}>
+                    {t("actions.save")}
                   </Button>
-                )}
-              </div>
-              <Button className="w-full" disabled={!nameAr || createPartMutation.isPending || updatePartMutation.isPending} data-testid="button-save-spare-part" onClick={handleSavePart}>
-                {t("actions.save")}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-        <Dialog open={showCatDialog} onOpenChange={(open) => { setShowCatDialog(open); if (!open) resetCatForm(); }}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-manage-spare-categories"><Settings2 className="w-4 h-4" /> {t("spareParts.manageCategories")}</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogTitle>
-              <DialogDescription className="sr-only">{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder={t("fields.nameAr")} value={catNameAr} onChange={e => setCatNameAr(e.target.value)} data-testid="input-spare-cat-name-ar" />
-              <Input placeholder={t("fields.nameEn")} value={catNameEn} onChange={e => setCatNameEn(e.target.value)} dir="ltr" data-testid="input-spare-cat-name-en" />
-              <Button className="w-full" disabled={!catNameAr || createCatMutation.isPending || updateCatMutation.isPending} data-testid="button-save-spare-category" onClick={handleSaveCat}>
-                {editingCat ? t("actions.save") : t("actions.add")}
-              </Button>
-            </div>
-            {(categories || []).length > 0 && (
-              <div className="space-y-2 mt-4 border-t pt-4">
-                {categories!.map(c => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50" data-testid={`spare-category-${c.id}`}>
-                    <span className="text-sm font-medium">{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</span>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEditCat(c)} data-testid={`button-edit-spare-cat-${c.id}`}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deleteCatMutation.mutate(c.id)} data-testid={`button-delete-spare-cat-${c.id}`}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+            <Dialog open={showCatDialog} onOpenChange={(open) => { setShowCatDialog(open); if (!open) resetCatForm(); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2" data-testid="button-manage-spare-categories"><Settings2 className="w-4 h-4" /> {t("spareParts.manageCategories")}</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogTitle>
+                  <DialogDescription className="sr-only">{editingCat ? t("spareParts.editCategory") : t("spareParts.addCategory")}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input placeholder={t("fields.nameAr")} value={catNameAr} onChange={e => setCatNameAr(e.target.value)} data-testid="input-spare-cat-name-ar" />
+                  <Input placeholder={t("fields.nameEn")} value={catNameEn} onChange={e => setCatNameEn(e.target.value)} dir="ltr" data-testid="input-spare-cat-name-en" />
+                  <Button className="w-full" disabled={!catNameAr || createCatMutation.isPending || updateCatMutation.isPending} data-testid="button-save-spare-category" onClick={handleSaveCat}>
+                    {editingCat ? t("actions.save") : t("actions.add")}
+                  </Button>
+                </div>
+                {(categories || []).length > 0 && (
+                  <div className="space-y-2 mt-4 border-t pt-4">
+                    {categories!.map(c => {
+                      const color = getCategoryColor(c.id);
+                      return (
+                        <div key={c.id} className={`flex items-center justify-between gap-2 p-2 rounded-lg ${color.bg}`} data-testid={`spare-category-${c.id}`}>
+                          <span className={`text-sm font-medium ${color.text}`}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</span>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEditCat(c)} data-testid={`button-edit-spare-cat-${c.id}`}>
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deleteCatMutation.mutate(c.id)} data-testid={`button-delete-spare-cat-${c.id}`}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                )}
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
+
+        {cart.length > 0 && (
+          <Button variant="outline" className="gap-2 relative" onClick={() => setShowCart(true)} data-testid="button-open-spare-cart">
+            <ShoppingCart className="w-4 h-4" />
+            {t("spareParts.cart")}
+            <Badge className="no-default-hover-elevate no-default-active-elevate absolute -top-2 -end-2 w-5 h-5 flex items-center justify-center p-0 text-[10px]">{cartCount}</Badge>
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -942,45 +1038,141 @@ function SparePartsSection() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          {filteredParts.map(part => (
-            <Card key={part.id} data-testid={`card-spare-part-${part.id}`}>
-              <CardContent className="p-3">
-                {part.imageUrl ? (
-                  <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-muted">
-                    <img src={part.imageUrl} alt="" className="w-full h-full object-cover" />
+          {filteredParts.map(part => {
+            const catColor = part.categoryId ? getCategoryColor(part.categoryId) : null;
+            const inCart = cart.find(i => i.part.id === part.id);
+            return (
+              <Card key={part.id} className="relative" data-testid={`card-spare-part-${part.id}`}>
+                <CardContent className="p-3">
+                  <div className="relative">
+                    {part.imageUrl ? (
+                      <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-muted">
+                        <img src={part.imageUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-square rounded-lg mb-2 bg-muted/50 flex items-center justify-center">
+                        <Image className="w-8 h-8 text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <Button
+                      size="icon"
+                      className="absolute bottom-3 end-1 w-8 h-8 rounded-full shadow-md"
+                      onClick={() => addToCart(part)}
+                      data-testid={`button-add-to-cart-${part.id}`}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    {inCart && (
+                      <Badge className="no-default-hover-elevate no-default-active-elevate absolute top-1 start-1 text-[10px]">{inCart.quantity}</Badge>
+                    )}
                   </div>
-                ) : (
-                  <div className="w-full aspect-square rounded-lg mb-2 bg-muted/50 flex items-center justify-center">
-                    <Image className="w-8 h-8 text-muted-foreground/50" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-sm leading-tight text-center" dir="auto">
+                      {lang === "ar" ? part.nameAr : (part.nameEn || part.nameAr)}
+                    </p>
+                    {getCategoryName(part.categoryId) && catColor && (
+                      <div className="flex justify-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${catColor.bg} ${catColor.text}`}>
+                          {getCategoryName(part.categoryId)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{t("fields.quantity")}: {part.quantity}</span>
+                      {(part.price || 0) > 0 && (
+                        <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
+                          {Number.isInteger(part.price) ? part.price : (part.price || 0).toFixed(2)}
+                          <SarIcon className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </div>
+                    {part.notes && <p className="text-[10px] text-muted-foreground line-clamp-2">{part.notes}</p>}
                   </div>
-                )}
-                <div className="space-y-1">
-                  <p className="font-medium text-sm leading-tight" dir="auto">
-                    {lang === "ar" ? part.nameAr : (part.nameEn || part.nameAr)}
-                  </p>
-                  {getCategoryName(part.categoryId) && (
-                    <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate text-[10px]">
-                      {getCategoryName(part.categoryId)}
-                    </Badge>
+                  {isAdmin && (
+                    <div className="flex gap-1 mt-2">
+                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEdit(part)} data-testid={`button-edit-spare-part-${part.id}`}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deletePartMutation.mutate(part.id)} data-testid={`button-delete-spare-part-${part.id}`}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{t("fields.quantity")}: {part.quantity}</span>
-                  </div>
-                  {part.notes && <p className="text-[10px] text-muted-foreground line-clamp-2">{part.notes}</p>}
-                </div>
-                <div className="flex gap-1 mt-2">
-                  <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEdit(part)} data-testid={`button-edit-spare-part-${part.id}`}>
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => deletePartMutation.mutate(part.id)} data-testid={`button-delete-spare-part-${part.id}`}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      <Dialog open={showCart} onOpenChange={setShowCart}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ShoppingCart className="w-5 h-5" /> {t("spareParts.cart")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("spareParts.cart")}</DialogDescription>
+          </DialogHeader>
+          {cart.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">{t("spareParts.emptyCart")}</p>
+          ) : (
+            <div className="space-y-3">
+              {cart.map(item => (
+                <div key={item.part.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50" data-testid={`cart-item-${item.part.id}`}>
+                  {item.part.imageUrl ? (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                      <img src={item.part.imageUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-muted/50 flex items-center justify-center flex-shrink-0">
+                      <Cog className="w-5 h-5 text-muted-foreground/50" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" dir="auto">
+                      {lang === "ar" ? item.part.nameAr : (item.part.nameEn || item.part.nameAr)}
+                    </p>
+                    {(item.part.price || 0) > 0 && (
+                      <span className="text-xs text-muted-foreground inline-flex items-center gap-0.5">
+                        {((item.part.price || 0) * item.quantity).toFixed(2)}
+                        <SarIcon className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="outline" className="w-7 h-7" onClick={() => updateCartQuantity(item.part.id, -1)} data-testid={`cart-decrease-${item.part.id}`}>
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                    <Button size="icon" variant="outline" className="w-7 h-7" onClick={() => updateCartQuantity(item.part.id, 1)} data-testid={`cart-increase-${item.part.id}`}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => removeFromCart(item.part.id)} data-testid={`cart-remove-${item.part.id}`}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {cartTotal > 0 && (
+                <div className="flex items-center justify-between font-medium border-t pt-2">
+                  <span>{t("fields.total")}</span>
+                  <span className="inline-flex items-center gap-0.5">
+                    {cartTotal.toFixed(2)}
+                    <SarIcon className="w-3 h-3" />
+                  </span>
+                </div>
+              )}
+              <Input
+                placeholder={t("fields.notes")}
+                value={orderNotes}
+                onChange={e => setOrderNotes(e.target.value)}
+                data-testid="input-spare-order-notes"
+              />
+              <Button className="w-full gap-2" onClick={() => createOrderMutation.mutate()} disabled={createOrderMutation.isPending} data-testid="button-submit-spare-order">
+                <Send className="w-4 h-4" /> {t("spareParts.sendOrder")}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
   rooms, userRooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, mealItems, meals,
-  shortages, pushSubscriptions, notifications,
+  shortages, pushSubscriptions, notifications, sparePartOrders, sparePartOrderItems,
   type User, type UpsertUser, type InsertCategory, type Category,
   type InsertStore, type Store,
   type InsertProduct, type Product, type InsertOrder, type Order,
@@ -27,6 +27,8 @@ import {
   type DriverCall, type InsertDriverCall,
   type SparePartCategory, type InsertSparePartCategory,
   type SparePart, type InsertSparePart,
+  type SparePartOrder, type InsertSparePartOrder,
+  type SparePartOrderItem, type InsertSparePartOrderItem,
   maidCalls, driverCalls, sparePartCategories, spareParts,
 } from "@shared/schema";
 
@@ -190,6 +192,12 @@ export interface IStorage {
   createSparePart(part: InsertSparePart): Promise<SparePart>;
   updateSparePart(id: number, part: Partial<InsertSparePart>): Promise<SparePart | undefined>;
   deleteSparePart(id: number): Promise<void>;
+
+  getSparePartOrders(): Promise<SparePartOrder[]>;
+  createSparePartOrder(order: InsertSparePartOrder): Promise<SparePartOrder>;
+  updateSparePartOrderStatus(id: number, status: string, approvedBy?: string): Promise<SparePartOrder | undefined>;
+  getSparePartOrderItems(orderId: number): Promise<SparePartOrderItem[]>;
+  createSparePartOrderItem(item: InsertSparePartOrderItem): Promise<SparePartOrderItem>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -963,6 +971,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSparePart(id: number): Promise<void> {
     await db.delete(spareParts).where(eq(spareParts.id, id));
+  }
+
+  async getSparePartOrders(): Promise<SparePartOrder[]> {
+    return await db.select().from(sparePartOrders).orderBy(desc(sparePartOrders.createdAt));
+  }
+
+  async createSparePartOrder(order: InsertSparePartOrder): Promise<SparePartOrder> {
+    const [created] = await db.insert(sparePartOrders).values(order).returning();
+    return created;
+  }
+
+  async updateSparePartOrderStatus(id: number, status: string, approvedBy?: string): Promise<SparePartOrder | undefined> {
+    const data: any = { status };
+    if (approvedBy) data.approvedBy = approvedBy;
+    const [updated] = await db.update(sparePartOrders).set(data).where(eq(sparePartOrders.id, id)).returning();
+    return updated;
+  }
+
+  async getSparePartOrderItems(orderId: number): Promise<SparePartOrderItem[]> {
+    return await db.select().from(sparePartOrderItems).where(eq(sparePartOrderItems.orderId, orderId));
+  }
+
+  async createSparePartOrderItem(item: InsertSparePartOrderItem): Promise<SparePartOrderItem> {
+    const [created] = await db.insert(sparePartOrderItems).values(item).returning();
+    return created;
   }
 
 }

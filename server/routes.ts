@@ -1477,6 +1477,55 @@ export async function registerRoutes(
     }
   });
 
+  // Spare Part Orders
+  app.get("/api/spare-part-orders", isAuthenticated, async (_req, res) => {
+    try {
+      const allOrders = await storage.getSparePartOrders();
+      res.json(allOrders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spare part orders" });
+    }
+  });
+
+  app.post("/api/spare-part-orders", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const order = await storage.createSparePartOrder(req.body);
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create spare part order" });
+    }
+  });
+
+  app.patch("/api/spare-part-orders/:id/status", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const { status } = req.body;
+      const updated = await storage.updateSparePartOrderStatus(parseInt(req.params.id), status, currentUser.id);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update spare part order status" });
+    }
+  });
+
+  app.get("/api/spare-part-orders/:id/items", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const items = await storage.getSparePartOrderItems(parseInt(req.params.id));
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spare part order items" });
+    }
+  });
+
+  app.post("/api/spare-part-orders/:id/items", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const item = await storage.createSparePartOrderItem({ ...req.body, orderId: parseInt(req.params.id) });
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create spare part order item" });
+    }
+  });
+
   // ==================== HOUSEKEEPING ROUTES ====================
 
   // Rooms CRUD
