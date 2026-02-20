@@ -845,7 +845,8 @@ export default function HouseholdDashboard() {
                         ) : (
                           <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                         )}
-                        <span className="text-xs font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
+                        <span className="text-xs font-medium leading-tight w-full truncate text-center" dir="auto">{localName(product)}</span>
+                        {localUnit(product) && <span className="text-[10px] text-muted-foreground leading-tight w-full truncate text-center">{localUnit(product)}</span>}
                         {product.estimatedPrice ? (
                           <span className="text-[10px] text-muted-foreground mt-0.5 inline-flex items-center gap-0.5">{formatPrice(product.estimatedPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
                         ) : null}

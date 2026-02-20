@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order, OrderItem } from "@shared/schema";
-import { t, getLang, imgUrl, localName, productDisplayName } from "@/lib/i18n";
+import { t, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { ShortagesSection } from "@/pages/admin-shopping";
@@ -450,7 +450,8 @@ export default function MaidDashboard() {
                   ) : (
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                   )}
-                  <span className="text-xs font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
+                  <span className="text-xs font-medium leading-tight w-full truncate text-center" dir="auto">{localName(product)}</span>
+                  {localUnit(product) && <span className="text-[10px] text-muted-foreground leading-tight w-full truncate text-center">{localUnit(product)}</span>}
                   {inCart && (
                     <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                       {inCart.quantity}
@@ -706,7 +707,8 @@ export default function MaidDashboard() {
                         ) : (
                           <Icon className="w-6 h-6 mb-1 text-muted-foreground" />
                         )}
-                        <span className="text-[10px] font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
+                        <span className="text-[10px] font-medium leading-tight w-full truncate text-center" dir="auto">{localName(product)}</span>
+                        {localUnit(product) && <span className="text-[8px] text-muted-foreground leading-tight w-full truncate text-center">{localUnit(product)}</span>}
                         {inUpdateCart && (
                           <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
                             {inUpdateCart.quantity}
