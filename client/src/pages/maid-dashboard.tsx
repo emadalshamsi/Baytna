@@ -242,6 +242,7 @@ export default function MaidDashboard() {
   const [showCart, setShowCart] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showUpdateOrder, setShowUpdateOrder] = useState(false);
   const [selectedOrderForUpdate, setSelectedOrderForUpdate] = useState<string>("");
   const [updateCart, setUpdateCart] = useState<{ productId: number; quantity: number; product: Product }[]>([]);
@@ -338,9 +339,14 @@ export default function MaidDashboard() {
     setUpdateCart(prev => prev.filter(i => i.productId !== productId));
   };
 
-  const filteredProducts = selectedCategory !== null
+  const filteredProducts = (selectedCategory !== null
     ? products?.filter(p => p.categoryId === selectedCategory)
-    : products;
+    : products
+  )?.filter(p => {
+    if (!productSearchQuery) return true;
+    const q = productSearchQuery.toLowerCase();
+    return p.nameAr.includes(productSearchQuery) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+  });
 
   const pendingOrders = orders?.filter(o => o.status === "pending") || [];
   const activeOrders = orders?.filter(o => o.status === "approved" || o.status === "in_progress") || [];
@@ -404,6 +410,14 @@ export default function MaidDashboard() {
           })}
         </div>
       )}
+
+      <Input
+        placeholder={t("actions.searchProducts")}
+        value={productSearchQuery}
+        onChange={e => setProductSearchQuery(e.target.value)}
+        className="text-sm"
+        data-testid="input-search-products"
+      />
 
       {loadingProducts ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">

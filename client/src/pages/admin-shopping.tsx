@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed } from "lucide-react";
+import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed, Copy } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
 import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, productDisplayName } from "@/lib/i18n";
@@ -309,6 +309,7 @@ function ProductsSection() {
   const [unitEn, setUnitEn] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
@@ -318,6 +319,14 @@ function ProductsSection() {
 
   const openEdit = (p: Product) => {
     setEditingProduct(p);
+    setNameAr(p.nameAr); setNameEn(p.nameEn || ""); setEstimatedPrice(String(p.estimatedPrice || ""));
+    setPreferredStore(p.preferredStore || ""); setCategoryId(p.categoryId ? String(p.categoryId) : "");
+    setStoreId(p.storeId ? String(p.storeId) : ""); setUnitAr(p.unitAr || p.unit || ""); setUnitEn(p.unitEn || ""); setImageUrl(p.imageUrl || "");
+    setShowAdd(true);
+  };
+
+  const openDuplicate = (p: Product) => {
+    setEditingProduct(null);
     setNameAr(p.nameAr); setNameEn(p.nameEn || ""); setEstimatedPrice(String(p.estimatedPrice || ""));
     setPreferredStore(p.preferredStore || ""); setCategoryId(p.categoryId ? String(p.categoryId) : "");
     setStoreId(p.storeId ? String(p.storeId) : ""); setUnitAr(p.unitAr || p.unit || ""); setUnitEn(p.unitEn || ""); setImageUrl(p.imageUrl || "");
@@ -360,7 +369,7 @@ function ProductsSection() {
   const handleSave = () => {
     const data = {
       nameAr, nameEn: nameEn || null,
-      estimatedPrice: estimatedPrice ? parseInt(estimatedPrice) : 0,
+      estimatedPrice: estimatedPrice ? parseFloat(parseFloat(estimatedPrice).toFixed(2)) : 0,
       preferredStore: preferredStore || null,
       categoryId: categoryId ? parseInt(categoryId) : null,
       storeId: storeId ? parseInt(storeId) : null,
@@ -376,6 +385,12 @@ function ProductsSection() {
     return s ? localName(s) : "";
   };
 
+  const searchedProducts = products?.filter(p => {
+    if (!productSearchQuery) return true;
+    const q = productSearchQuery.toLowerCase();
+    return p.nameAr.includes(productSearchQuery) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+  });
+
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
   return (
@@ -389,7 +404,7 @@ function ProductsSection() {
           <div className="space-y-3">
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
-            <Input type="number" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
+            <Input type="number" step="0.01" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
             <div className="flex gap-2">
               <Input placeholder={t("fields.unit")} value={unitAr} onChange={e => setUnitAr(e.target.value)} data-testid="input-product-unit-ar" className="flex-1" />
               <Input placeholder="Unit" value={unitEn} onChange={e => setUnitEn(e.target.value)} data-testid="input-product-unit-en" dir="ltr" className="flex-1" />
@@ -412,8 +427,8 @@ function ProductsSection() {
                 <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadImage")}
               </Button>
               {imageUrl && (
-                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
-                  <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ minHeight: "200px" }}>
+                  <img src={imageUrl} alt="" className="w-full h-auto object-contain" />
                   <Button size="icon" variant="ghost" className="absolute top-1 left-1 bg-background/80" onClick={() => setImageUrl("")} data-testid="button-remove-image">
                     <X className="w-4 h-4" />
                   </Button>
@@ -427,10 +442,18 @@ function ProductsSection() {
         </DialogContent>
       </Dialog>
 
-      {!products?.length ? (
+      <Input
+        placeholder={t("actions.searchProducts")}
+        value={productSearchQuery}
+        onChange={e => setProductSearchQuery(e.target.value)}
+        className="text-sm"
+        data-testid="input-search-products-admin"
+      />
+
+      {!searchedProducts?.length ? (
         <p className="text-center text-muted-foreground py-8">{t("messages.noProducts")}</p>
       ) : (
-        products.map(p => (
+        searchedProducts.map(p => (
           <Card key={p.id} data-testid={`card-product-${p.id}`}>
             <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
@@ -452,6 +475,9 @@ function ProductsSection() {
                 </div>
               </div>
               <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => openDuplicate(p)} data-testid={`button-duplicate-product-${p.id}`}>
+                  <Copy className="w-4 h-4" />
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-product-${p.id}`}>
                   <Pencil className="w-4 h-4" />
                 </Button>

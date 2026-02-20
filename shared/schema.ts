@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, serial, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, serial, index, jsonb, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -53,7 +53,7 @@ export const products = pgTable("products", {
   nameAr: varchar("name_ar", { length: 200 }).notNull(),
   nameEn: varchar("name_en", { length: 200 }),
   categoryId: integer("category_id").references(() => categories.id),
-  estimatedPrice: integer("estimated_price").default(0),
+  estimatedPrice: real("estimated_price").default(0),
   preferredStore: varchar("preferred_store", { length: 200 }),
   storeId: integer("store_id").references(() => stores.id),
   imageUrl: varchar("image_url", { length: 500 }),
@@ -77,8 +77,8 @@ export const orders = pgTable("orders", {
   approvedBy: varchar("approved_by").references(() => users.id),
   assignedDriver: varchar("assigned_driver").references(() => users.id),
   notes: text("notes"),
-  totalEstimated: integer("total_estimated").default(0),
-  totalActual: integer("total_actual").default(0),
+  totalEstimated: real("total_estimated").default(0),
+  totalActual: real("total_actual").default(0),
   receiptImageUrl: varchar("receipt_image_url", { length: 500 }),
   scheduledFor: varchar("scheduled_for", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow(),
@@ -90,8 +90,8 @@ export const orderItems = pgTable("order_items", {
   orderId: integer("order_id").notNull().references(() => orders.id),
   productId: integer("product_id").notNull().references(() => products.id),
   quantity: integer("quantity").notNull().default(1),
-  estimatedPrice: integer("estimated_price").default(0),
-  actualPrice: integer("actual_price"),
+  estimatedPrice: real("estimated_price").default(0),
+  actualPrice: real("actual_price"),
   isPurchased: boolean("is_purchased").notNull().default(false),
   substituteProductId: integer("substitute_product_id").references(() => products.id),
   notes: text("notes"),

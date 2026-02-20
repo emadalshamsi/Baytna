@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ShoppingCart,
-  Send, Package, Plus, Minus, X, Check, ClipboardList,
+  Send, Package, Plus, Minus, X, Check, ClipboardList, Copy,
   Image as ImageIcon, RefreshCw, Upload, Pencil, LayoutGrid,
   Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp,
   Clock, CalendarDays, Zap, ChefHat
@@ -283,6 +283,7 @@ function ManageProductsSection() {
   const [unitEn, setUnitEn] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
@@ -292,6 +293,14 @@ function ManageProductsSection() {
 
   const openEdit = (p: Product) => {
     setEditingProduct(p); setNameAr(p.nameAr); setNameEn(p.nameEn || "");
+    setEstimatedPrice(p.estimatedPrice ? String(p.estimatedPrice) : "");
+    setPreferredStore(p.preferredStore || ""); setCategoryId(p.categoryId ? String(p.categoryId) : "");
+    setStoreId(p.storeId ? String(p.storeId) : ""); setUnitAr(p.unitAr || p.unit || ""); setUnitEn(p.unitEn || ""); setImageUrl(p.imageUrl || "");
+    setShowAdd(true);
+  };
+
+  const openDuplicate = (p: Product) => {
+    setEditingProduct(null); setNameAr(p.nameAr); setNameEn(p.nameEn || "");
     setEstimatedPrice(p.estimatedPrice ? String(p.estimatedPrice) : "");
     setPreferredStore(p.preferredStore || ""); setCategoryId(p.categoryId ? String(p.categoryId) : "");
     setStoreId(p.storeId ? String(p.storeId) : ""); setUnitAr(p.unitAr || p.unit || ""); setUnitEn(p.unitEn || ""); setImageUrl(p.imageUrl || "");
@@ -334,7 +343,7 @@ function ManageProductsSection() {
   const handleSave = () => {
     const data = {
       nameAr, nameEn: nameEn || null,
-      estimatedPrice: estimatedPrice ? parseInt(estimatedPrice) : 0,
+      estimatedPrice: estimatedPrice ? parseFloat(parseFloat(estimatedPrice).toFixed(2)) : 0,
       preferredStore: preferredStore || null,
       categoryId: categoryId ? parseInt(categoryId) : null,
       storeId: storeId ? parseInt(storeId) : null,
@@ -350,6 +359,12 @@ function ManageProductsSection() {
     return s ? localName(s) : "";
   };
 
+  const searchedProducts = products?.filter(p => {
+    if (!productSearchQuery) return true;
+    const q = productSearchQuery.toLowerCase();
+    return p.nameAr.includes(productSearchQuery) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+  });
+
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
 
   return (
@@ -363,7 +378,7 @@ function ManageProductsSection() {
           <div className="space-y-3">
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
-            <Input type="number" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
+            <Input type="number" step="0.01" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
             <div className="flex gap-2">
               <Input placeholder={t("fields.unit")} value={unitAr} onChange={e => setUnitAr(e.target.value)} data-testid="input-product-unit-ar" className="flex-1" />
               <Input placeholder="Unit" value={unitEn} onChange={e => setUnitEn(e.target.value)} data-testid="input-product-unit-en" dir="ltr" className="flex-1" />
@@ -386,8 +401,8 @@ function ManageProductsSection() {
                 <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadImage")}
               </Button>
               {imageUrl && (
-                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
-                  <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                <div className="relative w-full rounded-md overflow-hidden bg-muted" style={{ minHeight: "200px" }}>
+                  <img src={imageUrl} alt="" className="w-full h-auto object-contain" />
                   <Button size="icon" variant="ghost" className="absolute top-1 left-1 bg-background/80" onClick={() => setImageUrl("")} data-testid="button-remove-image">
                     <X className="w-4 h-4" />
                   </Button>
@@ -401,10 +416,18 @@ function ManageProductsSection() {
         </DialogContent>
       </Dialog>
 
-      {!products?.length ? (
+      <Input
+        placeholder={t("actions.searchProducts")}
+        value={productSearchQuery}
+        onChange={e => setProductSearchQuery(e.target.value)}
+        className="text-sm"
+        data-testid="input-search-products-household"
+      />
+
+      {!searchedProducts?.length ? (
         <p className="text-center text-muted-foreground py-8">{t("messages.noProducts")}</p>
       ) : (
-        products.map(p => (
+        searchedProducts.map(p => (
           <Card key={p.id} data-testid={`card-product-${p.id}`}>
             <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
@@ -426,6 +449,9 @@ function ManageProductsSection() {
                 </div>
               </div>
               <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => openDuplicate(p)} data-testid={`button-duplicate-product-${p.id}`}>
+                  <Copy className="w-4 h-4" />
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-product-${p.id}`}>
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -624,6 +650,7 @@ export default function HouseholdDashboard() {
   const [showCart, setShowCart] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("shopping");
   const [scheduledFor, setScheduledFor] = useState<string>("today");
@@ -695,9 +722,14 @@ export default function HouseholdDashboard() {
     setCart(prev => prev.filter(i => i.productId !== productId));
   };
 
-  const filteredProducts = selectedCategory !== null
+  const filteredProducts = (selectedCategory !== null
     ? products?.filter(p => p.categoryId === selectedCategory)
-    : products;
+    : products
+  )?.filter(p => {
+    if (!productSearchQuery) return true;
+    const q = productSearchQuery.toLowerCase();
+    return p.nameAr.includes(productSearchQuery) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+  });
 
   const pendingOrders = orders?.filter(o => o.status === "pending") || [];
   const activeOrders = orders?.filter(o => o.status === "approved" || o.status === "in_progress") || [];
@@ -767,6 +799,14 @@ export default function HouseholdDashboard() {
                 })}
               </div>
             )}
+
+            <Input
+              placeholder={t("actions.searchProducts")}
+              value={productSearchQuery}
+              onChange={e => setProductSearchQuery(e.target.value)}
+              className="text-sm"
+              data-testid="input-search-products"
+            />
 
             {loadingProducts ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
