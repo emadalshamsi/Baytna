@@ -1391,6 +1391,92 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== SPARE PARTS ROUTES ====================
+
+  app.get("/api/spare-part-categories", isAuthenticated, async (_req, res) => {
+    try {
+      const cats = await storage.getSparePartCategories();
+      res.json(cats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spare part categories" });
+    }
+  });
+
+  app.post("/api/spare-part-categories", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const cat = await storage.createSparePartCategory(req.body);
+      res.json(cat);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create spare part category" });
+    }
+  });
+
+  app.patch("/api/spare-part-categories/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const updated = await storage.updateSparePartCategory(parseInt(req.params.id), req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update spare part category" });
+    }
+  });
+
+  app.delete("/api/spare-part-categories/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteSparePartCategory(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete spare part category" });
+    }
+  });
+
+  app.get("/api/spare-parts", isAuthenticated, async (_req, res) => {
+    try {
+      const parts = await storage.getSpareParts();
+      res.json(parts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spare parts" });
+    }
+  });
+
+  app.post("/api/spare-parts", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const part = await storage.createSparePart(req.body);
+      res.json(part);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create spare part" });
+    }
+  });
+
+  app.patch("/api/spare-parts/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const updated = await storage.updateSparePart(parseInt(req.params.id), req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update spare part" });
+    }
+  });
+
+  app.delete("/api/spare-parts/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteSparePart(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete spare part" });
+    }
+  });
+
   // ==================== HOUSEKEEPING ROUTES ====================
 
   // Rooms CRUD

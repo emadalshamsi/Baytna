@@ -25,7 +25,9 @@ import {
   type Notification, type InsertNotification,
   type MaidCall, type InsertMaidCall,
   type DriverCall, type InsertDriverCall,
-  maidCalls, driverCalls,
+  type SparePartCategory, type InsertSparePartCategory,
+  type SparePart, type InsertSparePart,
+  maidCalls, driverCalls, sparePartCategories, spareParts,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -177,6 +179,17 @@ export interface IStorage {
   getActiveDriverCalls(): Promise<DriverCall[]>;
   createDriverCall(call: InsertDriverCall): Promise<DriverCall>;
   dismissDriverCall(id: number): Promise<DriverCall | undefined>;
+
+  getSparePartCategories(): Promise<SparePartCategory[]>;
+  createSparePartCategory(cat: InsertSparePartCategory): Promise<SparePartCategory>;
+  updateSparePartCategory(id: number, cat: Partial<InsertSparePartCategory>): Promise<SparePartCategory | undefined>;
+  deleteSparePartCategory(id: number): Promise<void>;
+
+  getSpareParts(): Promise<SparePart[]>;
+  getSparePart(id: number): Promise<SparePart | undefined>;
+  createSparePart(part: InsertSparePart): Promise<SparePart>;
+  updateSparePart(id: number, part: Partial<InsertSparePart>): Promise<SparePart | undefined>;
+  deleteSparePart(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -909,6 +922,47 @@ export class DatabaseStorage implements IStorage {
   async dismissDriverCall(id: number): Promise<DriverCall | undefined> {
     const [updated] = await db.update(driverCalls).set({ status: "dismissed", dismissedAt: new Date() }).where(eq(driverCalls.id, id)).returning();
     return updated;
+  }
+
+  async getSparePartCategories(): Promise<SparePartCategory[]> {
+    return db.select().from(sparePartCategories);
+  }
+
+  async createSparePartCategory(cat: InsertSparePartCategory): Promise<SparePartCategory> {
+    const [created] = await db.insert(sparePartCategories).values(cat).returning();
+    return created;
+  }
+
+  async updateSparePartCategory(id: number, cat: Partial<InsertSparePartCategory>): Promise<SparePartCategory | undefined> {
+    const [updated] = await db.update(sparePartCategories).set(cat).where(eq(sparePartCategories.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSparePartCategory(id: number): Promise<void> {
+    await db.delete(sparePartCategories).where(eq(sparePartCategories.id, id));
+  }
+
+  async getSpareParts(): Promise<SparePart[]> {
+    return db.select().from(spareParts).orderBy(desc(spareParts.createdAt));
+  }
+
+  async getSparePart(id: number): Promise<SparePart | undefined> {
+    const [part] = await db.select().from(spareParts).where(eq(spareParts.id, id));
+    return part;
+  }
+
+  async createSparePart(part: InsertSparePart): Promise<SparePart> {
+    const [created] = await db.insert(spareParts).values(part).returning();
+    return created;
+  }
+
+  async updateSparePart(id: number, part: Partial<InsertSparePart>): Promise<SparePart | undefined> {
+    const [updated] = await db.update(spareParts).set(part).where(eq(spareParts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSparePart(id: number): Promise<void> {
+    await db.delete(spareParts).where(eq(spareParts.id, id));
   }
 
 }

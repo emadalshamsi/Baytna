@@ -278,6 +278,27 @@ export const driverCalls = pgTable("driver_calls", {
 
 export const insertDriverCallSchema = createInsertSchema(driverCalls).omit({ id: true, createdAt: true, dismissedAt: true });
 
+export const sparePartCategories = pgTable("spare_part_categories", {
+  id: serial("id").primaryKey(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  icon: varchar("icon", { length: 50 }),
+});
+
+export const spareParts = pgTable("spare_parts", {
+  id: serial("id").primaryKey(),
+  nameAr: varchar("name_ar", { length: 200 }).notNull(),
+  nameEn: varchar("name_en", { length: 200 }),
+  categoryId: integer("category_id").references(() => sparePartCategories.id),
+  imageUrl: varchar("image_url", { length: 500 }),
+  quantity: integer("quantity").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSparePartCategorySchema = createInsertSchema(sparePartCategories).omit({ id: true });
+export const insertSparePartSchema = createInsertSchema(spareParts).omit({ id: true, createdAt: true });
+
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
@@ -361,3 +382,7 @@ export type MaidCall = typeof maidCalls.$inferSelect;
 export type InsertMaidCall = z.infer<typeof insertMaidCallSchema>;
 export type DriverCall = typeof driverCalls.$inferSelect;
 export type InsertDriverCall = z.infer<typeof insertDriverCallSchema>;
+export type SparePartCategory = typeof sparePartCategories.$inferSelect;
+export type InsertSparePartCategory = z.infer<typeof insertSparePartCategorySchema>;
+export type SparePart = typeof spareParts.$inferSelect;
+export type InsertSparePart = z.infer<typeof insertSparePartSchema>;
