@@ -292,7 +292,7 @@ export const spareParts = pgTable("spare_parts", {
   nameEn: varchar("name_en", { length: 200 }),
   categoryId: integer("category_id").references(() => sparePartCategories.id),
   imageUrl: varchar("image_url", { length: 500 }),
-  quantity: integer("quantity").notNull().default(0),
+  quantity: integer("quantity").notNull().default(1),
   price: real("price").default(0),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),

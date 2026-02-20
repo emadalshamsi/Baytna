@@ -15,7 +15,7 @@ import { useState, useRef } from "react";
 import type { Vehicle, Trip, Technician, TripLocation, SparePart, SparePartCategory } from "@shared/schema";
 import { SarIcon } from "@/components/sar-icon";
 import { useAuth } from "@/hooks/use-auth";
-import { t, getLang, displayName, formatDate, formatTime, formatDateTime } from "@/lib/i18n";
+import { t, getLang, displayName, formatDate, formatTime, formatDateTime, imgUrl } from "@/lib/i18n";
 import { useLang } from "@/App";
 import type { AuthUser } from "@/hooks/use-auth";
 import bannerLight from "@/assets/images/CarBanner01_1771341537912.png";
@@ -761,7 +761,7 @@ function SparePartsSection() {
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [quantity, setQuantity] = useState("0");
+  const [quantity, setQuantity] = useState("1");
   const [price, setPrice] = useState("0");
   const [notes, setNotes] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -780,7 +780,7 @@ function SparePartsSection() {
 
   const isAdmin = user?.role === "admin" || user?.canApprove;
 
-  const resetForm = () => { setNameAr(""); setNameEn(""); setCategoryId(""); setQuantity("0"); setPrice("0"); setNotes(""); setImageUrl(""); setEditingPart(null); };
+  const resetForm = () => { setNameAr(""); setNameEn(""); setCategoryId(""); setQuantity("1"); setPrice("0"); setNotes(""); setImageUrl(""); setEditingPart(null); };
   const resetCatForm = () => { setCatNameAr(""); setCatNameEn(""); setEditingCat(null); };
 
   const openEdit = (p: SparePart) => {
@@ -946,7 +946,7 @@ function SparePartsSection() {
                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
                     {imageUrl ? (
                       <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
-                        <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={imgUrl(imageUrl)} alt="" className="w-full h-full object-cover" />
                         <Button size="icon" variant="destructive" className="absolute top-1 end-1 w-6 h-6" onClick={() => setImageUrl("")}>
                           <X className="w-3 h-3" />
                         </Button>
@@ -1055,12 +1055,17 @@ function SparePartsSection() {
                   <div className="relative">
                     {part.imageUrl ? (
                       <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-muted">
-                        <img src={part.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={imgUrl(part.imageUrl)} alt="" className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="w-full aspect-square rounded-lg mb-2 bg-muted/50 flex items-center justify-center">
                         <Image className="w-8 h-8 text-muted-foreground/50" />
                       </div>
+                    )}
+                    {getCategoryName(part.categoryId) && catColor && (
+                      <span className={`absolute top-1 end-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${catColor.bg} ${catColor.text}`}>
+                        {getCategoryName(part.categoryId)}
+                      </span>
                     )}
                     <Button
                       size="icon"
@@ -1078,13 +1083,6 @@ function SparePartsSection() {
                     <p className="font-medium text-sm leading-tight text-center" dir="auto">
                       {lang === "ar" ? part.nameAr : (part.nameEn || part.nameAr)}
                     </p>
-                    {getCategoryName(part.categoryId) && catColor && (
-                      <div className="flex justify-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${catColor.bg} ${catColor.text}`}>
-                          {getCategoryName(part.categoryId)}
-                        </span>
-                      </div>
-                    )}
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{t("fields.quantity")}: {part.quantity}</span>
                       {(part.price || 0) > 0 && (
