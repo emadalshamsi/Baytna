@@ -389,6 +389,11 @@ function ProductsSection() {
     if (!productSearchQuery) return true;
     const q = productSearchQuery.toLowerCase();
     return p.nameAr.includes(productSearchQuery) || p.nameAr.toLowerCase().includes(q) || (p.nameEn && p.nameEn.toLowerCase().includes(q));
+  })?.sort((a, b) => {
+    const lang = getLang();
+    const nameA = lang === "ar" ? (a.nameAr || "") : (a.nameEn || a.nameAr || "");
+    const nameB = lang === "ar" ? (b.nameAr || "") : (b.nameEn || b.nameAr || "");
+    return nameA.localeCompare(nameB, lang === "ar" ? "ar" : "en");
   });
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
