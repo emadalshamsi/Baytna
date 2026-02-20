@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed, Copy } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, productDisplayName } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
 import { MealItemsSection } from "@/pages/housekeeping";
@@ -472,10 +472,10 @@ function ProductsSection() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium truncate block text-start">{productDisplayName(p)}</span>
-                  <div className="text-sm text-muted-foreground text-start truncate">
-                    {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}
-                    {p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}
+                  <span className="font-medium truncate block" dir="auto">{localName(p)}</span>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span className="truncate">{p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
+                    {localUnit(p) && <span className="shrink-0 ms-2">{localUnit(p)}</span>}
                   </div>
                 </div>
               </div>
