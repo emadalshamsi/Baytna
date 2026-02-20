@@ -3,7 +3,17 @@
 ## Overview
 Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
 
-## Recent Changes (Feb 16, 2026)
+## Recent Changes (Feb 20, 2026)
+- Spare parts inventory management in admin logistics section
+- sparePartCategories table: nameAr, nameEn, icon
+- spareParts table: nameAr, nameEn, categoryId, imageUrl, quantity, notes, createdAt
+- SparePartsSection UI: grid layout with image cards, category filter, search, image upload
+- Category management dialog: inline CRUD for spare part categories
+- API routes: GET/POST/PATCH/DELETE /api/spare-parts and /api/spare-part-categories (admin/canApprove auth)
+- New tab in AdminLogistics component for spare parts (Cog icon)
+- Full i18n translations for spareParts namespace (Arabic/English)
+
+## Previous Changes (Feb 16, 2026)
 - Two-tier meal management: meal catalog (mealItems table) for reusable meal definitions + date-specific meal planning
 - mealItems: mealType, nameAr, nameEn, imageUrl - managed by admin/canApprove users
 - MealItemsSection: catalog UI with type filters, image upload, CRUD for meal item templates
