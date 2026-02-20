@@ -160,7 +160,7 @@ function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }
               <div className="flex items-center gap-2 min-w-0">
                 {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
-                  <span className="font-medium text-sm truncate block">{product ? productDisplayName(product) : `#${item.productId}`}</span>
+                  <span className="font-medium text-sm truncate block text-start">{product ? productDisplayName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                 </div>
               </div>
@@ -450,7 +450,7 @@ export default function MaidDashboard() {
                   ) : (
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                   )}
-                  <span className="text-xs font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
+                  <span className="text-xs font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
                   {inCart && (
                     <span className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                       {inCart.quantity}
@@ -621,7 +621,7 @@ export default function MaidDashboard() {
               {cart.map(item => (
                 <div key={item.productId} className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{productDisplayName(item.product)}</span>
+                    <span className="font-medium text-sm truncate text-start">{productDisplayName(item.product)}</span>
                     <Badge className="no-default-hover-elevate no-default-active-elevate" variant="secondary">x{item.quantity}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
@@ -706,7 +706,7 @@ export default function MaidDashboard() {
                         ) : (
                           <Icon className="w-6 h-6 mb-1 text-muted-foreground" />
                         )}
-                        <span className="text-[10px] font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
+                        <span className="text-[10px] font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
                         {inUpdateCart && (
                           <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
                             {inUpdateCart.quantity}
@@ -721,7 +721,7 @@ export default function MaidDashboard() {
                   <div className="space-y-2 border-t pt-2">
                     {updateCart.map(item => (
                       <div key={item.productId} className="flex items-center justify-between gap-2">
-                        <span className="text-sm">{productDisplayName(item.product)} x{item.quantity}</span>
+                        <span className="text-sm truncate text-start">{productDisplayName(item.product)} x{item.quantity}</span>
                         <Button size="icon" variant="ghost" onClick={() => removeFromUpdateCart(item.productId)} data-testid={`button-update-remove-${item.productId}`}>
                           <X className="w-3 h-3 text-destructive" />
                         </Button>

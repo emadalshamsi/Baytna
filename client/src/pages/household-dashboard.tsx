@@ -185,7 +185,7 @@ function OrderDetailPanel({ orderId, editable = false, currentScheduledFor }: { 
               <div className="flex items-center gap-2 min-w-0">
                 {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
                 <div className="min-w-0">
-                  <span className="font-medium text-sm truncate block">{product ? productDisplayName(product) : `#${item.productId}`}</span>
+                  <span className="font-medium text-sm truncate block text-start">{product ? productDisplayName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                 </div>
               </div>
@@ -435,7 +435,7 @@ function ManageProductsSection() {
         searchedProducts.map(p => (
           <Card key={p.id} data-testid={`card-product-${p.id}`}>
             <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 {p.imageUrl ? (
                   <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
                     <img src={imgUrl(p.imageUrl)} alt={localName(p)} className="w-full h-full object-cover" />
@@ -445,9 +445,9 @@ function ManageProductsSection() {
                     <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   </div>
                 )}
-                <div>
-                  <span className="font-medium">{productDisplayName(p)}</span>
-                  <div className="text-sm text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium truncate block text-start">{productDisplayName(p)}</span>
+                  <div className="text-sm text-muted-foreground text-start truncate">
                     {p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}
                     {p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}
                   </div>
@@ -844,7 +844,7 @@ export default function HouseholdDashboard() {
                         ) : (
                           <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
                         )}
-                        <span className="text-xs font-medium leading-tight w-full truncate">{productDisplayName(product)}</span>
+                        <span className="text-xs font-medium leading-tight w-full truncate text-start">{productDisplayName(product)}</span>
                         {product.estimatedPrice ? (
                           <span className="text-[10px] text-muted-foreground mt-0.5">{formatPrice(product.estimatedPrice)}</span>
                         ) : null}
@@ -1040,7 +1040,7 @@ export default function HouseholdDashboard() {
               {cart.map(item => (
                 <div key={item.productId} className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{productDisplayName(item.product)}</span>
+                    <span className="font-medium text-sm truncate text-start">{productDisplayName(item.product)}</span>
                     <Badge className="no-default-hover-elevate no-default-active-elevate" variant="secondary">x{item.quantity}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
