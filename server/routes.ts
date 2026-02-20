@@ -1489,7 +1489,11 @@ export async function registerRoutes(
 
   app.post("/api/spare-part-orders", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const order = await storage.createSparePartOrder(req.body);
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const { createdBy, notes, totalEstimated, status } = req.body;
+      if (!createdBy || !status) return res.status(400).json({ message: "Missing required fields" });
+      const order = await storage.createSparePartOrder({ createdBy, notes: notes || null, totalEstimated: totalEstimated || 0, status });
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to create spare part order" });
@@ -1501,6 +1505,7 @@ export async function registerRoutes(
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
       const { status } = req.body;
+      if (!status) return res.status(400).json({ message: "Status is required" });
       const updated = await storage.updateSparePartOrderStatus(parseInt(req.params.id), status, currentUser.id);
       res.json(updated);
     } catch (error) {
@@ -1519,7 +1524,11 @@ export async function registerRoutes(
 
   app.post("/api/spare-part-orders/:id/items", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const item = await storage.createSparePartOrderItem({ ...req.body, orderId: parseInt(req.params.id) });
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      const { sparePartId, quantity, price } = req.body;
+      if (!sparePartId || !quantity) return res.status(400).json({ message: "Missing required fields" });
+      const item = await storage.createSparePartOrderItem({ orderId: parseInt(req.params.id), sparePartId, quantity, price: price || 0 });
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to create spare part order item" });

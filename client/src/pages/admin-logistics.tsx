@@ -733,7 +733,14 @@ const CATEGORY_COLORS = [
   { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-800 dark:text-teal-200" },
 ];
 
-function getCategoryColor(catId: number) {
+const COLOR_NAME_MAP: Record<string, { bg: string; text: string }> = {
+  blue: CATEGORY_COLORS[0], green: CATEGORY_COLORS[1], purple: CATEGORY_COLORS[2],
+  orange: CATEGORY_COLORS[3], pink: CATEGORY_COLORS[4], cyan: CATEGORY_COLORS[5],
+  amber: CATEGORY_COLORS[6], indigo: CATEGORY_COLORS[7], rose: CATEGORY_COLORS[8], teal: CATEGORY_COLORS[9],
+};
+
+function getCategoryColor(catId: number, dbColor?: string | null) {
+  if (dbColor && COLOR_NAME_MAP[dbColor]) return COLOR_NAME_MAP[dbColor];
   const idx = (catId - 1) % CATEGORY_COLORS.length;
   return CATEGORY_COLORS[idx];
 }
@@ -976,7 +983,7 @@ function SparePartsSection() {
                 {(categories || []).length > 0 && (
                   <div className="space-y-2 mt-4 border-t pt-4">
                     {categories!.map(c => {
-                      const color = getCategoryColor(c.id);
+                      const color = getCategoryColor(c.id, c.color);
                       return (
                         <div key={c.id} className={`flex items-center justify-between gap-2 p-2 rounded-lg ${color.bg}`} data-testid={`spare-category-${c.id}`}>
                           <span className={`text-sm font-medium ${color.text}`}>{lang === "ar" ? c.nameAr : (c.nameEn || c.nameAr)}</span>
@@ -1039,7 +1046,8 @@ function SparePartsSection() {
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {filteredParts.map(part => {
-            const catColor = part.categoryId ? getCategoryColor(part.categoryId) : null;
+            const cat = part.categoryId ? categories?.find(c => c.id === part.categoryId) : null;
+            const catColor = part.categoryId ? getCategoryColor(part.categoryId, cat?.color) : null;
             const inCart = cart.find(i => i.part.id === part.id);
             return (
               <Card key={part.id} className="relative" data-testid={`card-spare-part-${part.id}`}>
