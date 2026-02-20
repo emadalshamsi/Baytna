@@ -448,8 +448,8 @@ function ManageProductsSection() {
                 <div className="min-w-0 flex-1">
                   <span className="font-medium truncate block" dir="auto">{localName(p)}</span>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    {localUnit(p) && <span className="shrink-0 me-2">{localUnit(p)}</span>}
-                    <span className="truncate ms-auto">{p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
+                    {localUnit(p) && <span className="truncate me-2">{localUnit(p)}</span>}
+                    <span className="shrink-0 ms-auto">{p.estimatedPrice ? formatPrice(p.estimatedPrice) : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>
                   </div>
                 </div>
               </div>
