@@ -1503,10 +1503,15 @@ export async function registerRoutes(
   app.patch("/api/spare-part-orders/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
-      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
+      if (!currentUser) return res.status(403).json({ message: "Forbidden" });
       const { status } = req.body;
       if (!status) return res.status(400).json({ message: "Status is required" });
-      const updated = await storage.updateSparePartOrderStatus(parseInt(req.params.id), status, currentUser.id);
+      const isAdminOrApprover = currentUser.role === "admin" || currentUser.canApprove;
+      const isDriver = currentUser.role === "driver";
+      if (["approved", "rejected"].includes(status) && !isAdminOrApprover) return res.status(403).json({ message: "Forbidden" });
+      if (["in_progress", "completed"].includes(status) && !isDriver && !isAdminOrApprover) return res.status(403).json({ message: "Forbidden" });
+      const approvedBy = status === "approved" ? currentUser.id : undefined;
+      const updated = await storage.updateSparePartOrderStatus(parseInt(req.params.id), status, approvedBy);
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update spare part order status" });

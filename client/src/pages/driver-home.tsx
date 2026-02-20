@@ -19,7 +19,7 @@ import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Trip, Order, Vehicle, User } from "@shared/schema";
+import type { Trip, Order, Vehicle, User, SparePartOrder } from "@shared/schema";
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -160,6 +160,10 @@ export default function DriverHomePage() {
     queryKey: ["/api/orders"],
     refetchInterval: 15000,
   });
+  const { data: sparePartOrders = [], isLoading: spLoading } = useQuery<SparePartOrder[]>({
+    queryKey: ["/api/spare-part-orders"],
+    refetchInterval: 15000,
+  });
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
   });
@@ -276,25 +280,34 @@ export default function DriverHomePage() {
     return getDateStr(orderDate) === dateStr;
   });
 
+  const daySpOrders = sparePartOrders.filter(o => {
+    if (!["approved", "in_progress", "completed"].includes(o.status)) return false;
+    if (!o.createdAt) return false;
+    const orderDate = new Date(o.createdAt);
+    return getDateStr(orderDate) === dateStr;
+  });
+
   const completedTrips = dayTrips.filter(tr => tr.status === "completed").length;
   const completedOrders = dayOrders.filter(o => o.status === "completed").length;
-  const totalItems = dayTrips.length + dayOrders.length;
-  const doneItems = completedTrips + completedOrders;
+  const completedSpOrders = daySpOrders.filter(o => o.status === "completed").length;
+  const totalItems = dayTrips.length + dayOrders.length + daySpOrders.length;
+  const doneItems = completedTrips + completedOrders + completedSpOrders;
 
-  type ScheduleItem = { type: "trip"; data: Trip; time: Date } | { type: "order"; data: Order; time: Date };
+  type ScheduleItem = { type: "trip"; data: Trip; time: Date } | { type: "order"; data: Order; time: Date } | { type: "spare_part_order"; data: SparePartOrder; time: Date };
   const scheduleItems: ScheduleItem[] = [
     ...dayTrips.map(tr => ({ type: "trip" as const, data: tr, time: new Date(tr.departureTime) })),
     ...dayOrders.map(o => ({ type: "order" as const, data: o, time: new Date(o.createdAt!) })),
+    ...daySpOrders.map(o => ({ type: "spare_part_order" as const, data: o, time: new Date(o.createdAt!) })),
   ].sort((a, b) => {
-    const statusA = a.type === "trip" ? a.data.status : a.data.status;
-    const statusB = b.type === "trip" ? b.data.status : b.data.status;
+    const statusA = a.data.status;
+    const statusB = b.data.status;
     const isCompletedA = statusA === "completed" ? 1 : 0;
     const isCompletedB = statusB === "completed" ? 1 : 0;
     if (isCompletedA !== isCompletedB) return isCompletedA - isCompletedB;
     return a.time.getTime() - b.time.getTime();
   });
 
-  const isLoading = tripsLoading || ordersLoading;
+  const isLoading = tripsLoading || ordersLoading || spLoading;
 
   if (isLoading) {
     return (
@@ -501,7 +514,7 @@ export default function DriverHomePage() {
                     </CardContent>
                   </Card>
                 );
-              } else {
+              } else if (item.type === "order") {
                 const order = item.data;
                 return (
                   <Card key={`order-${order.id}`} data-testid={`card-schedule-order-${order.id}`}>
@@ -520,6 +533,28 @@ export default function DriverHomePage() {
                         </div>
                       </div>
                       <StatusBadge status={order.status} />
+                    </CardContent>
+                  </Card>
+                );
+              } else {
+                const spOrder = item.data;
+                return (
+                  <Card key={`sp-${spOrder.id}`} data-testid={`card-schedule-sp-order-${spOrder.id}`}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        spOrder.status === "completed" ? "bg-green-500/20" : "bg-orange-500/10"
+                      }`}>
+                        <Package className={`w-6 h-6 ${spOrder.status === "completed" ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold">#{spOrder.id}</p>
+                        <p className="text-xs text-muted-foreground">{t("spareParts.title")}</p>
+                        <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatDateTime(spOrder.createdAt)}</span>
+                        </div>
+                      </div>
+                      <StatusBadge status={spOrder.status} />
                     </CardContent>
                   </Card>
                 );

@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle } from "lucide-react";
+import { Truck, Check, Package, Clock, ListChecks, ChevronLeft, Upload, ExternalLink, Store as StoreIcon, Image as ImageIcon, MapPin, Play, Pause, Square, Car, AlertTriangle, Cog } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import type { Order, OrderItem, Product, Store, Trip, Vehicle } from "@shared/schema";
+import type { Order, OrderItem, Product, Store, Trip, Vehicle, SparePartOrder, SparePartOrderItem, SparePart } from "@shared/schema";
 import { t, formatPrice, formatDateTime, imgUrl, localName, productDisplayName } from "@/lib/i18n";
 import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
@@ -532,10 +532,78 @@ function TripsSection() {
   );
 }
 
+function SparePartOrderCard({ order, onStatusChange }: { order: SparePartOrder; onStatusChange: (id: number, status: string) => void }) {
+  useLang();
+  const { data: items } = useQuery<SparePartOrderItem[]>({ queryKey: ["/api/spare-part-orders", order.id, "items"] });
+  const { data: allParts } = useQuery<SparePart[]>({ queryKey: ["/api/spare-parts"] });
+  const [expanded, setExpanded] = useState(false);
+
+  const getPartName = (partId: number) => {
+    const part = allParts?.find(p => p.id === partId);
+    return part ? (localName(part) || part.nameAr) : `#${partId}`;
+  };
+
+  return (
+    <Card data-testid={`card-driver-sp-order-${order.id}`}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-2 flex-wrap cursor-pointer" onClick={() => setExpanded(!expanded)}>
+          <div className="flex items-center gap-2">
+            <Cog className="w-4 h-4 text-muted-foreground" />
+            <span className="font-medium">#{order.id}</span>
+            <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">
+              {formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" />
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="no-default-hover-elevate no-default-active-elevate bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 text-[10px]">
+              {t("spareParts.title")}
+            </Badge>
+            <StatusBadge status={order.status} />
+          </div>
+        </div>
+        {expanded && items && (
+          <div className="mt-3 space-y-2 border-t pt-3">
+            {items.map(item => (
+              <div key={item.id} className="flex items-center justify-between text-sm">
+                <span>{getPartName(item.sparePartId)} x{item.quantity}</span>
+                <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                  {formatPrice(item.price || 0)} <SarIcon className="w-2.5 h-2.5" />
+                </span>
+              </div>
+            ))}
+            {order.notes && <p className="text-xs text-muted-foreground">{order.notes}</p>}
+          </div>
+        )}
+        {order.status === "approved" && (
+          <Button size="sm" className="mt-2 gap-1" onClick={() => onStatusChange(order.id, "in_progress")} data-testid={`button-start-sp-order-${order.id}`}>
+            <Play className="w-3 h-3" /> {t("status.in_progress")}
+          </Button>
+        )}
+        {order.status === "in_progress" && (
+          <Button size="sm" className="mt-2 gap-1" onClick={() => onStatusChange(order.id, "completed")} data-testid={`button-complete-sp-order-${order.id}`}>
+            <Check className="w-3 h-3" /> {t("status.completed")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DriverDashboard() {
   useLang();
+  const { toast } = useToast();
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
+  const { data: sparePartOrders, isLoading: spLoading } = useQuery<SparePartOrder[]>({ queryKey: ["/api/spare-part-orders"] });
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const spStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      await apiRequest("PATCH", `/api/spare-part-orders/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
+    },
+  });
 
   if (selectedOrder) {
     return <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} />;
@@ -544,6 +612,14 @@ export default function DriverDashboard() {
   const approved = orders?.filter(o => o.status === "approved") || [];
   const inProgress = orders?.filter(o => o.status === "in_progress") || [];
   const completed = orders?.filter(o => o.status === "completed") || [];
+
+  const spApproved = sparePartOrders?.filter(o => o.status === "approved") || [];
+  const spInProgress = sparePartOrders?.filter(o => o.status === "in_progress") || [];
+  const spCompleted = sparePartOrders?.filter(o => o.status === "completed") || [];
+
+  const handleSpStatusChange = (id: number, status: string) => {
+    spStatusMutation.mutate({ id, status });
+  };
 
   return (
     <div className="space-y-4">
@@ -566,6 +642,15 @@ export default function DriverDashboard() {
         </div>
       )}
 
+      {spInProgress.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-medium flex items-center gap-2 text-sm">
+            <Cog className="w-4 h-4 text-purple-600 dark:text-purple-400" /> {t("spareParts.title")} - {t("status.in_progress")} ({spInProgress.length})
+          </h3>
+          {spInProgress.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
+        </div>
+      )}
+
       {approved.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-medium flex items-center gap-2 text-sm">
@@ -582,6 +667,15 @@ export default function DriverDashboard() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {spApproved.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-medium flex items-center gap-2 text-sm">
+            <Cog className="w-4 h-4 text-blue-600 dark:text-blue-400" /> {t("spareParts.title")} - {t("status.approved")} ({spApproved.length})
+          </h3>
+          {spApproved.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
         </div>
       )}
 
@@ -609,9 +703,18 @@ export default function DriverDashboard() {
         </div>
       )}
 
-      {isLoading && <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>}
+      {spCompleted.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-medium flex items-center gap-2 text-sm">
+            <Cog className="w-4 h-4 text-green-600 dark:text-green-400" /> {t("spareParts.title")} - {t("status.completed")} ({spCompleted.length})
+          </h3>
+          {spCompleted.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
+        </div>
+      )}
 
-      {!isLoading && !approved.length && !inProgress.length && !completed.length && (
+      {(isLoading || spLoading) && <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>}
+
+      {!isLoading && !spLoading && !approved.length && !inProgress.length && !completed.length && !spApproved.length && !spInProgress.length && !spCompleted.length && (
         <div className="text-center py-12">
           <Package className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">{t("messages.noOrders")}</p>
