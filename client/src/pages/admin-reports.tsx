@@ -115,59 +115,6 @@ export default function AdminReports() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2">
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-primary">{reports.totalOrders}</p>
-            <p className="text-[10px] text-muted-foreground">{t("stats.totalOrders")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{reports.totalCompleted}</p>
-            <p className="text-[10px] text-muted-foreground">{t("stats.completedOrders")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{reports.totalProducts}</p>
-            <p className="text-[10px] text-muted-foreground">{t("nav.products")}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="p-3">
-          <p className="text-xs font-semibold mb-2">{t("reports.orderStatus")}</p>
-          <div className="flex rounded-full overflow-hidden h-4" data-testid="chart-order-status">
-            {Object.entries(reports.orderStatusCounts).map(([status, count]) => (
-              count > 0 ? (
-                <div
-                  key={status}
-                  className="h-full relative group"
-                  style={{
-                    width: `${(count / totalStatus) * 100}%`,
-                    backgroundColor: STATUS_COLORS[status] || "#6b7280",
-                    minWidth: count > 0 ? "8px" : "0",
-                  }}
-                  title={`${t(`status.${status}`)}: ${count}`}
-                />
-              ) : null
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {Object.entries(reports.orderStatusCounts).map(([status, count]) => (
-              count > 0 ? (
-                <div key={status} className="flex items-center gap-1 text-[10px]">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[status] }} />
-                  <span>{t(`status.${status}`)}: {count}</span>
-                </div>
-              ) : null
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1" data-testid="reports-tabs">
         {tabs.map(tab => (
           <button
