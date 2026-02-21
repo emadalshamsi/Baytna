@@ -1,48 +1,35 @@
-import { useState, useCallback } from "react";
-import Cropper, { Area } from "react-easy-crop";
+import { useState, useRef, useCallback } from "react";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Check, RotateCcw, ZoomIn } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import { t } from "@/lib/i18n";
 
-function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
-    image.setAttribute("crossOrigin", "anonymous");
-    image.src = url;
-  });
-}
-
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = await createImage(imageSrc);
+function getCroppedCanvas(image: HTMLImageElement, crop: PixelCrop): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("No 2d context");
 
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+
+  canvas.width = Math.floor(crop.width * scaleX);
+  canvas.height = Math.floor(crop.height * scaleY);
 
   ctx.drawImage(
     image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    canvas.width,
+    canvas.height
   );
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Canvas is empty"));
-    }, "image/jpeg", 0.9);
-  });
+  return canvas;
 }
 
 interface ImageCropperProps {
@@ -53,21 +40,31 @@ interface ImageCropperProps {
 }
 
 export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropperProps) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [processing, setProcessing] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
-    setCroppedAreaPixels(croppedPixels);
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const cropSize = Math.min(width, height) * 0.8;
+    const x = (width - cropSize) / 2;
+    const y = (height - cropSize) / 2;
+    setCrop({ unit: "px", x, y, width: cropSize, height: cropSize });
   }, []);
 
   const handleConfirm = async () => {
-    if (!croppedAreaPixels) return;
+    if (!completedCrop || !imgRef.current) return;
     setProcessing(true);
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      onCropDone(croppedBlob);
+      const canvas = getCroppedCanvas(imgRef.current, completedCrop);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error("Canvas is empty"));
+        }, "image/jpeg", 0.9);
+      });
+      onCropDone(blob);
     } catch {
     } finally {
       setProcessing(false);
@@ -75,8 +72,12 @@ export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropp
   };
 
   const handleReset = () => {
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
+    if (!imgRef.current) return;
+    const { width, height } = imgRef.current;
+    const cropSize = Math.min(width, height) * 0.8;
+    const x = (width - cropSize) / 2;
+    const y = (height - cropSize) / 2;
+    setCrop({ unit: "px", x, y, width: cropSize, height: cropSize });
   };
 
   return (
@@ -85,39 +86,29 @@ export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropp
         <DialogHeader className="p-4 pb-2">
           <DialogTitle>{t("fields.cropImage")}</DialogTitle>
         </DialogHeader>
-        <div className="relative w-full" style={{ height: "60vh" }}>
-          <Cropper
-            image={imageSrc}
+        <div className="flex items-center justify-center overflow-auto bg-muted/50 p-2" style={{ maxHeight: "65vh" }}>
+          <ReactCrop
             crop={crop}
-            zoom={zoom}
-            aspect={undefined}
-            onCropChange={setCrop}
-            onCropComplete={onCropComplete}
-            onZoomChange={setZoom}
-            objectFit="contain"
-            style={{
-              containerStyle: { borderRadius: 0 },
-            }}
-          />
-        </div>
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <ZoomIn className="w-4 h-4 text-muted-foreground shrink-0" />
-            <Slider
-              value={[zoom]}
-              min={1}
-              max={3}
-              step={0.05}
-              onValueChange={(val) => setZoom(val[0])}
-              className="flex-1"
-              data-testid="slider-crop-zoom"
+            onChange={(c) => setCrop(c)}
+            onComplete={(c) => setCompletedCrop(c)}
+            keepSelection
+          >
+            <img
+              ref={imgRef}
+              src={imageSrc}
+              alt=""
+              onLoad={onImageLoad}
+              style={{ maxHeight: "60vh", maxWidth: "100%" }}
+              crossOrigin="anonymous"
             />
-          </div>
+          </ReactCrop>
+        </div>
+        <div className="p-4">
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 gap-2" onClick={handleReset} data-testid="button-crop-reset">
               <RotateCcw className="w-4 h-4" /> {t("actions.reset")}
             </Button>
-            <Button className="flex-1 gap-2" onClick={handleConfirm} disabled={processing} data-testid="button-crop-confirm">
+            <Button className="flex-1 gap-2" onClick={handleConfirm} disabled={processing || !completedCrop} data-testid="button-crop-confirm">
               <Check className="w-4 h-4" /> {t("actions.confirm")}
             </Button>
           </div>
