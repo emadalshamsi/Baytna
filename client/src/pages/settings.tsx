@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil, DoorOpen } from "lucide-react";
+import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil, DoorOpen, Paperclip } from "lucide-react";
 import { ROOM_ICON_OPTIONS, getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import AdminUsers from "@/pages/admin-users";
+import AdminAttachments from "@/pages/admin-attachments";
 import type { Room } from "@shared/schema";
 
 async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
@@ -913,6 +914,14 @@ export default function SettingsPage() {
             testId="section-users"
           >
             <AdminUsers />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title={t("attachments.title")}
+            icon={<Paperclip className="w-5 h-5" />}
+            testId="section-attachments"
+          >
+            <AdminAttachments />
           </CollapsibleSection>
         </div>
       )}

@@ -84,6 +84,15 @@ const upload = multer({
   },
 });
 
+const uploadExcel = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedMime = /^application\/(vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|vnd\.ms-excel)$/;
+    cb(null, allowedMime.test(file.mimetype) || file.originalname.endsWith(".xlsx") || file.originalname.endsWith(".xls"));
+  },
+});
+
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if ((req.session as any).userId) {
     return next();
@@ -2377,6 +2386,127 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete shortage" });
+    }
+  });
+
+  // Excel template download for products
+  app.get("/api/products/template", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const XLSX = await import("xlsx");
+      const categories = await storage.getCategories();
+      const stores = await storage.getStores();
+      const catNames = categories.map(c => `${c.id}: ${c.nameAr}${c.nameEn ? ' / ' + c.nameEn : ''}`).join("\n");
+      const storeNames = stores.map(s => `${s.id}: ${s.nameAr}${s.nameEn ? ' / ' + s.nameEn : ''}`).join("\n");
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        ["nameAr", "nameEn", "categoryId", "estimatedPrice", "preferredStore", "storeId", "unit", "unitAr", "unitEn", "icon"]
+      ]);
+      ws["!cols"] = [
+        { wch: 35 }, { wch: 25 }, { wch: 30 }, { wch: 15 },
+        { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, "Products");
+      const catData = categories.map(c => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn || "" }));
+      const catWs = XLSX.utils.json_to_sheet(catData);
+      catWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, catWs, "Categories");
+      const storeData = stores.map(s => ({ id: s.id, nameAr: s.nameAr, nameEn: s.nameEn || "" }));
+      const storeWs = XLSX.utils.json_to_sheet(storeData);
+      storeWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, storeWs, "Stores");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", "attachment; filename=products_template.xlsx");
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (error) {
+      console.error("Template generation error:", error);
+      res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+
+  // Excel import products
+  app.post("/api/products/import", isAuthenticated, uploadExcel.single("file"), async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!rows.length) return res.status(400).json({ message: "No data in file" });
+      const existingProducts = await storage.getProducts();
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 2;
+        const nameAr = String(row.nameAr || row["nameAr"] || row["اسم المنتج بالعربية (مطلوب)"] || "").trim();
+        if (!nameAr) {
+          errors.push(`Row ${rowNum}: Missing Arabic name`);
+          skipped++;
+          continue;
+        }
+        const nameEn = String(row.nameEn || row["nameEn"] || row["Product Name English"] || "").trim() || undefined;
+        const categoryId = parseInt(row.categoryId || row["categoryId"] || row["رقم التصنيف (انظر ورقة التصنيفات)"] || "0") || undefined;
+        const estimatedPrice = parseFloat(row.estimatedPrice || row["estimatedPrice"] || row["السعر التقديري"] || "0") || 0;
+        const preferredStore = String(row.preferredStore || row["preferredStore"] || row["المتجر المفضل"] || "").trim() || undefined;
+        const storeId = parseInt(row.storeId || row["storeId"] || row["رقم المتجر (انظر ورقة المتاجر)"] || "0") || undefined;
+        const unit = String(row.unit || row["الوحدة"] || "").trim() || undefined;
+        const unitAr = String(row.unitAr || row["الوحدة بالعربية"] || "").trim() || undefined;
+        const unitEn = String(row.unitEn || row["الوحدة بالإنجليزية"] || "").trim() || undefined;
+        const icon = String(row.icon || row["رمز الأيقونة"] || "").trim() || undefined;
+        const existing = existingProducts.find(p => p.nameAr === nameAr);
+        try {
+          if (existing) {
+            await storage.updateProduct(existing.id, {
+              nameEn: nameEn || existing.nameEn,
+              categoryId: categoryId || existing.categoryId,
+              estimatedPrice: estimatedPrice || existing.estimatedPrice,
+              preferredStore: preferredStore || existing.preferredStore,
+              storeId: storeId || existing.storeId,
+              unit: unit || existing.unit,
+              unitAr: unitAr || existing.unitAr,
+              unitEn: unitEn || existing.unitEn,
+              icon: icon || existing.icon,
+            });
+            updated++;
+          } else {
+            await storage.createProduct({
+              nameAr,
+              nameEn: nameEn || null,
+              categoryId: categoryId || null,
+              estimatedPrice: estimatedPrice || 0,
+              preferredStore: preferredStore || null,
+              storeId: storeId || null,
+              imageUrl: null,
+              icon: icon || null,
+              unit: unit || null,
+              unitAr: unitAr || null,
+              unitEn: unitEn || null,
+              isActive: true,
+            });
+            imported++;
+          }
+        } catch (err: any) {
+          errors.push(`Row ${rowNum} (${nameAr}): ${err.message || "Unknown error"}`);
+          skipped++;
+        }
+      }
+      if (req.file.path) try { fs.unlinkSync(req.file.path); } catch {}
+      res.json({ imported, updated, skipped, errors, total: rows.length });
+    } catch (error: any) {
+      console.error("Import error:", error);
+      res.status(500).json({ message: "Failed to import products", error: error.message });
     }
   });
 
