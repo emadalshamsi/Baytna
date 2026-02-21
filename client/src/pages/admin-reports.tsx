@@ -269,41 +269,33 @@ export default function AdminReports() {
               <>
                 <div className="space-y-3">
                   {(() => {
-                    const maxVal = Math.max(...reports.monthlySpending.map(m => Math.max(m.estimated, m.actual)), 1);
-                    return reports.monthlySpending.map((m, i) => {
-                      const hasData = m.estimated > 0 || m.actual > 0;
-                      return (
-                        <div key={m.month} data-testid={`row-monthly-${i}`} className={!hasData ? "opacity-60" : ""}>
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="font-medium">{getMonthLabel(m.month)}</span>
-                            <span className="text-muted-foreground">{m.count} {t("reports.orders")}</span>
-                          </div>
-                          {hasData ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] w-12 text-muted-foreground">{t("reports.estimated")}</span>
-                                <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(m.estimated / maxVal) * 100}%` }} />
-                                </div>
-                                <span className="text-[10px] font-medium w-16 text-end inline-flex items-center justify-end gap-0.5">{formatPrice(m.estimated)} <SarIcon className="w-2 h-2" /></span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] w-12 text-muted-foreground">{t("reports.actual")}</span>
-                                <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${(m.actual / maxVal) * 100}%` }} />
-                                </div>
-                                <span className="text-[10px] font-medium w-16 text-end inline-flex items-center justify-end gap-0.5">{formatPrice(m.actual)} <SarIcon className="w-2 h-2" /></span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-3 bg-muted rounded-full border border-dashed border-muted-foreground/30" />
-                              <span className="text-[10px] text-muted-foreground">{t("reports.noData")}</span>
-                            </div>
-                          )}
+                    const filtered = reports.monthlySpending.filter(m => m.estimated > 0 || m.actual > 0);
+                    if (filtered.length === 0) return <p className="text-center text-sm text-muted-foreground py-4">{t("reports.noData")}</p>;
+                    const maxVal = Math.max(...filtered.map(m => Math.max(m.estimated, m.actual)), 1);
+                    return filtered.map((m, i) => (
+                      <div key={m.month} data-testid={`row-monthly-${i}`}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium">{getMonthLabel(m.month)}</span>
+                          <span className="text-muted-foreground">{m.count} {t("reports.orders")}</span>
                         </div>
-                      );
-                    });
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] w-12 text-muted-foreground">{t("reports.estimated")}</span>
+                            <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(m.estimated / maxVal) * 100}%` }} />
+                            </div>
+                            <span className="text-[10px] font-medium w-16 text-end inline-flex items-center justify-end gap-0.5">{formatPrice(m.estimated)} <SarIcon className="w-2 h-2" /></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] w-12 text-muted-foreground">{t("reports.actual")}</span>
+                            <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-green-500 rounded-full" style={{ width: `${(m.actual / maxVal) * 100}%` }} />
+                            </div>
+                            <span className="text-[10px] font-medium w-16 text-end inline-flex items-center justify-end gap-0.5">{formatPrice(m.actual)} <SarIcon className="w-2 h-2" /></span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
                   })()}
                 </div>
                 <div className="flex gap-4 justify-center mt-3 text-[10px]">
