@@ -17,7 +17,7 @@ import {
   Store as StoreIcon, ExternalLink, AlertTriangle, ChevronDown, ChevronUp,
   Clock, CalendarDays, Zap, ChefHat
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { Product, Category, Order, Store, OrderItem, Shortage } from "@shared/schema";
 import { t, formatPrice, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
 import { SarIcon } from "@/components/sar-icon";
@@ -26,6 +26,7 @@ import { useLang } from "@/App";
 import { ShortagesSection } from "@/pages/admin-shopping";
 import { KitchenTab, MealItemsSection } from "@/pages/housekeeping";
 import { getIcon } from "@/lib/category-icons";
+import { ImageCropper } from "@/components/image-cropper";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
@@ -286,6 +287,8 @@ function ManageProductsSection() {
   const [uploading, setUploading] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
 
   const resetForm = () => {
     setNameAr(""); setNameEn(""); setEstimatedPrice(""); setPreferredStore("");
@@ -308,11 +311,24 @@ function ManageProductsSection() {
     setShowAdd(true);
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleCropDone = useCallback(async (croppedBlob: Blob) => {
+    setShowCropper(false);
+    setCropSrc(null);
     setUploading(true);
     try {
+      const file = new File([croppedBlob], "cropped.jpg", { type: "image/jpeg" });
       const { compressImage } = await import("@/lib/image-compress");
       const compressed = await compressImage(file);
       const formData = new FormData();
@@ -322,7 +338,7 @@ function ManageProductsSection() {
       if (res.ok) setImageUrl(data.imageUrl);
     } catch {}
     setUploading(false);
-  };
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => { await apiRequest("POST", "/api/products", data); },
@@ -402,7 +418,7 @@ function ManageProductsSection() {
               </Select>
             )}
             <div className="space-y-2">
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
               <Button type="button" variant="outline" className="w-full gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading} data-testid="button-upload-image">
                 <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadImage")}
               </Button>
@@ -421,6 +437,15 @@ function ManageProductsSection() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {cropSrc && (
+        <ImageCropper
+          open={showCropper}
+          imageSrc={cropSrc}
+          onClose={() => { setShowCropper(false); setCropSrc(null); }}
+          onCropDone={handleCropDone}
+        />
+      )}
 
       <Input
         placeholder={t("actions.searchProducts")}
