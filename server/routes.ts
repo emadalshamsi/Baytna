@@ -2641,5 +2641,84 @@ export async function registerRoutes(
   cleanupOldPendingOrders();
   setInterval(cleanupOldPendingOrders, 60 * 60 * 1000);
 
+  async function cleanupUnusedCloudinaryImages() {
+    try {
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+      if (!cloudName || !apiKey || !apiSecret) return;
+
+      cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+
+      const allProducts = await storage.getProducts();
+      const allOrders = await storage.getOrders();
+      const allUsers = await storage.getAllUsers();
+      const allMealItems = await storage.getMealItems();
+      const allMeals = await storage.getMeals();
+      const allSpareParts = await storage.getSpareParts();
+
+      const usedUrls = new Set<string>();
+      const extractPublicId = (url: string) => {
+        const match = url.match(/\/baytna\/([^/.?]+)/);
+        return match ? `baytna/${match[1]}` : null;
+      };
+
+      const addUrl = (url: string | null | undefined) => {
+        if (url && url.includes("cloudinary")) {
+          const pid = extractPublicId(url);
+          if (pid) usedUrls.add(pid);
+        }
+      };
+
+      allProducts.forEach(p => addUrl(p.imageUrl));
+      allOrders.forEach(o => addUrl(o.receiptImageUrl));
+      allUsers.forEach(u => addUrl(u.profileImageUrl));
+      allMealItems.forEach(m => addUrl(m.imageUrl));
+      allMeals.forEach(m => addUrl(m.imageUrl));
+      allSpareParts.forEach(sp => addUrl(sp.imageUrl));
+
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      const threeDaysAgoISO = threeDaysAgo.toISOString();
+
+      let nextCursor: string | undefined;
+      let deletedCount = 0;
+
+      do {
+        const listResult: any = await cloudinary.api.resources({
+          type: "upload",
+          prefix: "baytna/",
+          max_results: 100,
+          next_cursor: nextCursor,
+        });
+
+        const resources = listResult.resources || [];
+        for (const resource of resources) {
+          const createdAt = resource.created_at;
+          if (createdAt > threeDaysAgoISO) continue;
+          if (usedUrls.has(resource.public_id)) continue;
+
+          try {
+            await cloudinary.uploader.destroy(resource.public_id);
+            deletedCount++;
+          } catch (delErr) {
+            console.error(`[Cloudinary Cleanup] Failed to delete ${resource.public_id}:`, delErr);
+          }
+        }
+
+        nextCursor = listResult.next_cursor;
+      } while (nextCursor);
+
+      if (deletedCount > 0) {
+        console.log(`[Cloudinary Cleanup] Deleted ${deletedCount} unused images older than 3 days`);
+      }
+    } catch (err) {
+      console.error("[Cloudinary Cleanup] Failed:", err);
+    }
+  }
+
+  cleanupUnusedCloudinaryImages();
+  setInterval(cleanupUnusedCloudinaryImages, 24 * 60 * 60 * 1000);
+
   return httpServer;
 }
