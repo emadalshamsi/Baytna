@@ -279,7 +279,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
               <div className="flex items-center gap-2">
                 {product?.imageUrl && (
                   <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-cover" />
+                    <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-contain" />
                   </div>
                 )}
                 <span className={`font-medium text-sm ${(checked[item.id] || item.isPurchased) ? "line-through text-muted-foreground" : ""}`}>
