@@ -108,7 +108,6 @@ export default function AdminReports() {
     { key: "topProducts", label: t("reports.topProducts"), icon: ShoppingBag },
     { key: "priceComparison", label: t("reports.priceComparison"), icon: ArrowUpDown },
     { key: "monthlySpending", label: t("reports.monthlySpending"), icon: BarChart3 },
-    { key: "categorySpending", label: t("reports.categorySpending"), icon: PieChart },
   ];
 
   const totalStatus = Object.values(reports.orderStatusCounts).reduce((a, b) => a + b, 0) || 1;
@@ -261,47 +260,6 @@ export default function AdminReports() {
         </Card>
       )}
 
-      {activeTab === "categorySpending" && (
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            {reports.topCategories.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-4">{t("reports.noData")}</p>
-            ) : (
-              (() => {
-                const maxTotal = reports.topCategories[0]?.total || 1;
-                const CAT_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#6366f1"];
-                const totalAll = reports.topCategories.reduce((s, c) => s + c.total, 0) || 1;
-                return (
-                  <>
-                    <div className="flex rounded-full overflow-hidden h-5 mb-3" data-testid="chart-category-spending">
-                      {reports.topCategories.map((c, i) => (
-                        <div
-                          key={c.id}
-                          className="h-full"
-                          style={{
-                            width: `${(c.total / totalAll) * 100}%`,
-                            backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
-                            minWidth: "4px",
-                          }}
-                          title={`${pName(c)}: ${formatPrice(c.total)}`}
-                        />
-                      ))}
-                    </div>
-                    {reports.topCategories.map((c, i) => (
-                      <div key={c.id} className="flex items-center gap-2" data-testid={`row-category-${i}`}>
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }} />
-                        <span className="text-sm flex-1 truncate">{pName(c)}</span>
-                        <span className="text-xs text-muted-foreground">{c.count} {t("reports.times")}</span>
-                        <span className="text-xs font-semibold inline-flex items-center gap-0.5">{formatPrice(c.total)} <SarIcon className="w-2.5 h-2.5" /></span>
-                      </div>
-                    ))}
-                  </>
-                );
-              })()
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
