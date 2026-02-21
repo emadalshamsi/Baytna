@@ -8,6 +8,7 @@ import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
 import { useState } from "react";
 import type { Order, Trip, User as UserType } from "@shared/schema";
+import AdminReports from "@/pages/admin-reports";
 
 function StatusBadge({ status }: { status: string }) {
   useLang();
@@ -197,6 +198,14 @@ export default function AdminDashboard() {
       {activeFilter && filteredOrders.length === 0 && filteredTrips.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-4">{t("messages.noOrders")}</p>
       )}
+
+      <div className="border-t pt-4">
+        <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          {t("reports.title")}
+        </h2>
+        <AdminReports />
+      </div>
     </div>
   );
 }

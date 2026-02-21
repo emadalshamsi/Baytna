@@ -2389,6 +2389,123 @@ export async function registerRoutes(
     }
   });
 
+  // Reports & Analytics API
+  app.get("/api/reports", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const [allOrders, allProducts, categories] = await Promise.all([
+        storage.getOrders(),
+        storage.getProducts(),
+        storage.getCategories(),
+      ]);
+
+      const completedOrders = allOrders.filter(o => o.status === "completed");
+      const itemResults = await Promise.all(completedOrders.map(o => storage.getOrderItems(o.id)));
+      const allOrderItems: any[] = [];
+      completedOrders.forEach((order, i) => {
+        itemResults[i].forEach(item => allOrderItems.push({ ...item, orderCreatedAt: order.createdAt }));
+      });
+
+      const productMap = new Map(allProducts.map(p => [p.id, p]));
+      const categoryMap = new Map(categories.map(c => [c.id, c]));
+
+      const productStats: Record<number, { productId: number; nameAr: string; nameEn: string | null; count: number; totalEstimated: number; totalActual: number; actualCount: number }> = {};
+      for (const item of allOrderItems) {
+        const pid = item.productId;
+        const product = productMap.get(pid);
+        if (!product) continue;
+        if (!productStats[pid]) {
+          productStats[pid] = { productId: pid, nameAr: product.nameAr, nameEn: product.nameEn, count: 0, totalEstimated: 0, totalActual: 0, actualCount: 0 };
+        }
+        productStats[pid].count += item.quantity || 1;
+        productStats[pid].totalEstimated += (item.estimatedPrice || 0) * (item.quantity || 1);
+        if (item.actualPrice != null && item.actualPrice > 0) {
+          productStats[pid].totalActual += item.actualPrice * (item.quantity || 1);
+          productStats[pid].actualCount += item.quantity || 1;
+        }
+      }
+
+      const topProducts = Object.values(productStats)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      const priceComparisons = Object.values(productStats)
+        .filter(p => p.actualCount > 0 && p.totalEstimated > 0)
+        .map(p => ({
+          ...p,
+          avgEstimated: p.totalEstimated / p.count,
+          avgActual: p.totalActual / p.actualCount,
+          difference: (p.totalActual / p.actualCount) - (p.totalEstimated / p.count),
+          percentDiff: (((p.totalActual / p.actualCount) - (p.totalEstimated / p.count)) / (p.totalEstimated / p.count)) * 100,
+        }))
+        .sort((a, b) => Math.abs(b.percentDiff) - Math.abs(a.percentDiff))
+        .slice(0, 15);
+
+      const now = new Date();
+      const monthlySpending: { month: string; estimated: number; actual: number; count: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+        const monthOrders = completedOrders.filter(o => {
+          if (!o.createdAt) return false;
+          const oc = new Date(o.createdAt);
+          return oc >= d && oc <= monthEnd;
+        });
+        monthlySpending.push({
+          month: monthKey,
+          estimated: monthOrders.reduce((s, o) => s + (o.totalEstimated || 0), 0),
+          actual: monthOrders.reduce((s, o) => s + (o.totalActual || o.totalEstimated || 0), 0),
+          count: monthOrders.length,
+        });
+      }
+
+      const categorySpending: Record<number, { id: number; nameAr: string; nameEn: string | null; total: number; count: number }> = {};
+      for (const item of allOrderItems) {
+        const product = productMap.get(item.productId);
+        if (!product || !product.categoryId) continue;
+        const catId = product.categoryId;
+        const cat = categoryMap.get(catId);
+        if (!cat) continue;
+        if (!categorySpending[catId]) {
+          categorySpending[catId] = { id: catId, nameAr: cat.nameAr, nameEn: cat.nameEn, total: 0, count: 0 };
+        }
+        categorySpending[catId].total += (item.actualPrice || item.estimatedPrice || 0) * (item.quantity || 1);
+        categorySpending[catId].count += item.quantity || 1;
+      }
+
+      const topCategories = Object.values(categorySpending)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
+      const orderStatusCounts = {
+        pending: allOrders.filter(o => o.status === "pending").length,
+        approved: allOrders.filter(o => o.status === "approved").length,
+        in_progress: allOrders.filter(o => o.status === "in_progress").length,
+        completed: completedOrders.length,
+        rejected: allOrders.filter(o => o.status === "rejected").length,
+      };
+
+      res.json({
+        topProducts,
+        priceComparisons,
+        monthlySpending,
+        topCategories,
+        orderStatusCounts,
+        totalOrders: allOrders.length,
+        totalCompleted: completedOrders.length,
+        totalProducts: allProducts.length,
+      });
+    } catch (error) {
+      console.error("Reports error:", error);
+      res.status(500).json({ message: "Failed to generate reports" });
+    }
+  });
+
   // Excel template download for products
   app.get("/api/products/template", isAuthenticated, async (req: Request, res: Response) => {
     try {
