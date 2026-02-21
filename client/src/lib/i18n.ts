@@ -453,7 +453,7 @@ export function productDisplayName(item: { nameAr?: string | null; nameEn?: stri
 export function imgUrl(url: string | null | undefined, w = 500, h = 500): string {
   if (!url) return "";
   const transformed = url.includes("res.cloudinary.com") && url.includes("/upload/")
-    ? url.replace("/upload/", `/upload/c_fill,g_face,w_${w},h_${h},q_auto,f_auto/`)
+    ? url.replace("/upload/", `/upload/c_fit,w_${w},h_${h},q_auto,f_auto/`)
     : url;
   const sep = transformed.includes("?") ? "&" : "?";
   const cacheBuster = Math.floor(Date.now() / (5 * 60 * 1000));
