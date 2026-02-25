@@ -15,7 +15,7 @@ import homeBannerLight from "@/assets/images/HomeBanner01_1771338596382.png";
 import homeBannerDark from "@/assets/images/HomeBanner02_1771338596382.png";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, getLang, formatTime, imgUrl } from "@/lib/i18n";
+import { t, getLang, formatTime, imgUrl, handleImgError } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -1048,7 +1048,7 @@ function MealCardsGrid({ meals, lang, isAdmin, onEdit, onDelete }: {
           <CardContent className="p-0">
             <div className="aspect-square relative bg-muted">
               {meal.imageUrl ? (
-                <img src={imgUrl(meal.imageUrl)} alt="" className="w-full h-full object-cover" />
+                <img src={imgUrl(meal.imageUrl)} alt="" className="w-full h-full object-cover" onError={handleImgError} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ChefHat className="w-10 h-10 text-muted-foreground/40" />
@@ -1256,7 +1256,7 @@ export function MealItemsSection({ lang }: { lang: string }) {
               <CardContent className="p-0">
                 <div className="aspect-square relative bg-muted">
                   {item.imageUrl ? (
-                    <img src={imgUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" />
+                    <img src={imgUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" onError={handleImgError} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <ChefHat className="w-10 h-10 text-muted-foreground/40" />
@@ -1308,7 +1308,7 @@ function MealItemSlider({ items, lang, selectedId, onSelect }: {
           >
             <div className="aspect-square bg-muted rounded-md overflow-hidden">
               {item.imageUrl ? (
-                <img src={imgUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" />
+                <img src={imgUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" onError={handleImgError} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ChefHat className="w-6 h-6 text-muted-foreground/40" />

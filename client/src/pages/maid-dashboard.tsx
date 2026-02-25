@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Product, Category, Order, OrderItem } from "@shared/schema";
-import { t, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
+import { t, getLang, imgUrl, handleImgError, localName, localUnit, productDisplayName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { ShortagesSection } from "@/pages/admin-shopping";
@@ -158,7 +158,7 @@ function MaidOrderDetailPanel({ orderId, editable = false, currentScheduledFor }
           return (
             <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0">
               <div className="flex items-center gap-2 min-w-0">
-                {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-contain shrink-0" />}
+                {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-contain shrink-0" onError={handleImgError} />}
                 <div className="min-w-0">
                   <span className="font-medium text-sm truncate block text-start">{product ? productDisplayName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
@@ -445,7 +445,7 @@ export default function MaidDashboard() {
                 >
                   {product.imageUrl ? (
                     <div className="w-10 h-10 rounded-md overflow-hidden mb-2">
-                      <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-contain" />
+                      <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-contain" onError={handleImgError} />
                     </div>
                   ) : (
                     <Icon className="w-8 h-8 mb-2 text-muted-foreground" />
@@ -702,7 +702,7 @@ export default function MaidDashboard() {
                         data-testid={`button-update-add-${product.id}`}>
                         {product.imageUrl ? (
                           <div className="w-8 h-8 rounded-md overflow-hidden mb-1">
-                            <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-contain" />
+                            <img src={imgUrl(product.imageUrl)} alt={localName(product)} className="w-full h-full object-contain" onError={handleImgError} />
                           </div>
                         ) : (
                           <Icon className="w-6 h-6 mb-1 text-muted-foreground" />

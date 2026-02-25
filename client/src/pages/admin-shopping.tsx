@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList, Package, Check, X, Plus, Minus, ShoppingCart, Pencil, Upload, Image as ImageIcon, Store as StoreIcon, ExternalLink, LayoutGrid, ChevronDown, ChevronUp, User, AlertTriangle, Trash2, UtensilsCrossed, Copy } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import type { Order, Product, Category, Store, OrderItem, User as UserType, Shortage } from "@shared/schema";
-import { t, formatPrice, displayName, formatDate, getLang, imgUrl, localName, localUnit, productDisplayName } from "@/lib/i18n";
+import { t, formatPrice, displayName, formatDate, getLang, imgUrl, handleImgError, localName, localUnit, productDisplayName } from "@/lib/i18n";
 import { SarIcon } from "@/components/sar-icon";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/App";
@@ -153,7 +153,7 @@ function OrderDetailPanel({ orderId, editable = false }: { orderId: number; edit
           return (
             <div key={item.id} className="flex items-center justify-between gap-2 flex-wrap text-sm py-1.5 border-b last:border-b-0" data-testid={`order-item-${item.id}`}>
               <div className="flex items-center gap-2 min-w-0">
-                {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-contain shrink-0" />}
+                {product?.imageUrl && <img src={imgUrl(product.imageUrl)} alt="" className="w-8 h-8 rounded object-contain shrink-0" onError={handleImgError} />}
                 <div className="min-w-0">
                   <span className="font-medium text-sm truncate block text-start">{product ? productDisplayName(product) : `#${item.productId}`}</span>
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
@@ -490,7 +490,7 @@ function ProductsSection() {
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 {p.imageUrl ? (
                   <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    <img src={imgUrl(p.imageUrl)} alt={localName(p)} className="w-full h-full object-contain" />
+                    <img src={imgUrl(p.imageUrl)} alt={localName(p)} className="w-full h-full object-contain" onError={handleImgError} />
                   </div>
                 ) : (
                   <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">

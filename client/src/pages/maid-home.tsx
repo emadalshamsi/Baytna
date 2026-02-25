@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getRoomIcon } from "@/lib/room-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, formatTime, imgUrl, localName } from "@/lib/i18n";
+import { t, formatTime, imgUrl, handleImgError, localName } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -203,7 +203,7 @@ export default function MaidHomePage() {
                 <CardContent className="p-0">
                   <div className="aspect-square relative bg-muted">
                     {meal.imageUrl ? (
-                      <img src={imgUrl(meal.imageUrl)} alt="" className="w-full h-full object-cover" />
+                      <img src={imgUrl(meal.imageUrl)} alt="" className="w-full h-full object-cover" onError={handleImgError} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ChefHat className="w-10 h-10 text-muted-foreground/40" />

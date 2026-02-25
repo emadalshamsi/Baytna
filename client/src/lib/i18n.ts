@@ -451,13 +451,19 @@ export function productDisplayName(item: { nameAr?: string | null; nameEn?: stri
 }
 
 export function imgUrl(url: string | null | undefined, w = 500, h = 500): string {
-  if (!url) return "";
-  const transformed = url.includes("res.cloudinary.com") && url.includes("/upload/")
-    ? url.replace("/upload/", `/upload/c_fit,w_${w},h_${h},q_auto,f_auto/`)
-    : url;
-  const sep = transformed.includes("?") ? "&" : "?";
-  const cacheBuster = Math.floor(Date.now() / (5 * 60 * 1000));
-  return `${transformed}${sep}_v=${cacheBuster}`;
+  if (!url || url.trim() === "") return "";
+  const trimmed = url.trim();
+  if (trimmed.includes("res.cloudinary.com") && trimmed.includes("/upload/")) {
+    const alreadyTransformed = /\/upload\/[a-z]_/.test(trimmed);
+    if (!alreadyTransformed) {
+      return trimmed.replace("/upload/", `/upload/c_fit,w_${w},h_${h},q_auto,f_auto/`);
+    }
+  }
+  return trimmed;
+}
+
+export function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
+  e.currentTarget.style.display = "none";
 }
 
 export function formatPrice(amount: number): string {
