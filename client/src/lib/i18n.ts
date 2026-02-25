@@ -463,7 +463,21 @@ export function imgUrl(url: string | null | undefined, w = 500, h = 500): string
 }
 
 export function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
-  e.currentTarget.style.display = "none";
+  const img = e.currentTarget;
+  const original = img.getAttribute("data-original-src");
+  if (!original && img.src.includes("/upload/c_")) {
+    const fallbackUrl = img.src.replace(/\/upload\/[^/]+\//, "/upload/");
+    img.setAttribute("data-original-src", img.src);
+    img.src = fallbackUrl;
+  } else {
+    img.style.opacity = "0";
+    const parent = img.parentElement;
+    if (parent) {
+      parent.style.display = "flex";
+      parent.style.alignItems = "center";
+      parent.style.justifyContent = "center";
+    }
+  }
 }
 
 export function formatPrice(amount: number): string {
