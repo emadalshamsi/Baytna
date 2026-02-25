@@ -3,7 +3,7 @@ import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw, ImageIcon } from "lucide-react";
 import { t } from "@/lib/i18n";
 
 function getCroppedCanvas(image: HTMLImageElement, crop: PixelCrop): HTMLCanvasElement {
@@ -71,6 +71,18 @@ export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropp
     }
   };
 
+  const handleUploadFull = async () => {
+    setProcessing(true);
+    try {
+      const res = await fetch(imageSrc);
+      const blob = await res.blob();
+      onCropDone(blob);
+    } catch {
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleReset = () => {
     if (!imgRef.current) return;
     const { width, height } = imgRef.current;
@@ -103,7 +115,7 @@ export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropp
             />
           </ReactCrop>
         </div>
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 gap-2" onClick={handleReset} data-testid="button-crop-reset">
               <RotateCcw className="w-4 h-4" /> {t("actions.reset")}
@@ -112,6 +124,9 @@ export function ImageCropper({ open, imageSrc, onClose, onCropDone }: ImageCropp
               <Check className="w-4 h-4" /> {t("actions.confirm")}
             </Button>
           </div>
+          <Button variant="secondary" className="w-full gap-2" onClick={handleUploadFull} disabled={processing} data-testid="button-upload-full">
+            <ImageIcon className="w-4 h-4" /> {t("fields.uploadFullImage")}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
