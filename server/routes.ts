@@ -2657,17 +2657,16 @@ export async function registerRoutes(
       const allMeals = await storage.getMeals();
       const allSpareParts = await storage.getSpareParts();
 
-      const usedUrls = new Set<string>();
-      const extractPublicId = (url: string) => {
-        const match = url.match(/\/baytna\/([^/.?]+)/);
-        return match ? `baytna/${match[1]}` : null;
-      };
+      const usedPublicIds = new Set<string>();
+      const usedSecureUrls = new Set<string>();
 
       const addUrl = (url: string | null | undefined) => {
-        if (url && url.includes("cloudinary")) {
-          const pid = extractPublicId(url);
-          if (pid) usedUrls.add(pid);
-        }
+        if (!url || !url.includes("cloudinary")) return;
+        usedSecureUrls.add(url);
+        const match = url.match(/\/baytna\/([^/.?\s]+)/);
+        if (match) usedPublicIds.add(`baytna/${match[1]}`);
+        const versionMatch = url.match(/\/v\d+\/baytna\/([^/.?\s]+)/);
+        if (versionMatch) usedPublicIds.add(`baytna/${versionMatch[1]}`);
       };
 
       allProducts.forEach(p => addUrl(p.imageUrl));
@@ -2677,12 +2676,15 @@ export async function registerRoutes(
       allMeals.forEach(m => addUrl(m.imageUrl));
       allSpareParts.forEach(sp => addUrl(sp.imageUrl));
 
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      const threeDaysAgoISO = threeDaysAgo.toISOString();
+      console.log(`[Cloudinary Cleanup] Found ${usedPublicIds.size} used public IDs from DB`);
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
       let nextCursor: string | undefined;
       let deletedCount = 0;
+      let skippedCount = 0;
 
       do {
         const listResult: any = await cloudinary.api.resources({
@@ -2695,12 +2697,23 @@ export async function registerRoutes(
         const resources = listResult.resources || [];
         for (const resource of resources) {
           const createdAt = resource.created_at;
-          if (createdAt > threeDaysAgoISO) continue;
-          if (usedUrls.has(resource.public_id)) continue;
+          if (createdAt > sevenDaysAgoISO) continue;
+
+          if (usedPublicIds.has(resource.public_id)) {
+            skippedCount++;
+            continue;
+          }
+
+          const secureUrl = resource.secure_url;
+          if (secureUrl && usedSecureUrls.has(secureUrl)) {
+            skippedCount++;
+            continue;
+          }
 
           try {
             await cloudinary.uploader.destroy(resource.public_id);
             deletedCount++;
+            console.log(`[Cloudinary Cleanup] Deleted unused: ${resource.public_id}`);
           } catch (delErr) {
             console.error(`[Cloudinary Cleanup] Failed to delete ${resource.public_id}:`, delErr);
           }
@@ -2709,9 +2722,7 @@ export async function registerRoutes(
         nextCursor = listResult.next_cursor;
       } while (nextCursor);
 
-      if (deletedCount > 0) {
-        console.log(`[Cloudinary Cleanup] Deleted ${deletedCount} unused images older than 3 days`);
-      }
+      console.log(`[Cloudinary Cleanup] Done: deleted=${deletedCount}, kept=${skippedCount}`);
     } catch (err) {
       console.error("[Cloudinary Cleanup] Failed:", err);
     }
