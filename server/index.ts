@@ -2,6 +2,44 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import pg from "pg";
+
+async function runMigrations() {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const cols = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name='products'"
+    );
+    const existingCols = new Set(cols.rows.map((r: any) => r.column_name));
+
+    if (!existingCols.has("unit_ar")) {
+      await pool.query("ALTER TABLE products ADD COLUMN unit_ar VARCHAR(50)");
+      console.log("[Migration] Added unit_ar column");
+    }
+    if (!existingCols.has("unit_en")) {
+      await pool.query("ALTER TABLE products ADD COLUMN unit_en VARCHAR(50)");
+      console.log("[Migration] Added unit_en column");
+    }
+    if (!existingCols.has("item_code")) {
+      await pool.query("ALTER TABLE products ADD COLUMN item_code VARCHAR(20)");
+      const rows = await pool.query("SELECT id FROM products ORDER BY id");
+      for (let i = 0; i < rows.rows.length; i++) {
+        await pool.query("UPDATE products SET item_code = $1 WHERE id = $2", [
+          "P" + String(i + 1).padStart(3, "0"),
+          rows.rows[i].id,
+        ]);
+      }
+      try {
+        await pool.query("ALTER TABLE products ADD CONSTRAINT products_item_code_unique UNIQUE (item_code)");
+      } catch {}
+      console.log("[Migration] Added item_code column to products");
+    }
+  } catch (e: any) {
+    console.error("[Migration] Error:", e.message);
+  } finally {
+    await pool.end();
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,6 +98,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await runMigrations();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
