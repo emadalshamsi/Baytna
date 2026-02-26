@@ -324,26 +324,53 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
-    if (!product.itemCode) {
-      const allProducts = await db.select({ itemCode: products.itemCode }).from(products).where(sql`item_code IS NOT NULL`);
-      const existingCodes = allProducts.map(p => p.itemCode).filter(Boolean);
-      let nextNum = 1;
-      for (const code of existingCodes) {
-        const match = code?.match(/^P(\d+)$/);
-        if (match) {
-          const num = parseInt(match[1]);
-          if (num >= nextNum) nextNum = num + 1;
+    try {
+      if (!product.itemCode) {
+        const allProducts = await db.select({ itemCode: products.itemCode }).from(products).where(sql`item_code IS NOT NULL`);
+        const existingCodes = allProducts.map(p => p.itemCode).filter(Boolean);
+        let nextNum = 1;
+        for (const code of existingCodes) {
+          const match = code?.match(/^P(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1]);
+            if (num >= nextNum) nextNum = num + 1;
+          }
         }
+        product.itemCode = `P${String(nextNum).padStart(3, "0")}`;
       }
-      product.itemCode = `P${String(nextNum).padStart(3, "0")}`;
+    } catch (e) {
+      console.error("[createProduct] itemCode generation failed, skipping:", e);
+      delete (product as any).itemCode;
     }
-    const [result] = await db.insert(products).values(product).returning();
-    return result;
+    try {
+      const [result] = await db.insert(products).values(product).returning();
+      return result;
+    } catch (e: any) {
+      if (e?.message?.includes("item_code") || e?.message?.includes("itemCode")) {
+        console.error("[createProduct] item_code column error, retrying without it:", e.message);
+        delete (product as any).itemCode;
+        const [result] = await db.insert(products).values(product).returning();
+        return result;
+      }
+      throw e;
+    }
   }
 
   async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined> {
-    const [result] = await db.update(products).set(product).where(eq(products.id, id)).returning();
-    return result;
+    try {
+      const [result] = await db.update(products).set(product).where(eq(products.id, id)).returning();
+      return result;
+    } catch (e: any) {
+      if (e?.message?.includes("item_code") || e?.message?.includes("unit_ar") || e?.message?.includes("unit_en")) {
+        console.error("[updateProduct] column error, retrying without problematic fields:", e.message);
+        delete (product as any).itemCode;
+        delete (product as any).unitAr;
+        delete (product as any).unitEn;
+        const [result] = await db.update(products).set(product).where(eq(products.id, id)).returning();
+        return result;
+      }
+      throw e;
+    }
   }
 
   async deleteProduct(id: number): Promise<void> {
