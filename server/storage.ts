@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, and, gte, lte, lt, inArray, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, inArray, or, sql } from "drizzle-orm";
 import {
   users, categories, stores, products, productAlternatives, orders, orderItems,
   vehicles, trips, tripLocations, technicians,
@@ -324,6 +324,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
+    if (!product.itemCode) {
+      const allProducts = await db.select({ itemCode: products.itemCode }).from(products).where(sql`item_code IS NOT NULL`);
+      const existingCodes = allProducts.map(p => p.itemCode).filter(Boolean);
+      let nextNum = 1;
+      for (const code of existingCodes) {
+        const match = code?.match(/^P(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1]);
+          if (num >= nextNum) nextNum = num + 1;
+        }
+      }
+      product.itemCode = `P${String(nextNum).padStart(3, "0")}`;
+    }
     const [result] = await db.insert(products).values(product).returning();
     return result;
   }

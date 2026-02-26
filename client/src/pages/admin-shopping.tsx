@@ -498,7 +498,10 @@ function ProductsSection() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium truncate block" dir="auto">{localName(p)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium truncate" dir="auto">{localName(p)}</span>
+                    {p.itemCode && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{p.itemCode}</span>}
+                  </div>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     {localUnit(p) && <span className="truncate me-2">{localUnit(p)}</span>}
                     <span className="shrink-0 ms-auto inline-flex items-center gap-0.5">{p.estimatedPrice ? <>{formatPrice(p.estimatedPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></> : ""}{p.storeId ? ` - ${getStoreName(p.storeId)}` : p.preferredStore ? ` - ${p.preferredStore}` : ""}</span>

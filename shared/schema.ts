@@ -50,6 +50,7 @@ export const categories = pgTable("categories", {
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
+  itemCode: varchar("item_code", { length: 20 }).unique(),
   nameAr: varchar("name_ar", { length: 200 }).notNull(),
   nameEn: varchar("name_en", { length: 200 }),
   categoryId: integer("category_id").references(() => categories.id),

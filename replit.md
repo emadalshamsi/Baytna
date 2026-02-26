@@ -1,186 +1,54 @@
 # Baytna - بيتنا (Home Management)
 
 ## Overview
-Arabic RTL web application for household shopping and task management. Features four role-based interfaces (Admin, Maid/Worker, Driver, Household) with an approval system requiring only ONE authorized user to approve orders. Includes vehicles management, trips system with waiting time tracking, and technicians directory.
-
-## Recent Changes (Feb 20, 2026)
-- Spare parts inventory management in admin logistics section
-- sparePartCategories table: nameAr, nameEn, icon
-- spareParts table: nameAr, nameEn, categoryId, imageUrl, quantity, notes, createdAt
-- SparePartsSection UI: grid layout with image cards, category filter, search, image upload
-- Category management dialog: inline CRUD for spare part categories
-- API routes: GET/POST/PATCH/DELETE /api/spare-parts and /api/spare-part-categories (admin/canApprove auth)
-- New tab in AdminLogistics component for spare parts (Cog icon)
-- Full i18n translations for spareParts namespace (Arabic/English)
-
-## Previous Changes (Feb 16, 2026)
-- Two-tier meal management: meal catalog (mealItems table) for reusable meal definitions + date-specific meal planning
-- mealItems: mealType, nameAr, nameEn, imageUrl - managed by admin/canApprove users
-- MealItemsSection: catalog UI with type filters, image upload, CRUD for meal item templates
-- KitchenTab redesigned: date-specific meals via dateStr field, 1-week date strip range, MealItemSlider picker
-- MealItemSlider: horizontal scrollable thumbnail picker that auto-fills name/image into meal form
-- DateStrip now supports optional minDate/maxDate props for constrained date ranges
-- Meals now stored per specific date (dateStr) instead of repeating weekly by dayOfWeek
-- API routes: GET/POST/PATCH/DELETE /api/meal-items (admin/canApprove auth)
-- Driver interface restructured into three distinct pages: Home (daily schedule + personal trips), Groceries (orders), Logistics (trips + technicians)
-- DriverHomePage: circular progress indicator, 30-day date strip, daily schedule (trips + orders sorted by time), personal trip creation dialog
-- Personal trips: isPersonal boolean on trips table, drivers create personal trips via Home page dialog
-- Personal trips use existing trips workflow (pending → approved → started → waiting → completed)
-- Personal trips: personName=driver name, location="خاص", assignedDriver=driver ID, goes through canApproveTrips approval
-- Personal trip badge shown on trip cards in driver home, driver logistics, and admin logistics views
-- DriverLogisticsPage: trips management with start/wait/complete actions + read-only technicians directory
-- Old driverTimeRequests system replaced by isPersonal trips (legacy API routes still exist)
-- i18n: driverHome.* keys for Arabic and English, trips.personal/addPersonalTrip/noVehicle keys
-- Order delivery scheduling: scheduledFor column (varchar) on orders, 3 options (Today/Now/Tomorrow)
-- Today = default, Now = immediate (same as today for driver visibility), Tomorrow = hidden from driver until next day
-- Scheduling selector UI in both maid and household cart dialogs before submit button
-- canApprove users can edit order schedule via OrderDetailPanel (Today/Tomorrow toggle)
-- Schedule badge shown on pending order cards in household dashboard
-- Backend filters driver orders: only shows orders where scheduledFor <= today or null
-- PATCH /api/orders/:id/scheduled endpoint for schedule updates (canApprove/admin only)
-
-## Previous Changes (Feb 15, 2026)
-- Trip time overlap detection: availability check now considers departureTime + estimatedDuration range, shows time conflicts
-- Private vehicles: isPrivate + assignedUserId fields on vehicles, private vehicles only available to assigned user and driver
-- Vehicle form: checkbox for private + user selector, vehicle card shows private badge and owner
-- Trip form: filters vehicles based on privacy, passes departure time + duration to availability API
-- canApproveTrips permission for trip approval (separate from canApprove for orders)
-- estimatedDuration field on trips (15-120 min in 15-min increments)
-- All household users can create trips
-- Order editing for canApprove users: can add/remove/edit items on pending orders via expandable order detail panel
-- Backend enforces canApprove/admin permission + order status (pending/approved) for item modifications
-- Auto-recalculates totalEstimated when items are added/removed/updated
-- Notification system: order_created/trip_created only sent to admins, drivers get order_ready_driver type
-- Notification filtering on GET endpoints ensures users only see relevant notifications
-- Added Shortages (نواقص) feature: users with canAddShortages permission can request shortage items
-- Shortages table: nameAr, nameEn, quantity, notes, status (pending/approved/rejected/in_progress/completed), createdBy
-- Profile management: users can upload/remove profile photo, change password, toggle push notifications
-- PATCH /api/auth/profile and POST /api/auth/change-password endpoints added
-- User-room assignment: admin can assign rooms to household users, users only see tasks/laundry for their rooms
-- userRooms junction table links users to rooms, admin manages via expandable user cards
-- Household users with assigned rooms see filtered tasks, laundry in Housekeeping page
-- canAddShortages permission toggle in admin user management (blue button, matching canApprove)
-- Admin sees all shortages in Groceries > Shortages tab with approve/reject/progress/complete workflow
-- Household dashboard rebuilt to match maid interface: product grid, categories, cart, order creation with prices
-- Household orders tab: expandable order details with item list, prices, status badges
-- canApprove users can add/edit/delete products, categories, and stores (not admin-only anymore)
-- Household gets tabs: Shopping, Orders, Products/Categories/Stores (if canApprove), Shortages (if canAddShortages)
-- Push notifications: new shortage notifies admins, status changes notify requesters
-- Hidden all prices (estimated/actual) from maid dashboard view
-- Replaced daily/weekly/monthly frequency filter with horizontal date strip in Tasks tab
-- Added daysOfWeek integer[] column to housekeeping_tasks for flexible day-of-week scheduling
-- DateStrip component: scrollable 29-day range centered on today, auto-scrolls to selected date
-- DaysOfWeekSelector component: multi-select toggle for choosing recurring days when creating tasks
-- Tasks now filter by selected date's day-of-week matching task's daysOfWeek array
-- Completion tracking uses simple YYYY-MM-DD date strings per selected date
-- Added i18n translations for day abbreviations (sat/sun/mon/tue/wed/thu/fri)
-
-## Previous Changes (Feb 14, 2026)
-- Built complete Housekeeping module with 3 subsystems: Tasks, Laundry, Kitchen
-- Added 6 new database tables: rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals
-- Room management in Settings page (admin can add, exclude, delete rooms)
-- Laundry tab: household sends laundry requests per room, maid marks as done, admin manages weekly schedule
-- Kitchen tab: weekly meal planning with meal type, people count, notes, image URLs
-- All housekeeping features have full Arabic/English i18n support
-- Role-based access: admin manages all, maid completes tasks/laundry, household requests laundry, all can view meals
-- Real-time sync via TanStack Query with 10-second refetch intervals
-
-## Architecture
-- **Frontend**: React + Vite + TanStack Query + Wouter + Tailwind CSS + shadcn/ui
-- **Backend**: Express.js with session-based auth (connect-pg-simple)
-- **Database**: PostgreSQL (Drizzle ORM)
-- **Auth**: Custom username/password with bcryptjs hashing, express-session
-
-## Project Structure
-- `shared/schema.ts` - Database schema (users, stores, categories, products, orders, orderItems, vehicles, trips, technicians, rooms, housekeepingTasks, taskCompletions, laundryRequests, laundrySchedule, meals)
-- `server/routes.ts` - All API routes with session-based auth
-- `server/storage.ts` - Database CRUD operations interface
-- `client/src/App.tsx` - Main app with bottom navigation bar layout for all roles
-- `client/src/pages/login.tsx` - Login/Register page
-- `client/src/pages/admin-dashboard.tsx` - Admin: stats overview + quick links
-- `client/src/pages/admin-shopping.tsx` - Admin: orders, products, categories, stores management
-- `client/src/pages/admin-logistics.tsx` - Admin: vehicles, trips, technicians management
-- `client/src/pages/admin-users.tsx` - Admin: user role and permission management
-- `client/src/pages/maid-dashboard.tsx` - Maid: product grid, shopping cart, order creation, order updates
-- `client/src/pages/driver-dashboard.tsx` - Driver: order fulfillment, actual prices, receipt upload, store grouping, trips
-- `client/src/pages/household-dashboard.tsx` - Household: order viewing, approval (if canApprove)
-- `client/src/pages/housekeeping.tsx` - Housekeeping: 3 tabs (Tasks, Laundry, Kitchen) with role-based access
-- `client/src/pages/settings.tsx` - Profile, theme/language, logout, room management (admin), user management (admin)
-- `client/src/lib/i18n.ts` - Arabic/English translation system
-- `client/src/hooks/use-auth.ts` - Auth hook for session management
-
-## Navigation (Bottom Nav Bar)
-All roles use the same 5-tab bottom navigation:
-- `/` - Home: Dashboard stats (role-specific content)
-- `/groceries` - Groceries: Shopping & orders (role-specific content)
-- `/logistics` - Logistics: Vehicles, trips, technicians (role-specific content)
-- `/housekeeping` - Housekeeping: Tasks, Laundry, Kitchen (role-specific content)
-- `/settings` - Settings: Profile, theme, language, logout, user management (admin)
-
-### Content per role per tab:
-- **Admin**: Home=stats+quick links, Groceries=admin shopping, Logistics=admin logistics, Settings=profile+users
-- **Maid**: Home=maid dashboard, Groceries=maid dashboard, Logistics=admin logistics view
-- **Driver**: Home=driver dashboard, Groceries=driver dashboard, Logistics=driver dashboard
-- **Household**: Home=household dashboard, Groceries=household dashboard, Logistics=admin logistics view
-
-## Key Features
-- **Roles**: admin, household, maid, driver
-- **Navigation**: Bottom nav bar with 5 tabs (Home, Groceries, Logistics, Housekeeping, Settings)
-- **Stores**: Name (AR/EN), website URL, linked to products
-- **Approval**: Only users with `canApprove=true` can approve/reject orders and trips
-- **Stats**: Completed orders = current week (Sat-Fri), spending = current month
-- **Driver**: Receipt upload, items grouped by store, trips with waiting timer, availability conflict detection
-- **Maid**: Can add items to active (in_progress) orders
-- **Vehicles**: Name, odometer reading, last maintenance date tracking
-- **Trips**: Full lifecycle (pending → approved → started → waiting → completed) with waiting time
-- **Technicians**: Directory with specialties, phone contacts, driver coordination
-- **Language**: Arabic (primary, RTL) / English toggle (in Settings page)
-- **Theme**: Dark/Light mode toggle (in Settings page)
-
-## API Routes
-- POST `/api/auth/register` - Register new user
-- POST `/api/auth/login` - Login with username/password
-- POST `/api/auth/logout` - Logout
-- GET `/api/auth/user` - Get current user
-- GET/POST `/api/categories` - CRUD categories (admin only for POST)
-- PATCH/DELETE `/api/categories/:id` - Update/delete category
-- GET/POST `/api/stores` - CRUD stores (admin only for POST)
-- PATCH/DELETE `/api/stores/:id` - Update/delete store
-- GET/POST `/api/products` - CRUD products (admin only for POST)
-- PATCH/DELETE `/api/products/:id` - Update/delete product
-- GET/POST `/api/orders` - Orders (filtered by role)
-- PATCH `/api/orders/:id/status` - Update order status
-- PATCH `/api/orders/:id/actual` - Update actual total + receipt
-- GET/POST `/api/orders/:id/items` - Order items
-- POST `/api/orders/:id/items/maid` - Maid adds items to active order
-- PATCH `/api/order-items/:id` - Update order item
-- GET/POST `/api/vehicles` - CRUD vehicles (admin only for POST)
-- PATCH/DELETE `/api/vehicles/:id` - Update/delete vehicle
-- GET/POST `/api/trips` - Trips (filtered by role)
-- PATCH `/api/trips/:id/status` - Update trip status (approval/start/wait/complete)
-- GET `/api/drivers/:id/availability` - Check driver availability (conflict detection)
-- GET/POST `/api/technicians` - CRUD technicians (admin only for POST)
-- PATCH/DELETE `/api/technicians/:id` - Update/delete technician
-- POST `/api/technicians/:id/coordinate` - Create coordination trip for technician
-- POST `/api/upload` - File upload (images, receipts)
-- GET `/api/stats` - Dashboard statistics (week/month scoped)
-- GET/POST `/api/rooms` - Rooms CRUD (admin only for POST)
-- PATCH/DELETE `/api/rooms/:id` - Update/delete room (admin only)
-- GET/POST `/api/housekeeping-tasks` - Tasks CRUD (admin only for POST)
-- PATCH/DELETE `/api/housekeeping-tasks/:id` - Update/delete task (admin only)
-- GET `/api/task-completions/:date` - Get completions by date key
-- POST `/api/task-completions` - Create task completion
-- DELETE `/api/task-completions/:taskId/:date` - Remove completion
-- GET `/api/laundry-requests` - List laundry requests
-- POST `/api/laundry-requests` - Create laundry request
-- PATCH `/api/laundry-requests/:id/complete` - Mark laundry as done
-- GET `/api/laundry-schedule` - Get laundry schedule
-- PUT `/api/laundry-schedule` - Set laundry schedule days (admin only)
-- GET/POST `/api/meals` - Meals CRUD (admin only for POST)
-- PATCH/DELETE `/api/meals/:id` - Update/delete meal (admin only)
+Baytna is an Arabic RTL web application designed for comprehensive household management, focusing on shopping, task management, and logistics. It features distinct role-based interfaces (Admin, Maid/Worker, Driver, Household) with a streamlined approval system requiring only one authorized user for orders and trips. The project aims to digitalize and optimize household operations, including managing vehicles, tracking trips with waiting times, maintaining a technicians directory, and overseeing housekeeping activities like tasks, laundry, and meal planning.
 
 ## User Preferences
 - Arabic as primary language with RTL layout
 - Mobile-first design with bottom navigation bar
 - Large touch-friendly buttons for maid interface
 - Week runs Saturday to Friday
+
+## System Architecture
+The application is built with a modern web stack:
+- **Frontend**: React, Vite, TanStack Query for data fetching and state management, Wouter for routing, Tailwind CSS and shadcn/ui for styling.
+- **Backend**: Express.js handles API requests and business logic, with session-based authentication using `connect-pg-simple`.
+- **Database**: PostgreSQL is used as the primary data store, with Drizzle ORM for database interactions.
+- **Authentication**: Custom username/password authentication with `bcryptjs` for secure password hashing and `express-session` for session management.
+
+**Key Architectural Decisions & Features:**
+- **Role-Based Access Control**: Granular permissions for Admin, Household, Maid, and Driver roles, dictating access to features and data.
+- **Internationalization**: Full Arabic (RTL) and English support across the application.
+- **Modular Design**: Separation of concerns with dedicated components and pages for different functionalities (e.g., shopping, logistics, housekeeping).
+- **Housekeeping Module**: Integrated Task, Laundry, and Kitchen management with dedicated database tables and role-specific workflows.
+  - **Tasks**: Flexible scheduling with `daysOfWeek` array, date strip for navigation, and completion tracking.
+  - **Laundry**: Request system per room, maid completion tracking, and admin-managed weekly schedule.
+  - **Kitchen**: Two-tier meal management with a reusable meal catalog and date-specific meal planning.
+- **Logistics & Trips**:
+  - **Vehicles**: Management of private and shared vehicles, including odometer and maintenance tracking.
+  - **Trips**: Comprehensive lifecycle management (pending, approved, started, waiting, completed) with waiting time tracking and driver availability conflict detection.
+  - **Personal Trips**: Drivers can create personal trips that go through the standard approval workflow.
+- **Shopping & Orders**:
+  - **Product Management**: Auto-generated unique item codes, import/export functionality for products via Excel, and image cropping.
+  - **Order Workflow**: Approval system, scheduling options (Today/Now/Tomorrow), ability for `canApprove` users to edit pending orders, and driver-specific order visibility.
+  - **Shortages Feature**: Users can request shortage items with a dedicated workflow (pending, approved, rejected, in_progress, completed).
+- **Notifications**: System for relevant user groups (e.g., admins for new orders/trips, requesters for shortage status changes).
+- **UI/UX**: Mobile-first approach, bottom navigation bar for consistent access, theme (dark/light) toggle.
+- **User Management**: Admins can manage user roles, permissions (e.g., `canApprove`, `canAddShortages`), and assign rooms to household users.
+- **Image Handling**: Cloudinary integration for image storage and management, with improved cleanup and error handling.
+
+## External Dependencies
+- **Cloudinary**: For image storage, optimization, and delivery.
+- **PostgreSQL**: Relational database management system.
+- **Node.js**: Runtime environment for the backend.
+- **React**: Frontend JavaScript library.
+- **Vite**: Frontend build tool.
+- **TanStack Query**: Data fetching and state management library.
+- **Wouter**: Small routing library for React.
+- **Tailwind CSS**: Utility-first CSS framework.
+- **shadcn/ui**: UI component library.
+- **Express.js**: Web application framework for Node.js.
+- **Drizzle ORM**: TypeScript ORM for PostgreSQL.
+- **bcryptjs**: Library for hashing passwords.
+- **express-session**: Middleware for managing user sessions.
+- **connect-pg-simple**: PostgreSQL session store for `express-session`.

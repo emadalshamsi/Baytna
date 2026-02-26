@@ -2516,14 +2516,12 @@ export async function registerRoutes(
       const XLSX = await import("xlsx");
       const categories = await storage.getCategories();
       const stores = await storage.getStores();
-      const catNames = categories.map(c => `${c.id}: ${c.nameAr}${c.nameEn ? ' / ' + c.nameEn : ''}`).join("\n");
-      const storeNames = stores.map(s => `${s.id}: ${s.nameAr}${s.nameEn ? ' / ' + s.nameEn : ''}`).join("\n");
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([
-        ["nameAr", "nameEn", "categoryId", "estimatedPrice", "preferredStore", "storeId", "unit", "unitAr", "unitEn", "icon"]
+        ["itemCode", "nameAr", "nameEn", "categoryId", "estimatedPrice", "preferredStore", "storeId", "unit", "unitAr", "unitEn", "icon"]
       ]);
       ws["!cols"] = [
-        { wch: 35 }, { wch: 25 }, { wch: 30 }, { wch: 15 },
+        { wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 30 }, { wch: 15 },
         { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, "Products");
@@ -2542,6 +2540,57 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Template generation error:", error);
       res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+
+  app.get("/api/products/export", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const XLSX = await import("xlsx");
+      const allProducts = await storage.getProducts();
+      const categories = await storage.getCategories();
+      const stores = await storage.getStores();
+      const catMap = new Map(categories.map(c => [c.id, c]));
+      const storeMap = new Map(stores.map(s => [s.id, s]));
+      const productData = allProducts.filter(p => p.isActive).map(p => ({
+        itemCode: p.itemCode || "",
+        nameAr: p.nameAr,
+        nameEn: p.nameEn || "",
+        categoryId: p.categoryId || "",
+        estimatedPrice: p.estimatedPrice || 0,
+        preferredStore: p.preferredStore || "",
+        storeId: p.storeId || "",
+        unit: p.unit || "",
+        unitAr: p.unitAr || "",
+        unitEn: p.unitEn || "",
+        icon: p.icon || "",
+        imageUrl: p.imageUrl || "",
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(productData);
+      ws["!cols"] = [
+        { wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+        { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 50 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, "Products");
+      const catData = categories.map(c => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn || "" }));
+      const catWs = XLSX.utils.json_to_sheet(catData);
+      catWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, catWs, "Categories");
+      const storeData = stores.map(s => ({ id: s.id, nameAr: s.nameAr, nameEn: s.nameEn || "" }));
+      const storeWs = XLSX.utils.json_to_sheet(storeData);
+      storeWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, storeWs, "Stores");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", "attachment; filename=products_export.xlsx");
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (error) {
+      console.error("Export error:", error);
+      res.status(500).json({ message: "Failed to export products" });
     }
   });
 
@@ -2567,25 +2616,30 @@ export async function registerRoutes(
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 2;
-        const nameAr = String(row.nameAr || row["nameAr"] || row["اسم المنتج بالعربية (مطلوب)"] || "").trim();
+        const nameAr = String(row.nameAr || row["nameAr"] || "").trim();
         if (!nameAr) {
           errors.push(`Row ${rowNum}: Missing Arabic name`);
           skipped++;
           continue;
         }
-        const nameEn = String(row.nameEn || row["nameEn"] || row["Product Name English"] || "").trim() || undefined;
-        const categoryId = parseInt(row.categoryId || row["categoryId"] || row["رقم التصنيف (انظر ورقة التصنيفات)"] || "0") || undefined;
-        const estimatedPrice = parseFloat(row.estimatedPrice || row["estimatedPrice"] || row["السعر التقديري"] || "0") || 0;
-        const preferredStore = String(row.preferredStore || row["preferredStore"] || row["المتجر المفضل"] || "").trim() || undefined;
-        const storeId = parseInt(row.storeId || row["storeId"] || row["رقم المتجر (انظر ورقة المتاجر)"] || "0") || undefined;
-        const unit = String(row.unit || row["الوحدة"] || "").trim() || undefined;
-        const unitAr = String(row.unitAr || row["الوحدة بالعربية"] || "").trim() || undefined;
-        const unitEn = String(row.unitEn || row["الوحدة بالإنجليزية"] || "").trim() || undefined;
-        const icon = String(row.icon || row["رمز الأيقونة"] || "").trim() || undefined;
-        const existing = existingProducts.find(p => p.nameAr === nameAr);
+        const itemCode = String(row.itemCode || row["itemCode"] || "").trim() || undefined;
+        const nameEn = String(row.nameEn || row["nameEn"] || "").trim() || undefined;
+        const categoryId = parseInt(row.categoryId || row["categoryId"] || "0") || undefined;
+        const estimatedPrice = parseFloat(row.estimatedPrice || row["estimatedPrice"] || "0") || 0;
+        const preferredStore = String(row.preferredStore || row["preferredStore"] || "").trim() || undefined;
+        const storeId = parseInt(row.storeId || row["storeId"] || "0") || undefined;
+        const unit = String(row.unit || "").trim() || undefined;
+        const unitAr = String(row.unitAr || "").trim() || undefined;
+        const unitEn = String(row.unitEn || "").trim() || undefined;
+        const icon = String(row.icon || "").trim() || undefined;
+        const existing = itemCode
+          ? existingProducts.find(p => p.itemCode === itemCode) || existingProducts.find(p => p.nameAr === nameAr)
+          : existingProducts.find(p => p.nameAr === nameAr);
         try {
           if (existing) {
             await storage.updateProduct(existing.id, {
+              itemCode: itemCode || existing.itemCode,
+              nameAr: nameAr || existing.nameAr,
               nameEn: nameEn || existing.nameEn,
               categoryId: categoryId || existing.categoryId,
               estimatedPrice: estimatedPrice || existing.estimatedPrice,
@@ -2600,6 +2654,7 @@ export async function registerRoutes(
           } else {
             await storage.createProduct({
               nameAr,
+              itemCode: itemCode || undefined,
               nameEn: nameEn || null,
               categoryId: categoryId || null,
               estimatedPrice: estimatedPrice || 0,

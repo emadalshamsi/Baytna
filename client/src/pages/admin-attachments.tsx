@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X, FileDown } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,22 @@ export default function AdminAttachments() {
       URL.revokeObjectURL(url);
     } catch {
       toast({ title: t("attachments.importFailed"), variant: "destructive" });
+    }
+  };
+
+  const exportProducts = async () => {
+    try {
+      const res = await fetch("/api/products/export", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "products_export.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: t("attachments.exportFailed"), variant: "destructive" });
     }
   };
 
@@ -95,19 +111,26 @@ export default function AdminAttachments() {
             <h3 className="font-bold text-sm">{t("nav.products")} - Excel</h3>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            {t("attachments.templateDesc")}
-          </p>
-
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={downloadTemplate}
-            data-testid="button-download-template"
-          >
-            <Download className="w-4 h-4" />
-            {t("attachments.downloadTemplate")}
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={downloadTemplate}
+              data-testid="button-download-template"
+            >
+              <Download className="w-4 h-4" />
+              {t("attachments.downloadTemplate")}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={exportProducts}
+              data-testid="button-export-products"
+            >
+              <FileDown className="w-4 h-4" />
+              {t("attachments.exportProducts")}
+            </Button>
+          </div>
 
           <div className="border-t pt-4">
             <div
