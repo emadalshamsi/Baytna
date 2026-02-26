@@ -36,6 +36,11 @@ The application is built with a modern web stack:
 - **UI/UX**: Mobile-first approach, bottom navigation bar for consistent access, theme (dark/light) toggle.
 - **User Management**: Admins can manage user roles, permissions (e.g., `canApprove`, `canAddShortages`), and assign rooms to household users.
 - **Image Handling**: Cloudinary integration for image storage and management, with improved cleanup and error handling.
+- **ZIP Import/Export**: Bulk product management via ZIP files containing Excel + images named by itemCode.
+  - Import: Extracts Excel data, matches images by filename to itemCode, uploads to Cloudinary.
+  - Export: Downloads ZIP with Excel + all product images from Cloudinary.
+  - SSRF protection, zip bomb mitigation, timeout/size limits.
+- **Startup Migrations**: Auto-adds missing columns (item_code, unit_ar, unit_en) on server start.
 
 ## External Dependencies
 - **Cloudinary**: For image storage, optimization, and delivery.

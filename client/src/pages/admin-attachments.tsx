@@ -1,9 +1,8 @@
 import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X, FileDown } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X, FileDown, FileArchive, ImageIcon } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +12,7 @@ interface ImportResult {
   imported: number;
   updated: number;
   skipped: number;
+  imagesLinked?: number;
   errors: string[];
   total: number;
 }
@@ -24,6 +24,7 @@ export default function AdminAttachments() {
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   const downloadTemplate = async () => {
     try {
@@ -41,25 +42,30 @@ export default function AdminAttachments() {
     }
   };
 
-  const exportProducts = async () => {
+  const exportZip = async () => {
+    setExporting(true);
     try {
-      const res = await fetch("/api/products/export", { credentials: "include" });
+      const res = await fetch("/api/products/export-zip", { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "products_export.xlsx";
+      a.download = "products_export.zip";
       a.click();
       URL.revokeObjectURL(url);
     } catch {
       toast({ title: t("attachments.exportFailed"), variant: "destructive" });
+    } finally {
+      setExporting(false);
     }
   };
 
   const uploadFile = async (file: File) => {
-    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
-      toast({ title: t("attachments.invalidFile"), variant: "destructive" });
+    const isZip = file.name.endsWith(".zip");
+    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    if (!isZip && !isExcel) {
+      toast({ title: t("attachments.invalidFileZip"), variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -67,7 +73,8 @@ export default function AdminAttachments() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/products/import", {
+      const endpoint = isZip ? "/api/products/import-zip" : "/api/products/import";
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -124,12 +131,19 @@ export default function AdminAttachments() {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={exportProducts}
-              data-testid="button-export-products"
+              onClick={exportZip}
+              disabled={exporting}
+              data-testid="button-export-zip"
             >
-              <FileDown className="w-4 h-4" />
-              {t("attachments.exportProducts")}
+              <FileArchive className="w-4 h-4" />
+              {exporting ? t("attachments.processing") : t("attachments.exportZip")}
             </Button>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium">{t("attachments.zipInfo")}</p>
+            <p>{t("attachments.zipImportDesc")}</p>
+            <p>{t("attachments.zipExportDesc")}</p>
           </div>
 
           <div className="border-t pt-4">
@@ -153,7 +167,7 @@ export default function AdminAttachments() {
               ) : (
                 <>
                   <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm font-medium">{t("attachments.selectFile")}</p>
+                  <p className="text-sm font-medium">{t("attachments.selectFileZip")}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t("attachments.dragDrop")}</p>
                 </>
               )}
@@ -161,7 +175,7 @@ export default function AdminAttachments() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.zip"
               className="hidden"
               onChange={handleFileChange}
               data-testid="input-excel-file"
@@ -183,7 +197,7 @@ export default function AdminAttachments() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className={`grid gap-2 text-center ${result.imagesLinked !== undefined ? "grid-cols-4" : "grid-cols-3"}`}>
               <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.imported}</p>
                 <p className="text-xs text-muted-foreground">{t("attachments.newProducts")}</p>
@@ -192,6 +206,12 @@ export default function AdminAttachments() {
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{result.updated}</p>
                 <p className="text-xs text-muted-foreground">{t("attachments.existingUpdated")}</p>
               </div>
+              {result.imagesLinked !== undefined && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{result.imagesLinked}</p>
+                  <p className="text-xs text-muted-foreground">{t("attachments.imagesLinked")}</p>
+                </div>
+              )}
               <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{result.skipped}</p>
                 <p className="text-xs text-muted-foreground">{t("attachments.errors")}</p>

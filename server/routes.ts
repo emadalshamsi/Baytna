@@ -93,6 +93,14 @@ const uploadExcel = multer({
   },
 });
 
+const uploadZip = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.originalname.endsWith(".zip") || file.mimetype === "application/zip" || file.mimetype === "application/x-zip-compressed");
+  },
+});
+
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if ((req.session as any).userId) {
     return next();
@@ -2679,6 +2687,277 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Import error:", error);
       res.status(500).json({ message: "Failed to import products", error: error.message });
+    }
+  });
+
+  app.post("/api/products/import-zip", isAuthenticated, uploadZip.single("file"), async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+      const unzipper = await import("unzipper");
+      const XLSX = await import("xlsx");
+
+      const directory = await unzipper.Open.buffer(req.file.buffer);
+      let excelFile: any = null;
+      const imageFiles = new Map<string, Buffer>();
+      const MAX_ZIP_FILES = 200;
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
+      let totalSize = 0;
+      let zipFileCount = 0;
+
+      if (directory.files.length > MAX_ZIP_FILES) {
+        return res.status(400).json({ message: `ZIP contains too many files (max ${MAX_ZIP_FILES})` });
+      }
+
+      for (const file of directory.files) {
+        const fileName = file.path.split("/").pop() || "";
+        if (fileName.startsWith(".") || fileName.startsWith("__") || file.type === "Directory") continue;
+        zipFileCount++;
+
+        if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+          const buf = await file.buffer();
+          totalSize += buf.length;
+          if (totalSize > 100 * 1024 * 1024) return res.status(400).json({ message: "ZIP too large" });
+          excelFile = buf;
+        } else if (/\.(jpg|jpeg|png|gif|webp)$/i.test(fileName)) {
+          const buf = await file.buffer();
+          if (buf.length > MAX_FILE_SIZE) continue;
+          totalSize += buf.length;
+          if (totalSize > 100 * 1024 * 1024) return res.status(400).json({ message: "ZIP too large" });
+          const baseName = fileName.replace(/\.[^.]+$/, "").toUpperCase();
+          imageFiles.set(baseName, buf);
+        }
+      }
+
+      if (!excelFile) {
+        return res.status(400).json({ message: "No Excel file found in ZIP" });
+      }
+
+      const wb = XLSX.read(excelFile, { type: "buffer" });
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!rows.length) return res.status(400).json({ message: "No data in Excel file" });
+
+      const existingProducts = await storage.getProducts();
+      const productByCode = new Map<string, any>();
+      const productByName = new Map<string, any>();
+      for (const p of existingProducts) {
+        if (p.itemCode) productByCode.set(p.itemCode, p);
+        productByName.set(p.nameAr, p);
+      }
+
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      let imagesLinked = 0;
+      const errors: string[] = [];
+      const MAX_FILES = 500;
+      let fileCount = 0;
+
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+      const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
+      const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
+      const hasCloudinary = cloudName && apiKey && apiSecret;
+
+      if (hasCloudinary) {
+        cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+      }
+
+      for (let i = 0; i < rows.length && fileCount < MAX_FILES; i++) {
+        fileCount++;
+        const row = rows[i];
+        const rowNum = i + 2;
+        const nameAr = String(row.nameAr || row["nameAr"] || "").trim();
+        if (!nameAr) {
+          errors.push(`Row ${rowNum}: Missing Arabic name`);
+          skipped++;
+          continue;
+        }
+        const itemCode = String(row.itemCode || row["itemCode"] || "").trim() || undefined;
+        const nameEn = String(row.nameEn || row["nameEn"] || "").trim() || undefined;
+        const categoryId = parseInt(row.categoryId || row["categoryId"] || "0") || undefined;
+        const estimatedPrice = parseFloat(row.estimatedPrice || row["estimatedPrice"] || "0") || 0;
+        const preferredStore = String(row.preferredStore || row["preferredStore"] || "").trim() || undefined;
+        const storeId = parseInt(row.storeId || row["storeId"] || "0") || undefined;
+        const unit = String(row.unit || "").trim() || undefined;
+        const unitAr = String(row.unitAr || "").trim() || undefined;
+        const unitEn = String(row.unitEn || "").trim() || undefined;
+        const icon = String(row.icon || "").trim() || undefined;
+
+        let imageUrl: string | null | undefined = undefined;
+        const codeForImage = (itemCode || "").toUpperCase();
+        if (codeForImage && imageFiles.has(codeForImage) && hasCloudinary) {
+          try {
+            const imgBuf = imageFiles.get(codeForImage)!;
+            const dataUri = `data:image/jpeg;base64,${imgBuf.toString("base64")}`;
+            const result = await cloudinary.uploader.upload(dataUri, {
+              folder: "baytna",
+              resource_type: "image",
+            });
+            imageUrl = result.secure_url;
+            imagesLinked++;
+          } catch (imgErr: any) {
+            errors.push(`Row ${rowNum} (${nameAr}): Image upload failed - ${imgErr.message}`);
+          }
+        }
+
+        const existing = itemCode
+          ? (productByCode.get(itemCode) || productByName.get(nameAr))
+          : productByName.get(nameAr);
+
+        try {
+          if (existing) {
+            const updateData: any = {
+              itemCode: itemCode || existing.itemCode,
+              nameAr: nameAr || existing.nameAr,
+              nameEn: nameEn || existing.nameEn,
+              categoryId: categoryId || existing.categoryId,
+              estimatedPrice: estimatedPrice || existing.estimatedPrice,
+              preferredStore: preferredStore || existing.preferredStore,
+              storeId: storeId || existing.storeId,
+              unit: unit || existing.unit,
+              unitAr: unitAr || existing.unitAr,
+              unitEn: unitEn || existing.unitEn,
+              icon: icon || existing.icon,
+            };
+            if (imageUrl) updateData.imageUrl = imageUrl;
+            await storage.updateProduct(existing.id, updateData);
+            if (itemCode) productByCode.set(itemCode, { ...existing, ...updateData });
+            productByName.set(nameAr, { ...existing, ...updateData });
+            updated++;
+          } else {
+            const created = await storage.createProduct({
+              nameAr,
+              itemCode: itemCode || undefined,
+              nameEn: nameEn || null,
+              categoryId: categoryId || null,
+              estimatedPrice: estimatedPrice || 0,
+              preferredStore: preferredStore || null,
+              storeId: storeId || null,
+              imageUrl: imageUrl || null,
+              icon: icon || null,
+              unit: unit || null,
+              unitAr: unitAr || null,
+              unitEn: unitEn || null,
+              isActive: true,
+            });
+            if (created.itemCode) productByCode.set(created.itemCode, created);
+            productByName.set(nameAr, created);
+            imported++;
+          }
+        } catch (err: any) {
+          errors.push(`Row ${rowNum} (${nameAr}): ${err.message || "Unknown error"}`);
+          skipped++;
+        }
+      }
+
+      res.json({ imported, updated, skipped, imagesLinked, errors, total: rows.length });
+    } catch (error: any) {
+      console.error("ZIP Import error:", error);
+      res.status(500).json({ message: "Failed to import ZIP", error: error.message });
+    }
+  });
+
+  app.get("/api/products/export-zip", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const XLSX = await import("xlsx");
+      const archiver = (await import("archiver")).default;
+      const allProducts = await storage.getProducts();
+      const categories = await storage.getCategories();
+      const stores = await storage.getStores();
+
+      const activeProducts = allProducts.filter(p => p.isActive);
+      const productData = activeProducts.map(p => ({
+        itemCode: p.itemCode || "",
+        nameAr: p.nameAr,
+        nameEn: p.nameEn || "",
+        categoryId: p.categoryId || "",
+        estimatedPrice: p.estimatedPrice || 0,
+        preferredStore: p.preferredStore || "",
+        storeId: p.storeId || "",
+        unit: p.unit || "",
+        unitAr: p.unitAr || "",
+        unitEn: p.unitEn || "",
+        icon: p.icon || "",
+        imageUrl: p.imageUrl || "",
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(productData);
+      ws["!cols"] = [
+        { wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+        { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 50 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, "Products");
+      const catData = categories.map(c => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn || "" }));
+      const catWs = XLSX.utils.json_to_sheet(catData);
+      catWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, catWs, "Categories");
+      const storeData = stores.map(s => ({ id: s.id, nameAr: s.nameAr, nameEn: s.nameEn || "" }));
+      const storeWs = XLSX.utils.json_to_sheet(storeData);
+      storeWs["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, storeWs, "Stores");
+      const excelBuf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+      res.setHeader("Content-Disposition", "attachment; filename=products_export.zip");
+      res.setHeader("Content-Type", "application/zip");
+
+      const archive = archiver("zip", { zlib: { level: 5 } });
+      archive.pipe(res);
+      archive.append(excelBuf, { name: "products.xlsx" });
+
+      const https = await import("https");
+      const http = await import("http");
+      const allowedHosts = ["res.cloudinary.com"];
+      const isAllowedHost = (hostname: string) => allowedHosts.some(h => hostname === h || hostname.endsWith(`.${h}`));
+      const downloadImage = (url: string): Promise<Buffer> => {
+        return new Promise((resolve, reject) => {
+          try {
+            const parsed = new URL(url);
+            if (!["https:", "http:"].includes(parsed.protocol)) return reject(new Error("Invalid protocol"));
+            if (!isAllowedHost(parsed.hostname)) return reject(new Error("Untrusted host"));
+            const client = parsed.protocol === "https:" ? https : http;
+            const req = client.get(url, { timeout: 10000 }, (response: any) => {
+              if (response.statusCode !== 200) { reject(new Error(`HTTP ${response.statusCode}`)); return; }
+              const chunks: Buffer[] = [];
+              let size = 0;
+              response.on("data", (chunk: Buffer) => { size += chunk.length; if (size > 10 * 1024 * 1024) { req.destroy(); reject(new Error("Image too large")); return; } chunks.push(chunk); });
+              response.on("end", () => resolve(Buffer.concat(chunks)));
+              response.on("error", reject);
+            });
+            req.on("error", reject);
+            req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
+          } catch (e) { reject(e); }
+        });
+      };
+
+      for (const p of activeProducts) {
+        if (p.imageUrl && p.itemCode) {
+          try {
+            const imgBuf = await downloadImage(p.imageUrl);
+            const ext = p.imageUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)?.[1] || "jpg";
+            archive.append(imgBuf, { name: `images/${p.itemCode}.${ext}` });
+          } catch (err) {
+            console.error(`Failed to download image for ${p.itemCode}:`, err);
+          }
+        }
+      }
+
+      await archive.finalize();
+    } catch (error) {
+      console.error("ZIP Export error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to export ZIP" });
+      }
     }
   });
 

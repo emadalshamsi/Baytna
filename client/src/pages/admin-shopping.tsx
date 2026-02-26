@@ -424,6 +424,12 @@ function ProductsSection() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editingProduct ? t("admin.editProduct") : t("admin.addProduct")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {editingProduct?.itemCode && (
+              <div className="flex items-center gap-2 bg-muted rounded-md px-3 py-2">
+                <span className="text-xs text-muted-foreground">{t("fields.itemCode")}</span>
+                <span className="font-mono font-bold text-sm" data-testid="text-item-code">{editingProduct.itemCode}</span>
+              </div>
+            )}
             <Input placeholder={t("fields.nameAr")} value={nameAr} onChange={e => setNameAr(e.target.value)} data-testid="input-product-name-ar" />
             <Input placeholder={t("fields.nameEn")} value={nameEn} onChange={e => setNameEn(e.target.value)} data-testid="input-product-name-en" dir="ltr" />
             <Input type="number" step="0.01" placeholder={t("fields.estimatedPrice")} value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} data-testid="input-product-price" />
