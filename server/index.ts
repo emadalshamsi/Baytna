@@ -20,6 +20,15 @@ async function runMigrations() {
       await pool.query("ALTER TABLE products ADD COLUMN unit_en VARCHAR(50)");
       console.log("[Migration] Added unit_en column");
     }
+    const spCols = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name='spare_part_orders'"
+    );
+    const spExistingCols = new Set(spCols.rows.map((r: any) => r.column_name));
+    if (!spExistingCols.has("assigned_to")) {
+      await pool.query("ALTER TABLE spare_part_orders ADD COLUMN assigned_to VARCHAR REFERENCES users(id)");
+      console.log("[Migration] Added assigned_to column to spare_part_orders");
+    }
+
     if (!existingCols.has("item_code")) {
       await pool.query("ALTER TABLE products ADD COLUMN item_code VARCHAR(20)");
       const rows = await pool.query("SELECT id FROM products ORDER BY id");

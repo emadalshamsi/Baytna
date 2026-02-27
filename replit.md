@@ -40,7 +40,8 @@ The application is built with a modern web stack:
   - Import: Extracts Excel data, matches images by filename to itemCode, uploads to Cloudinary.
   - Export: Downloads ZIP with Excel + all product images from Cloudinary.
   - SSRF protection, zip bomb mitigation, timeout/size limits.
-- **Startup Migrations**: Auto-adds missing columns (item_code, unit_ar, unit_en) on server start.
+- **Spare Parts Orders**: Cart-based ordering with buyer assignment (myself or driver), integrated into dashboard stats.
+- **Startup Migrations**: Auto-adds missing columns (item_code, unit_ar, unit_en, assigned_to) on server start.
 
 ## External Dependencies
 - **Cloudinary**: For image storage, optimization, and delivery.

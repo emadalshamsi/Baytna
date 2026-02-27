@@ -755,6 +755,8 @@ function SparePartsSection() {
 
   const { data: parts, isLoading: partsLoading } = useQuery<SparePart[]>({ queryKey: ["/api/spare-parts"] });
   const { data: categories, isLoading: catsLoading } = useQuery<SparePartCategory[]>({ queryKey: ["/api/spare-part-categories"] });
+  const { data: allUsersForSP } = useQuery<AuthUser[]>({ queryKey: ["/api/users"] });
+  const drivers = (allUsersForSP || []).filter(u => u.role === "driver" && !u.isSuspended);
 
   const [showAdd, setShowAdd] = useState(false);
   const [editingPart, setEditingPart] = useState<SparePart | null>(null);
@@ -777,6 +779,7 @@ function SparePartsSection() {
   const [cart, setCart] = useState<SpareCartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [orderNotes, setOrderNotes] = useState("");
+  const [assignedTo, setAssignedTo] = useState<string>("myself");
 
   const isAdmin = user?.role === "admin" || user?.canApprove;
 
@@ -867,6 +870,7 @@ function SparePartsSection() {
         notes: orderNotes || null,
         totalEstimated: cartTotal,
         status: "pending",
+        assignedTo: assignedTo === "myself" ? user!.id : assignedTo,
       });
       const order = await res.json();
       for (const item of cart) {
@@ -883,6 +887,7 @@ function SparePartsSection() {
       setCart([]);
       setShowCart(false);
       setOrderNotes("");
+      setAssignedTo("myself");
       toast({ title: t("spareParts.orderCreated") });
     },
   });
@@ -1172,6 +1177,20 @@ function SparePartsSection() {
                 onChange={e => setOrderNotes(e.target.value)}
                 data-testid="input-spare-order-notes"
               />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">{t("spareParts.selectBuyer")}</label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger data-testid="select-spare-order-assignee">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="myself">{t("spareParts.myself")}</SelectItem>
+                    {drivers.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{displayName(d)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button className="w-full gap-2" onClick={() => createOrderMutation.mutate()} disabled={createOrderMutation.isPending} data-testid="button-submit-spare-order">
                 <Send className="w-4 h-4" /> {t("spareParts.sendOrder")}
               </Button>

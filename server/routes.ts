@@ -1517,9 +1517,9 @@ export async function registerRoutes(
     try {
       const currentUser = await storage.getUser((req.session as any).userId);
       if (!currentUser || (currentUser.role !== "admin" && !currentUser.canApprove)) return res.status(403).json({ message: "Forbidden" });
-      const { createdBy, notes, totalEstimated, status } = req.body;
+      const { createdBy, notes, totalEstimated, status, assignedTo } = req.body;
       if (!createdBy || !status) return res.status(400).json({ message: "Missing required fields" });
-      const order = await storage.createSparePartOrder({ createdBy, notes: notes || null, totalEstimated: totalEstimated || 0, status });
+      const order = await storage.createSparePartOrder({ createdBy, notes: notes || null, totalEstimated: totalEstimated || 0, status, assignedTo: assignedTo || null });
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to create spare part order" });

@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock, Cog } from "lucide-react";
 import { t, formatPrice, displayName, formatDate, formatDateTime } from "@/lib/i18n";
 import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
 import { useState } from "react";
-import type { Order, Trip, User as UserType } from "@shared/schema";
+import type { Order, Trip, SparePartOrder, User as UserType } from "@shared/schema";
 import AdminReports from "@/pages/admin-reports";
 
 function StatusBadge({ status }: { status: string }) {
@@ -38,6 +38,7 @@ export default function AdminDashboard() {
 
   const { data: orders } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
   const { data: trips } = useQuery<Trip[]>({ queryKey: ["/api/trips"] });
+  const { data: sparePartOrders } = useQuery<SparePartOrder[]>({ queryKey: ["/api/spare-part-orders"] });
   const { data: users } = useQuery<UserType[]>({ queryKey: ["/api/users"] });
 
   const userMap = new Map((users || []).map(u => [u.id, u]));
@@ -49,7 +50,7 @@ export default function AdminDashboard() {
   const filteredOrders = orders?.filter(o => {
     if (activeFilter === "total") return true;
     if (activeFilter === "pending") return o.status === "pending";
-    if (activeFilter === "completed") return o.status === "completed";
+    if (activeFilter === "completed") return o.status === "completed" && weekRange && o.createdAt && new Date(o.createdAt) >= weekRange.start && new Date(o.createdAt) <= weekRange.end;
     if (activeFilter === "spent") return o.status === "completed" && o.createdAt && new Date(o.createdAt) >= monthStart;
     return false;
   }) || [];
@@ -60,6 +61,16 @@ export default function AdminDashboard() {
     if (activeFilter === "completed") return tr.status === "completed" && tr.completedAt && weekRange && new Date(tr.completedAt) >= weekRange.start && new Date(tr.completedAt) <= weekRange.end;
     return false;
   }) || [];
+
+  const filteredSparePartOrders = sparePartOrders?.filter(spo => {
+    if (activeFilter === "total") return true;
+    if (activeFilter === "pending") return spo.status === "pending";
+    if (activeFilter === "completed") return spo.status === "completed" && spo.createdAt && weekRange && new Date(spo.createdAt) >= weekRange.start && new Date(spo.createdAt) <= weekRange.end;
+    if (activeFilter === "spent") return spo.status === "completed" && spo.createdAt && new Date(spo.createdAt) >= monthStart;
+    return false;
+  }) || [];
+
+  const totalFilteredCount = filteredOrders.length + filteredTrips.length + filteredSparePartOrders.length;
 
   const cards = [
     { key: "total" as StatFilter, label: t("stats.totalOrders"), sub: t("stats.completedSub"), value: stats?.total || 0, icon: ClipboardList, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
@@ -110,10 +121,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeFilter && (filteredOrders.length > 0 || filteredTrips.length > 0) && (
+      {activeFilter && totalFilteredCount > 0 && (
         <div className="space-y-3" data-testid="filtered-orders-list">
           <h3 className="text-sm font-semibold text-muted-foreground">
-            {filterTitle(activeFilter)} ({filteredOrders.length + filteredTrips.length})
+            {filterTitle(activeFilter)} ({totalFilteredCount})
           </h3>
           {filteredOrders.map(order => {
             const creator = userMap.get(order.createdBy);
@@ -184,18 +195,57 @@ export default function AdminDashboard() {
               </Card>
             );
           })}
+          {filteredSparePartOrders.map(spo => {
+            const creator = userMap.get(spo.createdBy);
+            const assignee = spo.assignedTo ? userMap.get(spo.assignedTo) : null;
+            return (
+              <Card key={`sp-${spo.id}`} data-testid={`card-dashboard-sp-${spo.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs gap-1">
+                        <Cog className="w-3 h-3" /> {t("nav.spareParts")}
+                      </Badge>
+                      <span className="font-medium text-sm">#{spo.id}</span>
+                      <StatusBadge status={spo.status} />
+                    </div>
+                    <span className="font-semibold text-sm inline-flex items-center gap-0.5">{formatPrice(spo.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-1">
+                    {creator && (
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" /> {t("fields.createdBy")}: {displayName(creator)}
+                      </span>
+                    )}
+                    {assignee && (
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" /> {t("spareParts.assignedTo")}: {displayName(assignee)}
+                      </span>
+                    )}
+                    <span className="text-foreground/80 font-medium">{formatDate(spo.createdAt!)}</span>
+                  </div>
+                  {spo.notes && <p className="text-xs text-muted-foreground mt-1">{spo.notes}</p>}
+                </CardContent>
+              </Card>
+            );
+          })}
           {activeFilter === "spent" && (
             <Card data-testid="card-spending-total">
               <CardContent className="p-4 flex items-center justify-between gap-2">
                 <span className="font-semibold text-sm">{t("fields.total")}</span>
-                <span className="font-bold text-lg inline-flex items-center gap-0.5">{formatPrice(filteredOrders.reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0))} <SarIcon className="w-3 h-3 inline-block" /></span>
+                <span className="font-bold text-lg inline-flex items-center gap-0.5">
+                  {formatPrice(
+                    filteredOrders.reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0) +
+                    filteredSparePartOrders.reduce((sum, spo) => sum + (spo.totalEstimated || 0), 0)
+                  )} <SarIcon className="w-3 h-3 inline-block" />
+                </span>
               </CardContent>
             </Card>
           )}
         </div>
       )}
 
-      {activeFilter && filteredOrders.length === 0 && filteredTrips.length === 0 && (
+      {activeFilter && totalFilteredCount === 0 && (
         <p className="text-center text-sm text-muted-foreground py-4">{t("messages.noOrders")}</p>
       )}
 

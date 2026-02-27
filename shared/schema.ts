@@ -304,6 +304,7 @@ export const sparePartOrders = pgTable("spare_part_orders", {
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   approvedBy: varchar("approved_by").references(() => users.id),
+  assignedTo: varchar("assigned_to").references(() => users.id),
   notes: text("notes"),
   totalEstimated: real("total_estimated").default(0),
   createdAt: timestamp("created_at").defaultNow(),
