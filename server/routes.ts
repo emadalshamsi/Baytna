@@ -916,6 +916,32 @@ export async function registerRoutes(
     return { start, end };
   }
 
+  app.get("/api/settings/:key", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const value = await storage.getSetting(req.params.key);
+      res.json({ key: req.params.key, value });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch setting" });
+    }
+  });
+
+  app.put("/api/settings/:key", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const currentUser = await storage.getUser((req.session as any).userId);
+      if (!currentUser || currentUser.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      const { value } = req.body;
+      if (value === undefined || value === null) return res.status(400).json({ message: "Value is required" });
+      if (req.params.key === "monthly_budget") {
+        const num = parseFloat(String(value));
+        if (isNaN(num) || num < 0) return res.status(400).json({ message: "Budget must be a valid positive number" });
+      }
+      await storage.setSetting(req.params.key, String(value));
+      res.json({ key: req.params.key, value: String(value) });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
+
   app.get("/api/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const allOrders = await storage.getOrders();
@@ -944,7 +970,9 @@ export async function registerRoutes(
       const totalSpentThisMonth = monthOrders.filter(o => o.status === "completed").reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0);
       const sparePartsSpentThisMonth = allSparePartOrders
         .filter(o => o.status === "completed" && o.createdAt && new Date(o.createdAt) >= monthRange.start && new Date(o.createdAt) <= monthRange.end)
-        .reduce((sum, o) => sum + (o.totalEstimated || 0), 0);
+        .reduce((sum, o) => sum + (o.totalActual || o.totalEstimated || 0), 0);
+
+      const monthlyBudget = await storage.getSetting("monthly_budget");
 
       res.json({
         pending,
@@ -960,6 +988,7 @@ export async function registerRoutes(
         totalSparePartOrders: allSparePartOrders.length,
         totalSpent: totalSpentThisMonth + sparePartsSpentThisMonth,
         sparePartsSpent: sparePartsSpentThisMonth,
+        monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null,
         weekStart: weekRange.start.toISOString(),
         weekEnd: weekRange.end.toISOString(),
       });
@@ -1563,6 +1592,26 @@ export async function registerRoutes(
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to create spare part order item" });
+    }
+  });
+
+  app.patch("/api/spare-part-orders/:id/actual", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { totalActual, receiptImageUrl } = req.body;
+      const updated = await storage.updateSparePartOrderActual(parseInt(req.params.id), totalActual, receiptImageUrl);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update spare part order total" });
+    }
+  });
+
+  app.patch("/api/spare-part-order-items/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { actualPrice, isPurchased } = req.body;
+      const updated = await storage.updateSparePartOrderItem(parseInt(req.params.id), { actualPrice, isPurchased });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update spare part order item" });
     }
   });
 

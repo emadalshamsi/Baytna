@@ -532,94 +532,228 @@ function TripsSection() {
   );
 }
 
-function SparePartOrderCard({ order, onStatusChange }: { order: SparePartOrder; onStatusChange: (id: number, status: string) => void }) {
+function SparePartOrderDetail({ order, onClose }: { order: SparePartOrder; onClose: () => void }) {
   useLang();
-  const { data: items } = useQuery<SparePartOrderItem[]>({ queryKey: ["/api/spare-part-orders", order.id, "items"] });
+  const { toast } = useToast();
+  const { data: items, isLoading: loadingItems } = useQuery<SparePartOrderItem[]>({ queryKey: ["/api/spare-part-orders", order.id, "items"] });
   const { data: allParts } = useQuery<SparePart[]>({ queryKey: ["/api/spare-parts"] });
-  const [expanded, setExpanded] = useState(false);
+  const [prices, setPrices] = useState<Record<number, string>>({});
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
+  const [receiptUrl, setReceiptUrl] = useState(order.receiptImageUrl || "");
+  const [uploading, setUploading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(order.status);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const statusMutation = useMutation({
+    mutationFn: async (status: string) => {
+      await apiRequest("PATCH", `/api/spare-part-orders/${order.id}/status`, { status });
+      return status;
+    },
+    onSuccess: (status: string) => {
+      setCurrentStatus(status);
+      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
+      toast({ title: t("admin.orderStatusUpdated") });
+    },
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      const total = items?.reduce((sum, item) => {
+        const price = prices[item.id] ? parseFloat(prices[item.id]) : (item.actualPrice || item.price || 0);
+        return sum + price * item.quantity;
+      }, 0) || 0;
+
+      for (const item of items || []) {
+        if (prices[item.id] || checked[item.id]) {
+          await apiRequest("PATCH", `/api/spare-part-order-items/${item.id}`, {
+            actualPrice: prices[item.id] ? parseFloat(prices[item.id]) : undefined,
+            isPurchased: checked[item.id] || false,
+          });
+        }
+      }
+
+      await apiRequest("PATCH", `/api/spare-part-orders/${order.id}/actual`, { totalActual: total, receiptImageUrl: receiptUrl || undefined });
+      await apiRequest("PATCH", `/api/spare-part-orders/${order.id}/status`, { status: "completed" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders", order.id, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({ title: t("status.completed") });
+      onClose();
+    },
+  });
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { compressImage } = await import("@/lib/image-compress");
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append("image", compressed);
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await res.json();
+      if (res.ok) {
+        setReceiptUrl(data.imageUrl);
+        await apiRequest("PATCH", `/api/spare-part-orders/${order.id}/actual`, {
+          totalActual: order.totalActual || 0,
+          receiptImageUrl: data.imageUrl,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
+        toast({ title: t("messages.receiptUploaded") });
+      }
+    } catch {}
+    setUploading(false);
+  };
 
   const getPartName = (partId: number) => {
     const part = allParts?.find(p => p.id === partId);
     return part ? (localName(part) || part.nameAr) : `#${partId}`;
   };
 
+  const getPartImage = (partId: number) => {
+    const part = allParts?.find(p => p.id === partId);
+    return part?.imageUrl || null;
+  };
+
   return (
-    <Card data-testid={`card-driver-sp-order-${order.id}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap cursor-pointer" onClick={() => setExpanded(!expanded)}>
-          <div className="flex items-center gap-2">
-            <Cog className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">#{order.id}</span>
-            <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">
-              {formatPrice(order.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" />
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className="no-default-hover-elevate no-default-active-elevate bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 text-[10px]">
-              {t("spareParts.title")}
-            </Badge>
-            <StatusBadge status={order.status} />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-back-sp-orders">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <Cog className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-bold">#{order.id}</h2>
+        </div>
+        <StatusBadge status={currentStatus} />
+      </div>
+
+      {order.notes && (
+        <Card>
+          <CardContent className="p-3">
+            <span className="text-sm text-muted-foreground">{t("fields.notes")}: </span>
+            <span className="text-sm">{order.notes}</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentStatus === "approved" && (
+        <Button className="w-full gap-2" onClick={() => statusMutation.mutate("in_progress")} disabled={statusMutation.isPending} data-testid="button-start-sp-shopping">
+          <Truck className="w-4 h-4" /> {t("driver.startShopping")}
+        </Button>
+      )}
+
+      {loadingItems ? (
+        <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}</div>
+      ) : (
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm text-muted-foreground">{t("spareParts.title")} ({items?.length || 0})</h3>
+          {items?.map(item => (
+            <Card key={item.id} data-testid={`card-sp-item-${item.id}`}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    {currentStatus === "in_progress" && (
+                      <Checkbox
+                        checked={checked[item.id] || item.isPurchased}
+                        onCheckedChange={(v) => setChecked(prev => ({ ...prev, [item.id]: !!v }))}
+                        data-testid={`checkbox-sp-item-${item.id}`}
+                      />
+                    )}
+                    <div className="flex items-center gap-2">
+                      {getPartImage(item.sparePartId) && (
+                        <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                          <img src={imgUrl(getPartImage(item.sparePartId)!)} alt={getPartName(item.sparePartId)} className="w-full h-full object-contain" onError={handleImgError} />
+                        </div>
+                      )}
+                      <span className={`font-medium text-sm ${(checked[item.id] || item.isPurchased) ? "line-through text-muted-foreground" : ""}`}>
+                        {getPartName(item.sparePartId)}
+                      </span>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate">x{item.quantity}</Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-0.5">{t("fields.estimatedPrice")}: {formatPrice(item.price || 0)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>
+                  {currentStatus === "in_progress" && (
+                    <Input
+                      type="number"
+                      placeholder={t("fields.actualPrice")}
+                      className="w-28 h-8 text-xs"
+                      value={prices[item.id] || ""}
+                      onChange={e => setPrices(prev => ({ ...prev, [item.id]: e.target.value }))}
+                      data-testid={`input-sp-actual-price-${item.id}`}
+                    />
+                  )}
+                  {item.actualPrice && <span className="inline-flex items-center gap-0.5">{t("fields.actualPrice")}: {formatPrice(item.actualPrice)} <SarIcon className="w-2.5 h-2.5 inline-block" /></span>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {currentStatus === "in_progress" && (
+        <div className="space-y-3">
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload} />
+          <Button type="button" variant="outline" className="w-full gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading} data-testid="button-upload-sp-receipt">
+            <Upload className="w-4 h-4" /> {uploading ? t("auth.loading") : t("fields.uploadReceipt")}
+          </Button>
+          {receiptUrl && (
+            <div className="relative w-full h-40 rounded-md overflow-hidden bg-muted">
+              <img src={receiptUrl} alt={t("fields.receipt")} className="w-full h-full object-contain" />
+            </div>
+          )}
+          <Button className="w-full gap-2" onClick={() => completeMutation.mutate()} disabled={completeMutation.isPending} data-testid="button-complete-sp-order">
+            <Check className="w-4 h-4" /> {t("driver.completePurchase")}
+          </Button>
+        </div>
+      )}
+
+      {currentStatus === "completed" && receiptUrl && (
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm text-muted-foreground">{t("fields.receipt")}</h3>
+          <div className="relative w-full h-40 rounded-md overflow-hidden bg-muted">
+            <img src={receiptUrl} alt={t("fields.receipt")} className="w-full h-full object-contain" />
           </div>
         </div>
-        {expanded && items && (
-          <div className="mt-3 space-y-2 border-t pt-3">
-            {items.map(item => (
-              <div key={item.id} className="flex items-center justify-between text-sm">
-                <span>{getPartName(item.sparePartId)} x{item.quantity}</span>
-                <span className="inline-flex items-center gap-0.5 text-muted-foreground">
-                  {formatPrice(item.price || 0)} <SarIcon className="w-2.5 h-2.5" />
-                </span>
-              </div>
-            ))}
-            {order.notes && <p className="text-xs text-muted-foreground">{order.notes}</p>}
-          </div>
-        )}
-        {order.status === "approved" && (
-          <Button size="sm" className="mt-2 gap-1" onClick={() => onStatusChange(order.id, "in_progress")} data-testid={`button-start-sp-order-${order.id}`}>
-            <Play className="w-3 h-3" /> {t("status.in_progress")}
-          </Button>
-        )}
-        {order.status === "in_progress" && (
-          <Button size="sm" className="mt-2 gap-1" onClick={() => onStatusChange(order.id, "completed")} data-testid={`button-complete-sp-order-${order.id}`}>
-            <Check className="w-3 h-3" /> {t("status.completed")}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 
 export default function DriverDashboard() {
   useLang();
-  const { toast } = useToast();
+  const { data: currentUser } = useQuery<{ id: string; role: string }>({ queryKey: ["/api/auth/user"] });
   const { data: orders, isLoading } = useQuery<Order[]>({ queryKey: ["/api/orders"] });
   const { data: sparePartOrders, isLoading: spLoading } = useQuery<SparePartOrder[]>({ queryKey: ["/api/spare-part-orders"] });
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedSpOrder, setSelectedSpOrder] = useState<SparePartOrder | null>(null);
 
-  const spStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      await apiRequest("PATCH", `/api/spare-part-orders/${id}/status`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/spare-part-orders"] });
-    },
-  });
+  const mySparePartOrders = sparePartOrders?.filter(o => {
+    if (!currentUser) return false;
+    if (currentUser.role === "admin") return true;
+    return o.assignedTo === currentUser.id || o.createdBy === currentUser.id;
+  }) || [];
 
   if (selectedOrder) {
     return <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} />;
+  }
+
+  if (selectedSpOrder) {
+    return <SparePartOrderDetail order={selectedSpOrder} onClose={() => setSelectedSpOrder(null)} />;
   }
 
   const approved = orders?.filter(o => o.status === "approved") || [];
   const inProgress = orders?.filter(o => o.status === "in_progress") || [];
   const completed = orders?.filter(o => o.status === "completed") || [];
 
-  const spApproved = sparePartOrders?.filter(o => o.status === "approved") || [];
-  const spInProgress = sparePartOrders?.filter(o => o.status === "in_progress") || [];
-  const spCompleted = sparePartOrders?.filter(o => o.status === "completed") || [];
-
-  const handleSpStatusChange = (id: number, status: string) => {
-    spStatusMutation.mutate({ id, status });
-  };
+  const spApproved = mySparePartOrders.filter(o => o.status === "approved");
+  const spInProgress = mySparePartOrders.filter(o => o.status === "in_progress");
+  const spCompleted = mySparePartOrders.filter(o => o.status === "completed");
 
   return (
     <div className="space-y-4">
@@ -647,7 +781,18 @@ export default function DriverDashboard() {
           <h3 className="font-medium flex items-center gap-2 text-sm">
             <Cog className="w-4 h-4 text-purple-600 dark:text-purple-400" /> {t("spareParts.title")} - {t("status.in_progress")} ({spInProgress.length})
           </h3>
-          {spInProgress.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
+          {spInProgress.map(o => (
+            <Card key={o.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedSpOrder(o)} data-testid={`card-driver-sp-order-${o.id}`}>
+              <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Cog className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">#{o.id}</span>
+                  <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
+                </div>
+                <StatusBadge status={o.status} />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -675,7 +820,18 @@ export default function DriverDashboard() {
           <h3 className="font-medium flex items-center gap-2 text-sm">
             <Cog className="w-4 h-4 text-blue-600 dark:text-blue-400" /> {t("spareParts.title")} - {t("status.approved")} ({spApproved.length})
           </h3>
-          {spApproved.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
+          {spApproved.map(o => (
+            <Card key={o.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedSpOrder(o)} data-testid={`card-driver-sp-order-${o.id}`}>
+              <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Cog className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">#{o.id}</span>
+                  <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">{formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" /></span>
+                </div>
+                <StatusBadge status={o.status} />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -708,7 +864,23 @@ export default function DriverDashboard() {
           <h3 className="font-medium flex items-center gap-2 text-sm">
             <Cog className="w-4 h-4 text-green-600 dark:text-green-400" /> {t("spareParts.title")} - {t("status.completed")} ({spCompleted.length})
           </h3>
-          {spCompleted.map(o => <SparePartOrderCard key={o.id} order={o} onStatusChange={handleSpStatusChange} />)}
+          {spCompleted.map(o => (
+            <Card key={o.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedSpOrder(o)} data-testid={`card-driver-sp-order-${o.id}`}>
+              <CardContent className="p-4 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Cog className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">#{o.id}</span>
+                  <span className="text-sm text-muted-foreground inline-flex items-center gap-0.5">
+                    {o.totalActual ? formatPrice(o.totalActual) : formatPrice(o.totalEstimated || 0)} <SarIcon className="w-3 h-3 inline-block" />
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {o.receiptImageUrl && <ImageIcon className="w-4 h-4 text-muted-foreground" />}
+                  <StatusBadge status={o.status} />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 

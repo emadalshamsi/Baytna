@@ -41,7 +41,13 @@ The application is built with a modern web stack:
   - Export: Downloads ZIP with Excel + all product images from Cloudinary.
   - SSRF protection, zip bomb mitigation, timeout/size limits.
 - **Spare Parts Orders**: Cart-based ordering with buyer assignment (myself or driver), integrated into dashboard stats.
-- **Startup Migrations**: Auto-adds missing columns (item_code, unit_ar, unit_en, assigned_to) on server start.
+  - Full shopping workflow: pending → approved → in_progress → completed, mirroring grocery orders.
+  - Per-item actual price tracking, purchase checkboxes, receipt upload, total actual calculation.
+  - Orders appear on assigned driver's dashboard; admin sees all spare part orders.
+  - `totalActual`, `receiptImageUrl` on `spare_part_orders`; `actualPrice`, `isPurchased` on `spare_part_order_items`.
+- **Monthly Budget**: Admin-configurable monthly budget in settings, with dashboard comparison card showing budget vs actual spending, remaining/over-budget amount, and progress bar with color-coded thresholds.
+  - Uses `app_settings` table for key-value storage (extensible for future settings).
+- **Startup Migrations**: Auto-adds missing columns (item_code, unit_ar, unit_en, assigned_to, total_actual, receipt_image_url, actual_price, is_purchased) and creates `app_settings` table on server start.
 
 ## External Dependencies
 - **Cloudinary**: For image storage, optimization, and delivery.

@@ -307,6 +307,8 @@ export const sparePartOrders = pgTable("spare_part_orders", {
   assignedTo: varchar("assigned_to").references(() => users.id),
   notes: text("notes"),
   totalEstimated: real("total_estimated").default(0),
+  totalActual: real("total_actual").default(0),
+  receiptImageUrl: varchar("receipt_image_url", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -316,12 +318,20 @@ export const sparePartOrderItems = pgTable("spare_part_order_items", {
   sparePartId: integer("spare_part_id").notNull().references(() => spareParts.id),
   quantity: integer("quantity").notNull().default(1),
   price: real("price").default(0),
+  actualPrice: real("actual_price"),
+  isPurchased: boolean("is_purchased").notNull().default(false),
 });
 
 export const insertSparePartCategorySchema = createInsertSchema(sparePartCategories).omit({ id: true });
 export const insertSparePartSchema = createInsertSchema(spareParts).omit({ id: true, createdAt: true });
 export const insertSparePartOrderSchema = createInsertSchema(sparePartOrders).omit({ id: true, createdAt: true });
 export const insertSparePartOrderItemSchema = createInsertSchema(sparePartOrderItems).omit({ id: true });
+
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 export const registerSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),

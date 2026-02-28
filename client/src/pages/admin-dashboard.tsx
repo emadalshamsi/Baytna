@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock, Cog } from "lucide-react";
+import { ClipboardList, ShoppingCart, Check, BarChart3, ChevronDown, ChevronUp, ExternalLink, User, MapPin, Clock, Cog, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import { t, formatPrice, displayName, formatDate, formatDateTime } from "@/lib/i18n";
 import { SarIcon } from "@/components/sar-icon";
 import { useLang } from "@/App";
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   useLang();
   const [activeFilter, setActiveFilter] = useState<StatFilter>(null);
 
-  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; pendingSparePartOrders: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSparePartOrders: number; totalSpent: number; sparePartsSpent: number; weekStart: string; weekEnd: string }>({
+  const { data: stats, isLoading: statsLoading } = useQuery<{ pending: number; pendingOrders: number; pendingTrips: number; pendingSparePartOrders: number; approved: number; inProgress: number; completed: number; total: number; totalOrders: number; totalTrips: number; totalSparePartOrders: number; totalSpent: number; sparePartsSpent: number; monthlyBudget: number | null; weekStart: string; weekEnd: string }>({
     queryKey: ["/api/stats"],
   });
 
@@ -119,6 +119,59 @@ export default function AdminDashboard() {
             );
           })}
         </div>
+      )}
+
+      {stats?.monthlyBudget != null && stats.monthlyBudget > 0 && (
+        <Card data-testid="card-budget-comparison">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-medium text-sm flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" />
+                {t("stats.monthlyBudget")}
+              </h3>
+              <span className="text-xs text-muted-foreground">{t("stats.thisMonth")}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-[10px] text-muted-foreground mb-0.5">{t("stats.budget")}</div>
+                <div className="text-sm font-bold inline-flex items-center gap-0.5">{formatPrice(stats.monthlyBudget)} <SarIcon className="w-2.5 h-2.5" /></div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground mb-0.5">{t("stats.actual")}</div>
+                <div className="text-sm font-bold inline-flex items-center gap-0.5">{formatPrice(stats.totalSpent)} <SarIcon className="w-2.5 h-2.5" /></div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground mb-0.5">{stats.totalSpent > stats.monthlyBudget ? t("stats.overBudget") : t("stats.remaining")}</div>
+                <div className={`text-sm font-bold inline-flex items-center gap-0.5 ${stats.totalSpent > stats.monthlyBudget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                  {stats.totalSpent > stats.monthlyBudget ? (
+                    <><TrendingUp className="w-3 h-3" /> {formatPrice(stats.totalSpent - stats.monthlyBudget)}</>
+                  ) : (
+                    <><TrendingDown className="w-3 h-3" /> {formatPrice(stats.monthlyBudget - stats.totalSpent)}</>
+                  )}
+                  <SarIcon className="w-2.5 h-2.5" />
+                </div>
+              </div>
+            </div>
+            {(() => {
+              const pct = Math.min(Math.round((stats.totalSpent / stats.monthlyBudget) * 100), 100);
+              const overPct = stats.totalSpent > stats.monthlyBudget ? Math.round(((stats.totalSpent - stats.monthlyBudget) / stats.monthlyBudget) * 100) : 0;
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>{t("stats.budgetUsed")}</span>
+                    <span>{pct + overPct}%</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${stats.totalSpent > stats.monthlyBudget ? "bg-red-500" : pct > 80 ? "bg-amber-500" : "bg-green-500"}`}
+                      style={{ width: `${Math.min(pct + overPct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
       )}
 
       {activeFilter && totalFilteredCount > 0 && (

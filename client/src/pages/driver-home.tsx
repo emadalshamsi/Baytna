@@ -280,7 +280,12 @@ export default function DriverHomePage() {
     return getDateStr(orderDate) === dateStr;
   });
 
-  const daySpOrders = sparePartOrders.filter(o => {
+  const mySparePartOrders = sparePartOrders.filter(o => {
+    if (!user) return false;
+    return o.assignedTo === user.id || o.createdBy === user.id;
+  });
+
+  const daySpOrders = mySparePartOrders.filter(o => {
     if (!["approved", "in_progress", "completed"].includes(o.status)) return false;
     if (!o.createdAt) return false;
     const orderDate = new Date(o.createdAt);

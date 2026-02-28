@@ -5,15 +5,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil, DoorOpen, Paperclip } from "lucide-react";
+import { LogOut, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Users, Camera, Lock, Bell, Eye, EyeOff, ZoomIn, ZoomOut, RotateCw, GripVertical, Pencil, DoorOpen, Paperclip, Wallet } from "lucide-react";
 import { ROOM_ICON_OPTIONS, getRoomIcon } from "@/lib/room-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { t, getLang, displayName, imgUrl } from "@/lib/i18n";
+import { t, getLang, displayName, imgUrl, formatPrice } from "@/lib/i18n";
 import { useLang } from "@/App";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { SarIcon } from "@/components/sar-icon";
 import { Input } from "@/components/ui/input";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
@@ -837,6 +838,81 @@ function NotificationToggle() {
   );
 }
 
+function BudgetSetting() {
+  useLang();
+  const { toast } = useToast();
+  const { data: budgetData } = useQuery<{ key: string; value: string | null }>({
+    queryKey: ["/api/settings", "monthly_budget"],
+  });
+  const [budgetValue, setBudgetValue] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (budgetData?.value) {
+      setBudgetValue(budgetData.value);
+    }
+  }, [budgetData?.value]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PUT", "/api/settings/monthly_budget", { value: budgetValue });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings", "monthly_budget"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({ title: t("stats.budgetSaved") });
+      setEditing(false);
+    },
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-medium text-sm flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-primary" />
+            {t("stats.monthlyBudget")}
+          </h3>
+          {budgetData?.value && !editing && (
+            <div className="flex items-center gap-1 text-sm font-semibold">
+              {formatPrice(parseFloat(budgetData.value))} <SarIcon className="w-3 h-3" />
+            </div>
+          )}
+        </div>
+        {editing || !budgetData?.value ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              placeholder={t("stats.monthlyBudget")}
+              value={budgetValue}
+              onChange={(e) => setBudgetValue(e.target.value)}
+              className="flex-1"
+              data-testid="input-monthly-budget"
+            />
+            <Button
+              size="sm"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !budgetValue}
+              data-testid="button-save-budget"
+            >
+              {t("actions.save")}
+            </Button>
+            {budgetData?.value && (
+              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBudgetValue(budgetData.value || ""); }} data-testid="button-cancel-budget">
+                {t("actions.cancel")}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="w-full" onClick={() => setEditing(true)} data-testid="button-edit-budget">
+            {t("actions.edit")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   useLang();
   const { user, logout } = useAuth();
@@ -897,6 +973,16 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </CollapsibleSection>
+
+      {user.role === "admin" && (
+        <CollapsibleSection
+          title={t("stats.monthlyBudget")}
+          icon={<Wallet className="w-5 h-5" />}
+          testId="section-budget"
+        >
+          <BudgetSetting />
+        </CollapsibleSection>
+      )}
 
       {(user.role === "admin" || user.canApprove) && (
         <div className="space-y-2">

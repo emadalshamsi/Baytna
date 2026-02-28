@@ -28,6 +28,27 @@ async function runMigrations() {
       await pool.query("ALTER TABLE spare_part_orders ADD COLUMN assigned_to VARCHAR REFERENCES users(id)");
       console.log("[Migration] Added assigned_to column to spare_part_orders");
     }
+    if (!spExistingCols.has("total_actual")) {
+      await pool.query("ALTER TABLE spare_part_orders ADD COLUMN total_actual REAL DEFAULT 0");
+      console.log("[Migration] Added total_actual column to spare_part_orders");
+    }
+    if (!spExistingCols.has("receipt_image_url")) {
+      await pool.query("ALTER TABLE spare_part_orders ADD COLUMN receipt_image_url VARCHAR(500)");
+      console.log("[Migration] Added receipt_image_url column to spare_part_orders");
+    }
+
+    const spoiCols = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name='spare_part_order_items'"
+    );
+    const spoiExisting = new Set(spoiCols.rows.map((r: any) => r.column_name));
+    if (!spoiExisting.has("actual_price")) {
+      await pool.query("ALTER TABLE spare_part_order_items ADD COLUMN actual_price REAL");
+      console.log("[Migration] Added actual_price column to spare_part_order_items");
+    }
+    if (!spoiExisting.has("is_purchased")) {
+      await pool.query("ALTER TABLE spare_part_order_items ADD COLUMN is_purchased BOOLEAN NOT NULL DEFAULT false");
+      console.log("[Migration] Added is_purchased column to spare_part_order_items");
+    }
 
     if (!existingCols.has("item_code")) {
       await pool.query("ALTER TABLE products ADD COLUMN item_code VARCHAR(20)");
@@ -42,6 +63,19 @@ async function runMigrations() {
         await pool.query("ALTER TABLE products ADD CONSTRAINT products_item_code_unique UNIQUE (item_code)");
       } catch {}
       console.log("[Migration] Added item_code column to products");
+    }
+    const settingsTable = await pool.query(
+      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'app_settings')"
+    );
+    if (!settingsTable.rows[0].exists) {
+      await pool.query(`
+        CREATE TABLE app_settings (
+          key VARCHAR(100) PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      console.log("[Migration] Created app_settings table");
     }
   } catch (e: any) {
     console.error("[Migration] Error:", e.message);

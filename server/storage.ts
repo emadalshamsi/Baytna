@@ -30,6 +30,7 @@ import {
   type SparePartOrder, type InsertSparePartOrder,
   type SparePartOrderItem, type InsertSparePartOrderItem,
   maidCalls, driverCalls, sparePartCategories, spareParts,
+  appSettings,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -196,8 +197,13 @@ export interface IStorage {
   getSparePartOrders(): Promise<SparePartOrder[]>;
   createSparePartOrder(order: InsertSparePartOrder): Promise<SparePartOrder>;
   updateSparePartOrderStatus(id: number, status: string, approvedBy?: string): Promise<SparePartOrder | undefined>;
+  updateSparePartOrderActual(id: number, totalActual: number, receiptImageUrl?: string): Promise<SparePartOrder | undefined>;
+  updateSparePartOrderItem(id: number, data: { actualPrice?: number; isPurchased?: boolean }): Promise<SparePartOrderItem | undefined>;
   getSparePartOrderItems(orderId: number): Promise<SparePartOrderItem[]>;
   createSparePartOrderItem(item: InsertSparePartOrderItem): Promise<SparePartOrderItem>;
+
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1036,6 +1042,28 @@ export class DatabaseStorage implements IStorage {
   async createSparePartOrderItem(item: InsertSparePartOrderItem): Promise<SparePartOrderItem> {
     const [created] = await db.insert(sparePartOrderItems).values(item).returning();
     return created;
+  }
+
+  async updateSparePartOrderActual(id: number, totalActual: number, receiptImageUrl?: string): Promise<SparePartOrder | undefined> {
+    const data: any = { totalActual };
+    if (receiptImageUrl !== undefined) data.receiptImageUrl = receiptImageUrl;
+    const [updated] = await db.update(sparePartOrders).set(data).where(eq(sparePartOrders.id, id)).returning();
+    return updated;
+  }
+
+  async updateSparePartOrderItem(id: number, data: { actualPrice?: number; isPurchased?: boolean }): Promise<SparePartOrderItem | undefined> {
+    const [updated] = await db.update(sparePartOrderItems).set(data).where(eq(sparePartOrderItems.id, id)).returning();
+    return updated;
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+    return row?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await db.insert(appSettings).values({ key, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   }
 
 }
